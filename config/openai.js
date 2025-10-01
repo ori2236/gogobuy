@@ -15,7 +15,7 @@ const client = new OpenAI({
 async function chat({
   message,
   history = [],
-  systemPrompt = classifierSystemPrompt,
+  systemPrompt,
 }) {
   const messages = [
     { role: "system", content: systemPrompt },
@@ -27,7 +27,6 @@ async function chat({
     model: deployment,
     messages,
   });
-
   return r.choices?.[0]?.message?.content?.trim() || "לא התקבלה תשובה מהמודל.";
 }
 

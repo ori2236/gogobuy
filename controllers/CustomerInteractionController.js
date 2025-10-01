@@ -1,22 +1,12 @@
 const db = require("../config/db");
 const { chat } = require("../config/openai");
+const { searchProducts } = require("../categoryHandlers/ORD-CREATE");
+const { getPromptFromDB } = require("../repositories/prompt");
 
-const DEFAULT_PROMPT_CAT = "'defaultSystemPrompt'";
+const DEFAULT_PROMPT_CAT = "defaultSystemPrompt";
 const DEFAULT_PROMPT_SUB = "defaultSystemPrompt";
 const CLASSIFIER_PROMPT_CAT = "initial";
 const CLASSIFIER_PROMPT_SUB = "initial-classification";
-
-async function getPromptFromDB(category, subCategory) {
-  const [rows] = await db.query(
-    `SELECT prompt
-       FROM prompt
-      WHERE category = ? AND sub_category = ?
-      ORDER BY id DESC
-      LIMIT 1`,
-    [category, subCategory]
-  );
-  return rows?.[0]?.prompt || null;
-}
 
 async function ensureCustomer(shop_id, phone) {
   const [rows] = await db.query(
@@ -90,36 +80,61 @@ function parseModelMessage(raw) {
   }
   if (parts[0] === "1") {
     const category = parts[1] || "";
-    const subcategory = parts[2] || "";
+    const subRaw = (parts[2] || "").trim();
+    const subcategory = subRaw.split(".").pop().trim();
     return { type: "classified", category, subcategory };
   }
   return { type: "raw", text: raw };
 }
 
+function normalizeOutboundMessage(payload) {
+  if (!payload) return "";
+  if (typeof payload === "string") return payload.trim();
+
+  if (payload && typeof payload.reply === "string") {
+    return payload.reply.trim();
+  }
+  if (payload && typeof payload.message === "string") {
+    return payload.message.trim();
+  }
+  if (payload && payload.message && typeof payload.message.reply === "string") {
+    return payload.message.reply.trim();
+  }
+
+  try {
+    return JSON.stringify(payload);
+  } catch {
+    return String(payload);
+  }
+}
+
 module.exports = {
-  async processMessage(message, phone_number, shop_id = 1) {
+  async processMessage(message, phone_number, shop_id) {
     const customer_id = await ensureCustomer(shop_id, phone_number);
     const lastStatus = await getLastChatStatus(customer_id, shop_id);
 
     let systemPrompt;
     let history = [];
     if (!lastStatus || lastStatus === "close") {
-      systemPrompt =
-        (await getPromptFromDB(CLASSIFIER_PROMPT_CAT, CLASSIFIER_PROMPT_SUB)) ||
-        classifierSystemPrompt;
+      systemPrompt = await getPromptFromDB(
+        CLASSIFIER_PROMPT_CAT,
+        CLASSIFIER_PROMPT_SUB
+      );
     } else if (lastStatus === "unclassified") {
-      systemPrompt =
-        (await getPromptFromDB(CLASSIFIER_PROMPT_CAT, CLASSIFIER_PROMPT_SUB)) ||
-        classifierSystemPrompt;
+      systemPrompt = await getPromptFromDB(
+        CLASSIFIER_PROMPT_CAT,
+        CLASSIFIER_PROMPT_SUB
+      );
       history = await getUnclassifiedHistory(customer_id, shop_id);
     } else {
-      systemPrompt =
-        (await getPromptFromDB(DEFAULT_PROMPT_CAT, DEFAULT_PROMPT_SUB)) ||
-        defaultSystemPrompt;
+      //temporary, need handle cases here
+      systemPrompt = await getPromptFromDB(
+        DEFAULT_PROMPT_CAT,
+        DEFAULT_PROMPT_SUB
+      );
     }
 
     const answer = await chat({ message, history, systemPrompt });
-
     const replyText =
       typeof answer === "string"
         ? answer
@@ -161,6 +176,20 @@ module.exports = {
         message,
       });
 
+      if (category == "ORD") {
+        if (subcategory == "CREATE") {
+          const resp = await searchProducts({ message, customer_id, shop_id });
+          const botText = normalizeOutboundMessage(resp);
+          await saveChat({
+            customer_id,
+            shop_id,
+            sender: "bot",
+            status: "classified",
+            message: botText,
+          });
+          return resp;
+        }
+      }
       //temporary until the case is handled
       await saveChat({
         customer_id,
@@ -205,7 +234,10 @@ module.exports = {
         phone_number,
         shop_id
       );
-      res.json({ success: true, message: responseMessage });
+
+      const messageText = normalizeOutboundMessage(responseMessage);
+      res.json({ success: true, message: messageText });
+
     } catch (error) {
       console.error(error);
       next(error);
