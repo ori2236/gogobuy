@@ -1,6 +1,7 @@
 const { chat } = require("../config/openai");
 const db = require("../config/db");
-const { getPromptFromDB } = require("../repositories//prompt");
+const { getPromptFromDB } = require("../repositories/prompt");
+const { createOrderWithStockReserve } = require("../utilities/orders");
 
 const PROMPT_CAT = "ORD";
 const PROMPT_SUB = "CREATE";
@@ -92,7 +93,7 @@ function isEnglishSummary(summaryLine) {
   const hasLatin = /[A-Za-z]/.test(summaryLine);
   const hasHebrew = /[\u0590-\u05FF]/.test(summaryLine);
   if (hasLatin && !hasHebrew) return true;
-  
+
   if (
     summaryLine.startsWith("Great—here’s") ||
     summaryLine.startsWith("To complete your order")
@@ -304,7 +305,6 @@ function pickAltTemplate(isEnglish, idx) {
   return arr[idx % arr.length];
 }
 
-
 async function buildAlternativeQuestions(
   shop_id,
   notFound,
@@ -373,9 +373,19 @@ function buildCustomerReply(answer) {
       if (!displayName) continue;
 
       const n = Number(p?.amount);
-      const qty = Number.isFinite(n) ? n : 1; // המודל כבר שם 1 כשלא ברור — כאן כגיבוי
+      const qty = Number.isFinite(n) ? n : 1;
       const qtyText = ` × ${qty}`;
-      lines.push(`• ${displayName}${qtyText}`);
+      const unit = Number(p?.price);
+      if (qty === 1) {
+        lines.push(`• ${displayName} - ₪${unit.toFixed(2)}`);
+      } else {
+        const lineTotal = Number((unit * qty).toFixed(2));
+        lines.push(
+          `• ${displayName} × ${qty} - ₪${lineTotal.toFixed(
+            2
+          )} (₪${unit.toFixed(2)} ליח')`
+        );
+      }
     }
   }
 
@@ -403,7 +413,7 @@ module.exports = {
 
     const history = await getUnclassifiedHistory(customer_id, shop_id);
     const systemPrompt = await getPromptFromDB(PROMPT_CAT, PROMPT_SUB);
-    
+
     const answer = await chat({ message, history, systemPrompt });
     console.log("[model answer]", answer);
 
@@ -423,14 +433,27 @@ module.exports = {
     if (!reqProducts.length) {
       const normalizedQs = normalizeIncomingQuestions(parsed?.questions);
       const curated = { ...parsed, questions: normalizedQs };
+
+      const emptyOrder = await createOrderWithStockReserve({
+        shop_id,
+        customer_id,
+        lineItems: [], //empty
+        status: "pending",
+        payment_method: "other",
+        delivery_address: null,
+      });
+
       const { reply } = buildCustomerReply(curated);
-      return {
-        reply,
-        raw: parsed,
-        lineItems: [],
-        notFoundProducts: [],
-        alternativesMap: {},
-      };
+      const headerLines = [];
+      if (emptyOrder?.order_id)
+        headerLines.push(`מספר הזמנה: #${emptyOrder.order_id}`);
+      headerLines.push("הזמנה נפתחה ללא פריטים בשלב זה.");
+      headerLines.push(
+        `סה״כ ביניים: ₪${(emptyOrder.totalPrice ?? 0).toFixed(2)}`
+      );
+
+      const finalMessage = [...headerLines, "", reply].join("\n");
+      return finalMessage;
     }
 
     const { found, notFound, indicesFound } = await splitFoundNotFound(
@@ -448,10 +471,6 @@ module.exports = {
       isEnglish
     );
 
-    const filteredProductsForDisplay = reqProducts.filter((_, idx) =>
-      indicesFound.has(idx)
-    );
-
     const notFoundNameSet = new Set(
       notFound
         .map((nf) =>
@@ -466,32 +485,109 @@ module.exports = {
       return !nm || !notFoundNameSet.has(nm);
     });
 
-    const combinedQuestions = [...filteredModelQuestions, ...altQuestions];
+    const orderInputLineItems = found.map((f) => ({
+      product_id: f.product_id,
+      amount: f.requested_amount,
+      requested_name: f.requested_name || null,
+    }));
+
+    const orderRes = await createOrderWithStockReserve({
+      shop_id,
+      customer_id,
+      lineItems: orderInputLineItems,
+      status: "pending",
+      payment_method: "other",
+      delivery_address: null,
+    });
+
+    // questions about the stock
+    const stockAltQuestions = [];
+    if (Array.isArray(orderRes.insufficient) && orderRes.insufficient.length) {
+      for (const miss of orderRes.insufficient) {
+        const reqName = miss.requested_name || miss.matched_name || null;
+        const altNames = (miss.alternatives || []).map((a) => a.name);
+        if (isEnglish) {
+          stockAltQuestions.push({
+            name: reqName,
+            question:
+              altNames.length > 0
+                ? `${reqName ?? "The item"} is short on stock (requested ${
+                    miss.requested_amount
+                  }, available ${miss.in_stock}). Would ${altNames.join(
+                    " / "
+                  )} work instead?`
+                : `${reqName ?? "The item"} is short on stock (requested ${
+                    miss.requested_amount
+                  }, available ${
+                    miss.in_stock
+                  }). Would you like a replacement or should I skip it?`,
+          });
+        } else {
+          stockAltQuestions.push({
+            name: reqName,
+            question:
+              altNames.length > 0
+                ? `${reqName ?? "המוצר"} חסר במלאי (התבקשה כמות ${
+                    miss.requested_amount
+                  }, זמינות ${miss.in_stock}). האם יתאים ${altNames.join(
+                    " / "
+                  )} במקום?`
+                : `${reqName ?? "המוצר"} חסר במלאי (התבקשה כמות ${
+                    miss.requested_amount
+                  }, זמינות ${miss.in_stock}). להציע חלופה או לדלג?`,
+          });
+        }
+      }
+    }
+
+    const combinedQuestions = [
+      ...filteredModelQuestions,
+      ...altQuestions,
+      ...stockAltQuestions,
+    ];
+
+    const productsForDisplay = (orderRes.items || []).map((it) => ({
+      name: it.name,
+      amount: it.amount,
+      outputName: it.name,
+      price: Number(it.price)
+    }));
 
     const curatedAnswer = {
       ...parsed,
-      products: filteredProductsForDisplay,
+      products: productsForDisplay,
       questions: combinedQuestions,
     };
     const { reply } = buildCustomerReply(curatedAnswer);
 
-    const lineItems = found.map((f) => ({
-      product_id: f.product_id,
-      amount: f.requested_amount,
-      requested_name: f.requested_name,
-      matched_name: f.matched_name,
-      category: f.category,
-      sub_category: f.sub_category,
-      price: f.price,
-      stock_amount: f.stock_amount,
-    }));
+    const headerLines = [];
+    if (orderRes?.order_id)
+      headerLines.push(`מספר הזמנה: #${orderRes.order_id}`);
+    headerLines.push(`סה״כ ביניים: ₪${(orderRes.totalPrice ?? 0).toFixed(2)}`);
 
-    const notFoundProducts = notFound;
+    const finalMessage = [...headerLines, "", reply].join("\n");
 
-    console.log("lineItems", lineItems);
-    console.log("notFoundProducts", notFoundProducts);
-    console.log("alternativesMap", alternativesMap);
-
-    return reply;
+    console.log("[ORD-CREATE] Order created/reserved:", {
+      order_id: orderRes?.order_id,
+      total: orderRes?.totalPrice,
+      itemsCount: (orderRes?.items || []).length,
+    });
+    console.log(
+      "[ORD-CREATE] Items actually added to order:",
+      JSON.stringify(orderRes.items || [], null, 2)
+    );
+    console.log(
+      "[ORD-CREATE] Not found (no product matched):",
+      JSON.stringify(notFound, null, 2)
+    );
+    console.log(
+      "[ORD-CREATE] Alternatives for NOT-FOUND items (alternativesMap):",
+      JSON.stringify(alternativesMap, null, 2)
+    );
+    console.log(
+      "[ORD-CREATE] Insufficient items (with STOCK alternatives):",
+      JSON.stringify(orderRes.insufficient || [], null, 2)
+    );
+    return finalMessage;
   },
 };
