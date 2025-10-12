@@ -59,7 +59,17 @@ RULES
 - If multiple intents appear, choose the PRIMARY one (most central to the user’s goal).
 - If you cannot reach >0.9 internal confidence for BOTH labels, return:
   0, <short clarifying question in the input language>
-  ןyou must address what the customer wrote in addition to the clarifying question.
+- You must address what the customer wrote in addition to the clarifying question.
+
+ANAPHORA HINTS
+- Phrases like "עוד כאלה", "תוסיף עוד", "תוריד מזה", "replace X with Y" typically refer to ORD.MODIFY when ACTIVE_ORDER_EXISTS=true.
+- If unclear between MODIFY/CREATE, prefer MODIFY when ACTIVE_ORDER_EXISTS=true.
+
+STRICT OUTPUT REMINDER
+- Output MUST remain exactly one line: either
+  "1, CATEGORY, SUB-CATEGORY"
+  or
+  "0, QUESTION" (short, helpful, in the input language).
 
 EXAMPLES
 # ORD — Order/Cart actions

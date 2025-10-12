@@ -1,6 +1,7 @@
 const db = require("../config/db");
 const { chat } = require("../config/openai");
-const { searchProducts } = require("../categoryHandlers/ORD-CREATE");
+const { orderProducts } = require("../categoryHandlers/ORD/CREATE");
+const { modifyOrder } = require("../categoryHandlers/ORD/MODIFY");
 const { getPromptFromDB } = require("../repositories/prompt");
 
 const DEFAULT_PROMPT_CAT = "defaultSystemPrompt";
@@ -35,7 +36,7 @@ async function getLastChatStatus(customer_id, shop_id) {
   return rows?.[0]?.status || null;
 }
 
-async function getUnclassifiedHistory(customer_id, shop_id) {
+async function getHistory(customer_id, shop_id, statusToStop) {
   const [rows] = await db.query(
     `SELECT sender, status, message
        FROM chat
@@ -47,12 +48,12 @@ async function getUnclassifiedHistory(customer_id, shop_id) {
 
   const chunk = [];
   for (const r of rows) {
-    if (r.status !== "unclassified") break;
+    if (r.status === statusToStop) break;
     chunk.push(r);
   }
   chunk.reverse();
 
-  const history = [];
+  let history = [];
   for (const r of chunk) {
     const content = (r.message || "").trim();
     if (!content) continue;
@@ -108,30 +109,95 @@ function normalizeOutboundMessage(payload) {
   }
 }
 
+async function getActiveOrder(customer_id, shop_id) {
+  const [rows] = await db.query(
+    `SELECT *
+       FROM orders
+      WHERE customer_id = ? AND shop_id = ?
+      ORDER BY updated_at DESC, id DESC
+      LIMIT 1`,
+    [customer_id, shop_id]
+  );
+  return rows[0] || null;
+}
+
+async function getOrderItems(order_id) {
+  const [rows] = await db.query(
+    `SELECT oi.*, p.name, p.category, p.sub_category AS 'sub-category'
+       FROM order_item oi
+       LEFT JOIN product p ON p.id = oi.product_id
+      WHERE oi.order_id = ?`,
+    [order_id]
+  );
+  return rows;
+}
+
+function buildActiveOrderSignals(order, items) {
+  if (!order) {
+    return {
+      ACTIVE_ORDER_EXISTS: false,
+      ACTIVE_ORDER_SUMMARY: "none",
+    };
+  }
+  const examples = (items || [])
+    .slice(0, 3)
+    .map((i) => `${i.name} ×${(+i.amount).toString().replace(/\.0+$/, "")}`);
+  return {
+    ACTIVE_ORDER_EXISTS: true,
+    ACTIVE_ORDER_SUMMARY: `order_id=${order.id}; items=${
+      items.length
+    }; examples=[${examples.join(", ")}]`,
+  };
+}
+
+function oneLine(str) {
+  return String(str || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 800);
+}
+
+function buildClassifierContextHeader({ sig }) {
+  return [
+    "CONTEXT SIGNALS",
+    `- ACTIVE_ORDER_EXISTS = ${sig.ACTIVE_ORDER_EXISTS}`,
+    `- ACTIVE_ORDER_SUMMARY = ${oneLine(sig.ACTIVE_ORDER_SUMMARY)}`,
+
+    "",
+    "CLASSIFICATION BIAS",
+    "- If ACTIVE_ORDER_EXISTS=true and the message indicates add/remove/change quantity/replace → classify as: 1, ORD, ORD.MODIFY.",
+    '- If ACTIVE_ORDER_EXISTS=true but the user explicitly says "new order"/"start a new cart"/"סל חדש" → classify as: 1, ORD, ORD.CREATE.',
+    "- If ACTIVE_ORDER_EXISTS=false and the message is about adding items → classify as: 1, ORD, ORD.CREATE.",
+    '- "what\'s in my cart"/"מה יש בסל" → 1, ORD, ORD.REVIEW.',
+    '- "finish/pay"/"לתשלום"/"סיימתי" → 1, ORD, ORD.CHECKOUT.',
+    '- "cancel the order"/"בטל הזמנה" → 1, ORD, ORD.CANCEL.',
+    "",
+  ].join("\n");
+}
+
 module.exports = {
   async processMessage(message, phone_number, shop_id) {
     const customer_id = await ensureCustomer(shop_id, phone_number);
     const lastStatus = await getLastChatStatus(customer_id, shop_id);
 
-    let systemPrompt;
+    const activeOrder = await getActiveOrder(customer_id, shop_id);
+    const order_id = activeOrder ? activeOrder.id : null;
+    const items = activeOrder ? await getOrderItems(activeOrder.id) : [];
+    const sig = buildActiveOrderSignals(activeOrder, items);
+
+    let systemPromptBase = await getPromptFromDB(
+      CLASSIFIER_PROMPT_CAT,
+      CLASSIFIER_PROMPT_SUB
+    );
+    const contextHeader = buildClassifierContextHeader({ sig });
+    const systemPrompt = `${systemPromptBase}${contextHeader}`;
+
     let history = [];
     if (!lastStatus || lastStatus === "close") {
-      systemPrompt = await getPromptFromDB(
-        CLASSIFIER_PROMPT_CAT,
-        CLASSIFIER_PROMPT_SUB
-      );
     } else if (lastStatus === "unclassified") {
-      systemPrompt = await getPromptFromDB(
-        CLASSIFIER_PROMPT_CAT,
-        CLASSIFIER_PROMPT_SUB
-      );
-      history = await getUnclassifiedHistory(customer_id, shop_id);
+      history = await getHistory(customer_id, shop_id, "unclassified");
     } else {
-      //temporary, need handle cases here
-      systemPrompt = await getPromptFromDB(
-        DEFAULT_PROMPT_CAT,
-        DEFAULT_PROMPT_SUB
-      );
+      history = await getHistory(customer_id, shop_id, "close");
     }
 
     const answer = await chat({ message, history, systemPrompt });
@@ -178,7 +244,26 @@ module.exports = {
 
       if (category == "ORD") {
         if (subcategory == "CREATE") {
-          const resp = await searchProducts({ message, customer_id, shop_id });
+          const resp = await orderProducts({ message, customer_id, shop_id });
+          const botText = normalizeOutboundMessage(resp);
+          await saveChat({
+            customer_id,
+            shop_id,
+            sender: "bot",
+            status: "classified",
+            message: botText,
+          });
+          return resp;
+        } else if (subcategory == "MODIFY") {
+          const resp = await modifyOrder({
+            message,
+            customer_id,
+            shop_id,
+            order_id,
+            activeOrder,
+            items,
+            history,
+          });
           const botText = normalizeOutboundMessage(resp);
           await saveChat({
             customer_id,
@@ -237,7 +322,6 @@ module.exports = {
 
       const messageText = normalizeOutboundMessage(responseMessage);
       res.json({ success: true, message: messageText });
-
     } catch (error) {
       console.error(error);
       next(error);

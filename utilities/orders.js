@@ -258,7 +258,7 @@ async function expireStalePendingOrders({ hours = 24, shop_id = null } = {}) {
 
     const params = [hours];
     let sql = `
-      SELECT id
+      SELECT id, shop_id
       FROM orders
       WHERE status = 'pending'
         AND TIMESTAMPDIFF(HOUR, GREATEST(created_at, updated_at), NOW()) >= ?`;
@@ -267,41 +267,63 @@ async function expireStalePendingOrders({ hours = 24, shop_id = null } = {}) {
       params.push(shop_id);
     }
 
-    const [orders] = await conn.query(sql, params);
+    const [orders] = await conn.query(sql + ` FOR UPDATE`, params);
+
     if (!orders.length) {
       await conn.commit();
       return { ok: true, expired: 0 };
     }
 
     for (const row of orders) {
-      const order_id = Number(row.id);
+      const orderId = Number(row.id);
+      const orderShopId = Number(row.shop_id);
+
+      const [[ord]] = await conn.query(
+        `SELECT id, shop_id, status
+           FROM orders
+          WHERE id = ? FOR UPDATE`,
+        [orderId]
+      );
+      if (!ord || ord.status !== "pending") {
+        continue;
+      }
 
       const [items] = await conn.query(
-        `SELECT product_id, amount FROM order_item WHERE order_id = ?`,
-        [order_id]
+        `SELECT product_id, amount
+           FROM order_item
+          WHERE order_id = ?
+          FOR UPDATE`,
+        [orderId]
       );
+
       if (items.length) {
         const ids = items.map((i) => Number(i.product_id));
         const placeholders = ids.map(() => "?").join(",");
-        //lock the products
+
         await conn.query(
-          `SELECT id FROM product WHERE id IN (${placeholders}) FOR UPDATE`,
-          ids
+          `SELECT id
+             FROM product
+            WHERE id IN (${placeholders}) AND shop_id = ?
+            FOR UPDATE`,
+          [...ids, orderShopId]
         );
-        //return the produts to stock
+
         for (const it of items) {
           await conn.query(
             `UPDATE product
-               SET stock_amount = stock_amount + ?
-             WHERE id = ?`,
-            [Number(it.amount), Number(it.product_id)]
+                SET stock_amount = COALESCE(stock_amount,0) + ?
+              WHERE id = ? AND shop_id = ?`,
+            [Number(it.amount), Number(it.product_id), orderShopId]
           );
         }
       }
 
-      //delete the order
-      await conn.query(`DELETE FROM order_item WHERE order_id = ?`, [order_id]);
-      await conn.query(`DELETE FROM orders WHERE id = ?`, [order_id]);
+      await conn.query(`DELETE FROM order_item WHERE order_id = ?`, [orderId]);
+
+      await conn.query(
+        `DELETE FROM orders WHERE id = ? AND status = 'pending'`,
+        [orderId]
+      );
     }
 
     await conn.commit();
@@ -314,7 +336,19 @@ async function expireStalePendingOrders({ hours = 24, shop_id = null } = {}) {
   }
 }
 
+
+async function getOrder(order_id) {
+  const [rows] = await db.query(
+    `SELECT *
+       FROM orders
+      WHERE id = ?`,
+    [order_id]
+  );
+  return rows[0] || null;
+}
+
 module.exports = {
   createOrderWithStockReserve,
   expireStalePendingOrders,
+  getOrder,
 };
