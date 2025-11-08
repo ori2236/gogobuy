@@ -3,6 +3,12 @@ const { chat } = require("../config/openai");
 const { orderProducts } = require("../categoryHandlers/ORD/CREATE");
 const { modifyOrder } = require("../categoryHandlers/ORD/MODIFY");
 const { getPromptFromDB } = require("../repositories/prompt");
+const {
+  fetchOpenQuestions,
+  fetchRecentClosedQuestions,
+  closeQuestionsByIds,
+  deleteQuestionsByIds,
+} = require("../utilities/openQuestions");
 
 const DEFAULT_PROMPT_CAT = "defaultSystemPrompt";
 const DEFAULT_PROMPT_SUB = "defaultSystemPrompt";
@@ -24,43 +30,29 @@ async function ensureCustomer(shop_id, phone) {
   return ins.insertId;
 }
 
-async function getLastChatStatus(customer_id, shop_id) {
+async function getHistory(customer_id, shop_id, maxMsgs = 7) {
   const [rows] = await db.query(
-    `SELECT status
+    `SELECT sender, status, message, created_at
        FROM chat
-      WHERE customer_id = ? AND shop_id = ?
+      WHERE customer_id = ? 
+        AND shop_id = ?
+        AND created_at >= (NOW() - INTERVAL 48 HOUR)
       ORDER BY created_at DESC, id DESC
-      LIMIT 1`,
-    [customer_id, shop_id]
-  );
-  return rows?.[0]?.status || null;
-}
-
-async function getHistory(customer_id, shop_id, statusToStop) {
-  const [rows] = await db.query(
-    `SELECT sender, status, message
-       FROM chat
-      WHERE customer_id = ? AND shop_id = ?
-      ORDER BY created_at DESC, id DESC
-      LIMIT 20`,
+      LIMIT 50`,
     [customer_id, shop_id]
   );
 
-  const chunk = [];
+  const pickedDesc = [];
   for (const r of rows) {
-    if (r.status === statusToStop) break;
-    chunk.push(r);
-  }
-  chunk.reverse();
-
-  let history = [];
-  for (const r of chunk) {
+    if (r.status === "close") break;
     const content = (r.message || "").trim();
     if (!content) continue;
-    if (r.sender === "customer") history.push({ role: "user", content });
-    else if (r.sender === "bot") history.push({ role: "assistant", content });
+    const role = r.sender === "customer" ? "user" : "assistant";
+    pickedDesc.push({ role, content });
+    if (pickedDesc.length >= maxMsgs) break;
   }
-  return history;
+
+  return pickedDesc.reverse();
 }
 
 async function saveChat({ customer_id, shop_id, sender, status, message }) {
@@ -175,31 +167,66 @@ function buildClassifierContextHeader({ sig }) {
   ].join("\n");
 }
 
+function buildOpenQuestionsContext({ openQs = [], closedQs = [] }) {
+  const toLite = (q) => ({
+    id: q.id,
+    order_id: q.order_id,
+    product_name: q.product_name,
+    question_text: q.question_text,
+    options: (() => {
+      try {
+        return q.option_set ? JSON.parse(q.option_set) : null;
+      } catch {
+        return null;
+      }
+    })(),
+    asked_at: q.asked_at,
+  });
+  const openLite = openQs.map(toLite);
+  const closedLite = closedQs.map(toLite);
+
+  return [
+    "OPEN QUESTIONS CONTEXT",
+    `- OPEN_QUESTIONS_COUNT = ${openLite.length}`,
+    `- CLOSED_QUESTIONS_RECENT_COUNT = ${closedLite.length}`,
+    "- OPEN_QUESTIONS (JSON, last 48h):",
+    JSON.stringify(openLite).slice(0, 3000),
+    "- CLOSED_QUESTIONS_RECENT (JSON, last 48h):",
+    JSON.stringify(closedLite).slice(0, 2000),
+    "",
+    "HINT",
+    "- With open questions, the next customer message is LIKELY an answer → bias towards ORD.MODIFY if it refers to items/alternatives/quantities.",
+    "",
+  ].join("\n");
+}
+
 module.exports = {
   async processMessage(message, phone_number, shop_id) {
     const customer_id = await ensureCustomer(shop_id, phone_number);
-    const lastStatus = await getLastChatStatus(customer_id, shop_id);
 
     const activeOrder = await getActiveOrder(customer_id, shop_id);
     const order_id = activeOrder ? activeOrder.id : null;
     const items = activeOrder ? await getOrderItems(activeOrder.id) : [];
     const sig = buildActiveOrderSignals(activeOrder, items);
+    const openQs = await fetchOpenQuestions(customer_id, shop_id, 7);
+    const closedQs = await fetchRecentClosedQuestions(customer_id, shop_id, 5);
 
     let systemPromptBase = await getPromptFromDB(
       CLASSIFIER_PROMPT_CAT,
       CLASSIFIER_PROMPT_SUB
     );
     const contextHeader = buildClassifierContextHeader({ sig });
-    const systemPrompt = `${systemPromptBase}${contextHeader}`;
+    const openQuestionsCtx = buildOpenQuestionsContext({ openQs, closedQs });
+    const systemPrompt = [
+      systemPromptBase,
+      "",
+      "=== STRUCTURED CONTEXT ===",
+      contextHeader,
+      openQuestionsCtx,
+    ].join("\n");
 
-    let history = [];
-    if (!lastStatus || lastStatus === "close") {
-    } else if (lastStatus === "unclassified") {
-      history = await getHistory(customer_id, shop_id, "unclassified");
-    } else {
-      history = await getHistory(customer_id, shop_id, "close");
-    }
-
+    let history = await getHistory(customer_id, shop_id, 7);
+    console.log("history:", history);
     const answer = await chat({ message, history, systemPrompt });
     const replyText =
       typeof answer === "string"
@@ -244,7 +271,14 @@ module.exports = {
 
       if (category == "ORD") {
         if (subcategory == "CREATE") {
-          const resp = await orderProducts({ message, customer_id, shop_id });
+          const resp = await orderProducts({
+            message,
+            customer_id,
+            shop_id,
+            history,
+            openQuestions: openQs,
+            recentClosed: closedQs,
+          });
           const botText = normalizeOutboundMessage(resp);
           await saveChat({
             customer_id,
@@ -263,6 +297,8 @@ module.exports = {
             activeOrder,
             items,
             history,
+            openQuestions: openQs,
+            recentClosed: closedQs,
           });
           const botText = normalizeOutboundMessage(resp);
           await saveChat({
@@ -283,7 +319,7 @@ module.exports = {
         status: "close",
         message: "",
       });
-      return "תודה";
+      return "כרגע יש לנו תמיכה רק ביצירת ועריכת הזמנות אבל זיהינו שהכוונה שלך היא לא אחת מאלו";
     } else {
       //if not classified and not clarify
       await saveChat({

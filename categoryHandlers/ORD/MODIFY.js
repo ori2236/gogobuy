@@ -14,6 +14,13 @@ const {
   buildQuestionsBlock,
 } = require("../../utilities/products");
 
+const {
+  saveOpenQuestions,
+  closeQuestionsByIds,
+  deleteQuestionsByIds,
+  buildOpenQuestionsContextForPrompt,
+} = require("../../utilities/openQuestions");
+
 const PROMPT_CAT = "ORD";
 const PROMPT_SUB = "MODIFY";
 
@@ -140,12 +147,13 @@ async function applyOrderModifications({
             alternatives: alts,
           });
 
+          const displayName = isEnglish ? name : name;
           stockQuestions.push({
             name,
             question: altNames.length
               ? isEnglish
-                ? `${name} is short on stock for the requested increase (requested +${delta}, available ${stock}). ${tpl(
-                    name,
+                ? `${displayName} is short on stock for the requested increase (requested +${delta}, available ${stock}). ${tpl(
+                    displayName,
                     altNames
                   )}`
                 : `${name} חסר במלאי להגדלה שביקשת (תוספת ${delta}, זמינות ${stock}). ${tpl(
@@ -153,8 +161,9 @@ async function applyOrderModifications({
                     altNames
                   )}`
               : isEnglish
-              ? `${name} is short on stock for the requested increase (requested +${delta}, available ${stock}). Would you like a replacement or should I keep the current quantity?`
+              ? `${displayName} is short on stock for the requested increase (requested +${delta}, available ${stock}). Would you like a replacement or should I keep the current quantity?`
               : `${name} חסר במלאי להגדלה שביקשת (תוספת ${delta}, זמינות ${stock}). להציע חלופה או להשאיר את הכמות הנוכחית?`,
+            options: altNames.length ? altNames : undefined,
           });
         }
       } else {
@@ -201,14 +210,18 @@ async function applyOrderModifications({
 
         const altNames = alts.map((a) => a.name);
         const tpl = pickAltTemplate(isEnglish, altTemplateIdx++);
+        const displayName = isEnglish && p?.outputName ? p.outputName : p.name;
 
         stockQuestions.push({
           name: p.name,
           question: altNames.length
-            ? tpl(p.name, altNames)
+            ? isEnglish
+              ? tpl(displayName, altNames)
+              : tpl(p.name, altNames)
             : isEnglish
-            ? `Couldn't find "${p.name}". Would you like a replacement or should I skip it?`
+            ? `Couldn't find "${displayName}". Would you like a replacement or should I skip it?`
             : `לא מצאתי "${p.name}". להציע חלופה או לדלג?`,
+          options: altNames.length ? altNames : undefined,
         });
 
         continue;
@@ -259,6 +272,8 @@ async function applyOrderModifications({
         });
         const altNames = alts.map((a) => a.name);
         const tpl = pickAltTemplate(isEnglish, altTemplateIdx++);
+        const displayName = isEnglish && p?.outputName ? p.outputName : p.name;
+
         stockQuestions.push({
           name: p.name,
           question: altNames.length
@@ -266,7 +281,7 @@ async function applyOrderModifications({
               ? `${
                   row.name
                 } is short on stock (requested ${need}, available ${stock}). ${tpl(
-                  p.name,
+                  displayName,
                   altNames
                 )}`
               : `${
@@ -278,12 +293,13 @@ async function applyOrderModifications({
             : isEnglish
             ? `${row.name} is short on stock (requested ${need}, available ${stock}). Would you like a replacement or should I skip it?`
             : `${row.name} חסר במלאי (התבקשה כמות ${need}, זמינות ${stock}). להציע חלופה או לדלג?`,
+          options: altNames.length ? altNames : undefined,
         });
       }
     }
 
     const [curItems] = await conn.query(
-      `SELECT oi.product_id, oi.amount, oi.price, p.name
+      `SELECT oi.product_id, oi.amount, p.price, p.name
          FROM order_item oi
          JOIN product p ON p.id = oi.product_id
         WHERE oi.order_id = ?`,
@@ -377,6 +393,8 @@ module.exports = {
     activeOrder = null,
     items = [],
     history,
+    openQuestions = [],
+    recentClosed = [],
   }) {
     if (!message || !customer_id || !shop_id) {
       throw new Error("modifyOrder: missing message/customer_id/shop_id");
@@ -385,8 +403,6 @@ module.exports = {
     if (!order) {
       return "כדי לערוך הזמנה צריך להיות סל פעיל. להתחיל הזמנה חדשה?";
     }
-
-    const systemPrompt = await getPromptFromDB(PROMPT_CAT, PROMPT_SUB);
 
     const orderItems =
       items ||
@@ -400,8 +416,16 @@ module.exports = {
         )
       )[0];
 
+    const basePrompt = await getPromptFromDB(PROMPT_CAT, PROMPT_SUB);
+    const openQsCtx = buildOpenQuestionsContextForPrompt(
+      openQuestions,
+      recentClosed
+    );
     const systemWithInputs = [
-      systemPrompt,
+      basePrompt,
+      "",
+      "=== STRUCTURED CONTEXT ===",
+      openQsCtx,
       "",
       `- ORDER: ${JSON.stringify(order)}`,
       `- ORDER_ITEMS: ${JSON.stringify(orderItems)}`,
@@ -421,12 +445,22 @@ module.exports = {
       return "מצטערים, לא הצלחתי להבין את הבקשה לעריכת ההזמנה. אפשר לנסח שוב בקצרה?";
     }
 
+    const qUpdates = parsed?.question_updates || {};
+    if (Array.isArray(qUpdates.close_ids) && qUpdates.close_ids.length) {
+      await closeQuestionsByIds(qUpdates.close_ids);
+    }
+    if (Array.isArray(qUpdates.delete_ids) && qUpdates.delete_ids.length) {
+      await deleteQuestionsByIds(qUpdates.delete_ids);
+    }
+
     const modelProducts = Array.isArray(parsed.products) ? parsed.products : [];
     const removedProducts = Array.isArray(parsed.removed_products)
       ? parsed.removed_products
       : [];
     let isEnglish = isEnglishSummary(parsed?.summary_line);
-    const modelQuestions = normalizeIncomingQuestions(parsed?.questions);
+    const modelQuestions = normalizeIncomingQuestions(parsed?.questions, {
+      preserveOptions: true,
+    });
 
     try {
       validateModelOutput(parsed);
@@ -439,7 +473,6 @@ module.exports = {
       const questionsBlock = buildQuestionsBlock({
         questions: modelQuestions,
         isEnglish,
-        mode: "modeify",
       });
       return [summaryLine, itemsBlock, headerBlock, questionsBlock]
         .filter(Boolean)
@@ -455,10 +488,33 @@ module.exports = {
         isEnglish,
       });
 
+      const outMap = new Map();
+      for (const p of modelProducts) {
+        if (p && typeof p.outputName === "string" && p.outputName.trim()) {
+          outMap.set(p.name, p.outputName.trim());
+        }
+      }
+
+      // הוסף outputName לפריטים שיוצאים להצגה
+      const itemsForView = txRes.items.map((it) => ({
+        ...it,
+        outputName: isEnglish ? outMap.get(it.name) || undefined : undefined,
+      }));
+
+      // ואז
+      const itemsBlock = buildItemsBlock({ items: itemsForView, isEnglish });
+
       const combinedQuestions = [
         ...modelQuestions,
         ...(Array.isArray(txRes.questions) ? txRes.questions : []),
       ];
+
+      await saveOpenQuestions({
+        customer_id,
+        shop_id,
+        order_id: order.id,
+        questions: combinedQuestions,
+      });
 
       const summaryLine =
         typeof parsed?.summary_line === "string" && parsed.summary_line.trim()
@@ -467,11 +523,16 @@ module.exports = {
           ? "Here is your updated order:"
           : "זוהי ההזמנה המעודכנת שלך:";
 
-      const itemsBlock = buildItemsBlock({ items: txRes.items, isEnglish });
-      const headerBlock = [
-        `מספר הזמנה: #${order.id}`,
-        `סה״כ ביניים: ₪${Number(txRes.total || 0).toFixed(2)}`,
-      ].join("\n");
+      const headerBlock = isEnglish
+        ? [
+            `Order #: #${order.id}`,
+            `Subtotal: ₪${Number(txRes.total || 0).toFixed(2)}`,
+          ].join("\n")
+        : [
+            `מספר הזמנה: #${order.id}`,
+            `סה״כ ביניים: ₪${Number(txRes.total || 0).toFixed(2)}`,
+          ].join("\n");
+
       const questionsBlock = buildQuestionsBlock({
         questions: combinedQuestions,
         isEnglish,

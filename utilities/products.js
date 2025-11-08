@@ -22,7 +22,6 @@ function safeParseJson(txt) {
   throw new Error("Not valid JSON");
 }
 
-
 function parseModelAnswer(answer) {
   if (!answer) throw new Error("Empty model answer");
 
@@ -62,22 +61,27 @@ function isEnglishSummary(summaryLine) {
   return false;
 }
 
-function normalizeIncomingQuestions(qs) {
+function normalizeIncomingQuestions(qs, { preserveOptions = false } = {}) {
   if (!Array.isArray(qs)) return [];
   const out = [];
   for (const q of qs) {
     if (!q) continue;
     if (typeof q === "string" && q.trim()) {
-      out.push({ name: null, question: q.trim() });
+      const base = { name: null, question: q.trim() };
+      out.push(base);
     } else if (
       typeof q === "object" &&
       typeof q.question === "string" &&
       q.question.trim()
     ) {
-      out.push({
+      const item = {
         name: typeof q.name === "string" ? q.name : null,
         question: q.question.trim(),
-      });
+      };
+      if (preserveOptions && Array.isArray(q.options)) {
+        item.options = q.options.map((s) => String(s).trim()).filter(Boolean);
+      }
+      out.push(item);
     }
   }
   return out;
@@ -257,7 +261,6 @@ const ALT_TEMPLATES_EN = [
 const pickAltTemplate = (isEnglish, idx) =>
   (isEnglish ? ALT_TEMPLATES_EN : ALT_TEMPLATES_HE)[idx % 4];
 
-
 async function buildAlternativeQuestions(
   shop_id,
   notFound,
@@ -296,6 +299,7 @@ async function buildAlternativeQuestions(
     altQuestions.push({
       name: nf.requested_name || null,
       question: questionText,
+      options: names,
     });
   }
 
@@ -319,14 +323,16 @@ function buildItemsBlock({ items, isEnglish, mode }) {
     const unit = Number(it.price);
     const name = it.outputName || it.name;
     if (!name) continue;
+
     if (qty === 1) {
       lines.push(`• ${name} - ₪${unit.toFixed(2)}`);
     } else {
       const lineTotal = Number((qty * unit).toFixed(2));
+      const eachSuffix = isEnglish ? "each" : "ליח'";
       lines.push(
         `• ${name} × ${qty} - ₪${lineTotal.toFixed(2)} (₪${unit.toFixed(
           2
-        )} ליח')`
+        )} ${eachSuffix})`
       );
     }
   }

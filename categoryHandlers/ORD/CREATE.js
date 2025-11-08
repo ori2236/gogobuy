@@ -11,50 +11,42 @@ const {
   buildItemsBlock,
   buildQuestionsBlock,
 } = require("../../utilities/products");
+const {
+  saveOpenQuestions,
+  closeQuestionsByIds,
+  deleteQuestionsByIds,
+  buildOpenQuestionsContextForPrompt,
+} = require("../../utilities/openQuestions");
 
 const PROMPT_CAT = "ORD";
 const PROMPT_SUB = "CREATE";
 
-async function getUnclassifiedHistory(customer_id, shop_id) {
-  let [rows] = await db.query(
-    `SELECT sender, status, message
-       FROM chat
-      WHERE customer_id = ? AND shop_id = ?
-      ORDER BY created_at DESC, id DESC
-      LIMIT 20`,
-    [customer_id, shop_id]
-  );
-
-  const chunk = [];
-  if (rows && rows.length && rows[0].status === "classified") {
-    rows = rows.slice(1);
-  }
-  for (const r of rows) {
-    if (r.status !== "unclassified") break;
-    chunk.push(r);
-  }
-  chunk.reverse();
-
-  const history = [];
-  for (const r of chunk) {
-    const content = (r.message || "").trim();
-    if (!content) continue;
-    if (r.sender === "customer") history.push({ role: "user", content });
-    else if (r.sender === "bot") history.push({ role: "assistant", content });
-  }
-  return history;
-}
-
 module.exports = {
-  async orderProducts({ message, customer_id, shop_id }) {
+  async orderProducts({
+    message,
+    customer_id,
+    shop_id,
+    history,
+    openQuestions = [],
+    recentClosed = [],
+  }) {
     if (typeof message !== "string" || !customer_id || !shop_id) {
       throw new Error(
         "orderProducts: missing or invalid message/customer_id/shop_id"
       );
     }
 
-    const history = await getUnclassifiedHistory(customer_id, shop_id);
-    const systemPrompt = await getPromptFromDB(PROMPT_CAT, PROMPT_SUB);
+    const basePrompt = await getPromptFromDB(PROMPT_CAT, PROMPT_SUB);
+    const openQsCtx = buildOpenQuestionsContextForPrompt(
+      openQuestions,
+      recentClosed
+    );
+    const systemPrompt = [
+      basePrompt,
+      "",
+      "=== STRUCTURED CONTEXT ===",
+      openQsCtx,
+    ].join("\n");
 
     const answer = await chat({ message, history, systemPrompt });
     console.log("[model answer]", answer);
@@ -71,11 +63,22 @@ module.exports = {
       };
     }
 
+    const qUpdates = parsed?.question_updates || {};
+    if (Array.isArray(qUpdates.close_ids) && qUpdates.close_ids.length) {
+      await closeQuestionsByIds(qUpdates.close_ids);
+    }
+    if (Array.isArray(qUpdates.delete_ids) && qUpdates.delete_ids.length) {
+      await deleteQuestionsByIds(qUpdates.delete_ids);
+    }
+
     const reqProducts = Array.isArray(parsed?.products) ? parsed.products : [];
     const isEnglish = isEnglishSummary(parsed?.summary_line);
-      
+
     if (!reqProducts.length) {
-      const normalizedQs = normalizeIncomingQuestions(parsed?.questions);
+      const normalizedQs = normalizeIncomingQuestions(parsed?.questions, {
+        preserveOptions: true,
+      });
+
       const curated = { ...parsed, questions: normalizedQs };
 
       const emptyOrder = await createOrderWithStockReserve({
@@ -94,18 +97,39 @@ module.exports = {
           ? "To complete your order, I need a few clarifications:"
           : "כדי להשלים את ההזמנה חסרות כמה הבהרות:";
 
-      const itemsBlock = "";
-      const headerBlock = [
-        emptyOrder?.order_id ? `מספר הזמנה: #${emptyOrder.order_id}` : null,
-        "הזמנה נפתחה ללא פריטים בשלב זה.",
-        `סה״כ ביניים: ₪${(emptyOrder.totalPrice ?? 0).toFixed(2)}`,
-      ]
-        .filter(Boolean)
-        .join("\n");
+      const headerBlock = isEnglish
+        ? [
+            emptyOrder?.order_id ? `Order #: #${emptyOrder.order_id}` : null,
+            `Subtotal: ₪${(emptyOrder.totalPrice ?? 0).toFixed(2)}`,
+          ]
+            .filter(Boolean)
+            .join("\n")
+        : [
+            emptyOrder?.order_id ? `מספר הזמנה: #${emptyOrder.order_id}` : null,
+            `סה״כ ביניים: ₪${(emptyOrder.totalPrice ?? 0).toFixed(2)}`,
+          ]
+            .filter(Boolean)
+            .join("\n");
 
+      const itemsBlock = "";
       const questionsBlock = buildQuestionsBlock({
         questions: curated.questions,
         isEnglish,
+      });
+
+      console.log(
+        "[OPEN-Q1] combinedQuestions preview",
+        (curated.questions || []).map((q) => ({
+          q: q?.question,
+          options: q?.options,
+        }))
+      );
+
+      await saveOpenQuestions({
+        customer_id,
+        shop_id,
+        order_id: emptyOrder?.order_id || null,
+        questions: curated.questions,
       });
 
       const finalMessage = [
@@ -139,7 +163,10 @@ module.exports = {
         .filter(Boolean)
     );
 
-    const modelQuestions = normalizeIncomingQuestions(parsed?.questions);
+    const modelQuestions = normalizeIncomingQuestions(parsed?.questions, {
+      preserveOptions: true,
+    });
+
     const filteredModelQuestions = modelQuestions.filter((q) => {
       const nm = typeof q?.name === "string" ? q.name.trim() : "";
       return !nm || !notFoundNameSet.has(nm);
@@ -181,6 +208,7 @@ module.exports = {
                   }, available ${
                     miss.in_stock
                   }). Would you like a replacement or should I skip it?`,
+            options: altNames,
           });
         } else {
           stockAltQuestions.push({
@@ -195,6 +223,7 @@ module.exports = {
                 : `${reqName ?? "המוצר"} חסר במלאי (התבקשה כמות ${
                     miss.requested_amount
                   }, זמינות ${miss.in_stock}). להציע חלופה או לדלג?`,
+            options: altNames,
           });
         }
       }
@@ -206,11 +235,30 @@ module.exports = {
       ...stockAltQuestions,
     ];
 
+    console.log(
+      "[OPEN-Q2] combinedQuestions preview",
+      combinedQuestions.map((q) => ({ q: q?.question, options: q?.options }))
+    );
+
+    await saveOpenQuestions({
+      customer_id,
+      shop_id,
+      order_id: orderRes?.order_id || null,
+      questions: combinedQuestions,
+    });
+
+    const outMap = new Map();
+    for (const p of reqProducts) {
+      if (p && typeof p.outputName === "string" && p.outputName.trim()) {
+        outMap.set(p.name, p.outputName.trim());
+      }
+    }
+
     const productsForDisplay = (orderRes.items || []).map((it) => ({
       name: it.name,
-      amount: it.amount,
-      outputName: it.name,
+      amount: Number(it.amount),
       price: Number(it.price),
+      outputName: isEnglish ? outMap.get(it.name) || undefined : undefined,
     }));
 
     const summaryLine =
@@ -220,19 +268,25 @@ module.exports = {
         ? "Great, here’s the order I understood from you:"
         : "יופי, זאת ההזמנה שהבנתי ממך:";
 
+    const headerBlock = isEnglish
+      ? [
+          orderRes?.order_id ? `Order #: #${orderRes.order_id}` : null,
+          `Subtotal: ₪${(orderRes.totalPrice ?? 0).toFixed(2)}`,
+        ]
+          .filter(Boolean)
+          .join("\n")
+      : [
+          orderRes?.order_id ? `מספר הזמנה: #${orderRes.order_id}` : null,
+          `סה״כ ביניים: ₪${(orderRes.totalPrice ?? 0).toFixed(2)}`,
+        ]
+          .filter(Boolean)
+          .join("\n");
+
     const itemsBlock = buildItemsBlock({
       items: productsForDisplay,
       isEnglish,
       mode: "create",
     });
-
-    const headerBlock = [
-      orderRes?.order_id ? `מספר הזמנה: #${orderRes.order_id}` : null,
-      `סה״כ ביניים: ₪${(orderRes.totalPrice ?? 0).toFixed(2)}`,
-    ]
-      .filter(Boolean)
-      .join("\n");
-
     const questionsBlock = buildQuestionsBlock({
       questions: combinedQuestions,
       isEnglish,
