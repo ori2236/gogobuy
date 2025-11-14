@@ -102,7 +102,7 @@ async function findBestProductForRequest(shop_id, req) {
     // category + sub_category + ALL tokens in name
     if (category && subCategory) {
       let sql = `
-        SELECT id, name, price, stock_amount, category, sub_category
+        SELECT id, name, display_name_en, price, stock_amount, category, sub_category
         FROM product
         WHERE shop_id = ?
           AND category = ?
@@ -110,9 +110,11 @@ async function findBestProductForRequest(shop_id, req) {
       `;
       const params = [shop_id, category, subCategory];
       for (const t of tokens) {
-        sql += ` AND name COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')`;
-        params.push(t);
+        sql += ` AND (name COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
+               OR display_name_en COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%'))`;
+        params.push(t, t);
       }
+
       sql += ` ORDER BY updated_at DESC, id DESC LIMIT 1`;
       const [rows] = await db.query(sql, params);
       if (rows && rows.length) return rows[0];
@@ -121,15 +123,17 @@ async function findBestProductForRequest(shop_id, req) {
     // ALL tokens in name
     {
       let sql = `
-        SELECT id, name, price, stock_amount, category, sub_category
+        SELECT id, name, display_name_en, price, stock_amount, category, sub_category
         FROM product
         WHERE shop_id = ?
       `;
       const params = [shop_id];
       for (const t of tokens) {
-        sql += ` AND name COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')`;
-        params.push(t);
+        sql += ` AND (name COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
+               OR display_name_en COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%'))`;
+        params.push(t, t);
       }
+
       sql += ` ORDER BY updated_at DESC, id DESC LIMIT 1`;
       const [rows] = await db.query(sql, params);
       if (rows && rows.length) return rows[0];
@@ -141,7 +145,7 @@ async function findBestProductForRequest(shop_id, req) {
   // by category if there is no name
   if (category && subCategory) {
     const [rows] = await db.query(
-      `SELECT id, name, price, stock_amount, category, sub_category
+      `SELECT id, name, display_name_en, price, stock_amount, category, sub_category
          FROM product
         WHERE shop_id = ?
           AND category = ?
@@ -175,12 +179,14 @@ async function searchProducts(shop_id, products) {
         sub_category: row.sub_category,
         requested_name: req?.name || null,
         requested_amount: Number.isFinite(n) ? n : 1,
+        matched_display_name_en: row.display_name_en,
       });
     } else {
       const n = Number(req?.amount);
       notFound.push({
         originalIndex: i,
         requested_name: req?.name || null,
+        requested_output_name: req?.outputName || null,
         requested_amount: Number.isFinite(n) ? n : 1,
         category: req?.category || null,
         sub_category: req?.["sub-category"] || req?.sub_category || null,
@@ -201,7 +207,7 @@ async function fetchAlternatives(
   if (!category && !subCategory) return [];
   const params = [shop_id];
   let sql = `
-    SELECT id, name, price, stock_amount, category, sub_category
+    SELECT id, name, display_name_en, price, stock_amount, category, sub_category
     FROM product
     WHERE shop_id = ?`;
   if (category) {
@@ -223,7 +229,7 @@ async function fetchAlternatives(
   if ((!rows || !rows.length) && category && subCategory) {
     const params2 = [shop_id, category];
     let sql2 = `
-      SELECT id, name, price, stock_amount, category, sub_category
+      SELECT id, name, display_name_en, price, stock_amount, category, sub_category
       FROM product
       WHERE shop_id = ?
         AND category = ?`;
@@ -285,16 +291,24 @@ async function buildAlternativeQuestions(
     alternativesMap[nf.originalIndex] = alts.map((a) => ({
       id: a.id,
       name: a.name,
+      display_name_en: a.display_name_en,
       price: Number(a.price),
       stock_amount: Number(a.stock_amount),
       category: a.category,
       sub_category: a.sub_category,
     }));
 
-    const names = alts.map((a) => a.name);
-    const reqName =
-      nf.requested_name || (isEnglish ? "the requested item" : "המוצר שביקשת");
-    const questionText = pickAltTemplate(isEnglish, t++)(reqName, names);
+    const names = alts.map((a) =>
+      isEnglish
+        ? (a.display_name_en && a.display_name_en.trim()) || a.name
+        : a.name
+    );
+
+    const he = (nf.requested_name || "").trim();
+    const en = (nf.requested_output_name || "").trim();
+    const subject = (isEnglish ? en || he : he || en).trim();
+
+    const questionText = pickAltTemplate(isEnglish, t++)(subject, names);
 
     altQuestions.push({
       name: nf.requested_name || null,
@@ -321,7 +335,7 @@ function buildItemsBlock({ items, isEnglish, mode }) {
   for (const it of items) {
     const qty = Number(it.amount);
     const unit = Number(it.price);
-    const name = it.outputName || it.name;
+    const name = it.name;
     if (!name) continue;
 
     if (qty === 1) {

@@ -6,14 +6,29 @@ const { getPromptFromDB } = require("../repositories/prompt");
 const {
   fetchOpenQuestions,
   fetchRecentClosedQuestions,
-  closeQuestionsByIds,
-  deleteQuestionsByIds,
 } = require("../utilities/openQuestions");
 
 const DEFAULT_PROMPT_CAT = "defaultSystemPrompt";
 const DEFAULT_PROMPT_SUB = "defaultSystemPrompt";
 const CLASSIFIER_PROMPT_CAT = "initial";
 const CLASSIFIER_PROMPT_SUB = "initial-classification";
+
+function isValidCategorySub(category, subcategory) {
+  const ALLOWED = {
+    ORD: new Set(["CREATE", "MODIFY", "REVIEW", "CHECKOUT", "CANCEL"]),
+    ARR: new Set(["ADDRESS", "PARKING", "ACCESS", "PUBLIC_TRAN"]),
+    HRS: new Set(["REGULAR_DAYS", "UNUSUAL"]), // normalize ל-UPPERCASE
+    INV: new Set(["AVAIL", "SUBSTITUTE", "SUGGEST"]),
+    PRM: new Set(["CURRENT"]),
+    SHP: new Set(["ZONES", "SLOTS", "COST", "TRACK", "INSTRUCTIONS"]),
+    BUS: new Set(["CONTACT", "BRANCHES", "RETURNS", "POLICY", "PAYMENT"]),
+  };
+
+  if (!category || !subcategory) return false;
+  const cat = String(category).toUpperCase().trim();
+  const sub = String(subcategory).toUpperCase().trim();
+  return !!(ALLOWED[cat] && ALLOWED[cat].has(sub));
+}
 
 async function ensureCustomer(shop_id, phone) {
   const [rows] = await db.query(
@@ -66,17 +81,40 @@ async function saveChat({ customer_id, shop_id, sender, status, message }) {
 
 function parseModelMessage(raw) {
   if (!raw || typeof raw !== "string") return { type: "raw", text: "" };
-  const parts = raw.split(",").map((s) => s.trim());
+
+  const parts = raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  // 0, <question>
   if (parts[0] === "0") {
     const rest = raw.slice(raw.indexOf(",") + 1).trim();
     return { type: "clarify", text: rest };
   }
+
   if (parts[0] === "1") {
-    const category = parts[1] || "";
-    const subRaw = (parts[2] || "").trim();
-    const subcategory = subRaw.split(".").pop().trim();
+    let category = "";
+    let subcategory = "";
+
+    if (parts.length >= 3) {
+      category = (parts[1] || "").toUpperCase().trim();
+      const subRaw = (parts[2] || "").trim();
+      subcategory = subRaw.split(".").pop().toUpperCase().trim();
+    } else if (parts.length === 2) {
+      const m = parts[1].match(/^([A-Za-z]+)\s*[\.\-\/]\s*([A-Za-z_.]+)$/);
+      if (m) {
+        category = m[1].toUpperCase().trim();
+        subcategory = m[2].toUpperCase().split(".").pop().trim();
+      } else {
+        category = parts[1].toUpperCase().trim();
+        subcategory = "";
+      }
+    }
+
     return { type: "classified", category, subcategory };
   }
+
   return { type: "raw", text: raw };
 }
 
@@ -260,6 +298,27 @@ module.exports = {
       console.log(
         `[classification] category=${category}, subcategory=${subcategory}`
       );
+
+      if (!isValidCategorySub(category, subcategory)) {
+        const apology =
+          "מצטערים, לא הצלחנו להבין את הבקשה. נשמח אם תנוסח שוב בקצרה";
+        await saveChat({
+          customer_id,
+          shop_id,
+          sender: "customer",
+          status: "unclassified",
+          message,
+        });
+
+        await saveChat({
+          customer_id,
+          shop_id,
+          sender: "bot",
+          status: "unclassified",
+          message: apology,
+        });
+        return apology;
+      }
 
       await saveChat({
         customer_id,

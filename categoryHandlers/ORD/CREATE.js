@@ -191,8 +191,22 @@ module.exports = {
     const stockAltQuestions = [];
     if (Array.isArray(orderRes.insufficient) && orderRes.insufficient.length) {
       for (const miss of orderRes.insufficient) {
-        const reqName = miss.requested_name || miss.matched_name || null;
-        const altNames = (miss.alternatives || []).map((a) => a.name);
+        const reqName = (
+          isEnglish
+            ? miss.requested_output_name ||
+              miss.matched_display_name_en ||
+              miss.requested_name ||
+              miss.matched_name
+            : miss.requested_name ||
+              miss.matched_name ||
+              miss.matched_display_name_en
+        ).trim();
+
+        const altNames = (miss.alternatives || []).map((a) =>
+          isEnglish
+            ? (a.display_name_en && a.display_name_en.trim()) || a.name
+            : a.name
+        );
         if (isEnglish) {
           stockAltQuestions.push({
             name: reqName,
@@ -247,18 +261,25 @@ module.exports = {
       questions: combinedQuestions,
     });
 
-    const outMap = new Map();
-    for (const p of reqProducts) {
-      if (p && typeof p.outputName === "string" && p.outputName.trim()) {
-        outMap.set(p.name, p.outputName.trim());
-      }
-    }
+    const [rows] = await db.query(
+      `SELECT
+     oi.product_id,
+     oi.amount,
+     p.price,
+     p.name AS name_he,
+     p.display_name_en
+   FROM order_item oi
+   JOIN product p ON p.id = oi.product_id
+  WHERE oi.order_id = ?`,
+      [orderRes.order_id]
+    );
 
-    const productsForDisplay = (orderRes.items || []).map((it) => ({
-      name: it.name,
-      amount: Number(it.amount),
-      price: Number(it.price),
-      outputName: isEnglish ? outMap.get(it.name) || undefined : undefined,
+    const productsForDisplay = rows.map((r) => ({
+      name: isEnglish
+        ? (r.display_name_en && r.display_name_en.trim()) || r.name_he
+        : r.name_he,
+      amount: Number(r.amount),
+      price: Number(r.price),
     }));
 
     const summaryLine =

@@ -30,7 +30,7 @@ ARR — Getting to store/branch
 
 HRS — Opening hours
   HRS.REGULAR_DAYS — regular opening hours (generic or “today/weekday” hours)
-  HRS.unusual — opening hours at unusual days (holidays/special days/holiday eves)
+  HRS.UNUSUAL — opening hours at unusual days (holidays/special days/holiday eves)
 
 INV — Inventory & products
   INV.AVAIL — is a product in stock? (availability/brand/size)
@@ -122,8 +122,8 @@ EXAMPLES
 - "מה שעות הפתיחה שלכם היום?" → 1, HRS, HRS.REGULAR_DAYS
 - "What are your regular hours?" → 1, HRS, HRS.REGULAR_DAYS
 
-- "אתם פתוחים בראש השנה?" → 1, HRS, HRS.unusual
-- "Are you open on the holiday/election day?" → 1, HRS, HRS.unusual
+- "אתם פתוחים בראש השנה?" → 1, HRS, HRS.UNUSUAL
+- "Are you open on the holiday/election day?" → 1, HRS, HRS.UNUSUAL
 
 # INV — Inventory & products
 - "יש חלב תנובה 3% בקופסא של ליטר?" → 1, INV, INV.AVAIL

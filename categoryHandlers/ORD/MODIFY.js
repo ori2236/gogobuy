@@ -35,6 +35,21 @@ async function applyOrderModifications({
   const stockQuestions = [];
   let altTemplateIdx = 0;
 
+  const display = (rowOrName) => {
+    if (!rowOrName) return "";
+    if (typeof rowOrName === "string") return rowOrName;
+    const he = rowOrName.name;
+    const en = rowOrName.display_name_en;
+    return isEnglish ? (en && en.trim() ? en : he) : he;
+  };
+
+  const subjectForReq = (p) =>
+    isEnglish
+      ? (p && typeof p.outputName === "string" && p.outputName.trim()) ||
+        (p && typeof p.name === "string" && p.name.trim()) ||
+        ""
+      : (p && typeof p.name === "string" && p.name.trim()) || "";
+
   const removedApplied = []; // [{product_id,name,amount,mode:'explicit'|'implicit'}]
   const qtyIncreased = []; // [{product_id,name,before,after,delta}]
   const qtyDecreased = []; // [{product_id,name,before,after,delta}]
@@ -47,15 +62,15 @@ async function applyOrderModifications({
     await conn.beginTransaction();
 
     const [origItems] = await conn.query(
-      `SELECT oi.id, oi.product_id, oi.amount, oi.price, p.name, p.stock_amount, p.category, p.sub_category
-         FROM order_item oi
-         JOIN product p ON p.id = oi.product_id
-        WHERE oi.order_id = ?
-        FOR UPDATE`,
+      `SELECT oi.id, oi.product_id, oi.amount, oi.price,
+          p.name, p.display_name_en, p.stock_amount, p.category, p.sub_category
+     FROM order_item oi
+     JOIN product p ON p.id = oi.product_id
+    WHERE oi.order_id = ?
+    FOR UPDATE`,
       [order_id]
     );
 
-    const byName = new Map(origItems.map((it) => [it.name, it]));
     const byProdId = new Map(
       origItems.map((it) => [Number(it.product_id), it])
     );
@@ -77,16 +92,28 @@ async function applyOrderModifications({
         amount: Number(row.amount),
         mode: "explicit",
       });
-      byName.delete(row.name);
+
       byProdId.delete(Number(row.product_id));
+    }
+
+    const existingNames = new Set();
+    for (const it of origItems) {
+      existingNames.add(it.name);
+      if (it.display_name_en && it.display_name_en.trim()) {
+        existingNames.add(it.display_name_en.trim());
+      }
     }
 
     const afterMap = new Map(
       modelProducts.map((p) => [p.name, Number(p.amount)])
     );
 
-    for (const [name, orig] of byName.entries()) {
-      if (!afterMap.has(name)) {
+    for (const orig of origItems) {
+      const keyHe = orig.name;
+      const keyEn = (orig.display_name_en || "").trim();
+      const inAfter = afterMap.has(keyHe) || (keyEn && afterMap.has(keyEn));
+
+      if (!inAfter) {
         await conn.query(
           `UPDATE product SET stock_amount = stock_amount + ? WHERE id = ? AND shop_id = ?`,
           [Number(orig.amount), Number(orig.product_id), shop_id]
@@ -97,17 +124,17 @@ async function applyOrderModifications({
         );
         removedApplied.push({
           product_id: Number(orig.product_id),
-          name,
+          name: orig.name,
           amount: Number(orig.amount),
           mode: "implicit",
         });
         continue;
       }
-      const newQty = Number(afterMap.get(name));
+      const newQty = Number(afterMap.get(keyHe) ?? afterMap.get(keyEn));
       const delta = roundTo(newQty - Number(orig.amount), 3);
       if (delta === 0) continue;
+
       if (delta > 0) {
-        //remove from stock
         const [[prod]] = await conn.query(
           `SELECT stock_amount, price, category, sub_category FROM product WHERE id = ? AND shop_id = ? FOR UPDATE`,
           [Number(orig.product_id), shop_id]
@@ -124,7 +151,10 @@ async function applyOrderModifications({
           ]);
           qtyIncreased.push({
             product_id: Number(orig.product_id),
-            name,
+            name: isEnglish
+              ? (orig.display_name_en && orig.display_name_en.trim()) ||
+                orig.name
+              : orig.name,
             before: Number(orig.amount),
             after: newQty,
             delta,
@@ -138,36 +168,42 @@ async function applyOrderModifications({
             [Number(orig.product_id)],
             3
           );
-          const altNames = alts.map((a) => a.name);
+
+          const altNames = alts.map((a) =>
+            isEnglish
+              ? (a.display_name_en && a.display_name_en.trim()) || a.name
+              : a.name
+          );
+          const mainName = isEnglish
+            ? (orig.display_name_en && orig.display_name_en.trim()) || orig.name
+            : orig.name;
 
           insufficientExistingIncreases.push({
-            name,
+            name: mainName,
             requested_delta: delta,
             available: stock,
             alternatives: alts,
           });
-
-          const displayName = isEnglish ? name : name;
+          
           stockQuestions.push({
-            name,
+            name: mainName,
             question: altNames.length
               ? isEnglish
-                ? `${displayName} is short on stock for the requested increase (requested +${delta}, available ${stock}). ${tpl(
-                    displayName,
+                ? `${mainName} is short on stock for the requested increase (requested +${delta}, available ${stock}). ${tpl(
+                    mainName,
                     altNames
                   )}`
-                : `${name} חסר במלאי להגדלה שביקשת (תוספת ${delta}, זמינות ${stock}). ${tpl(
-                    name,
+                : `${mainName} חסר במלאי להגדלה שביקשת (תוספת ${delta}, זמינות ${stock}). ${tpl(
+                    mainName,
                     altNames
                   )}`
               : isEnglish
-              ? `${displayName} is short on stock for the requested increase (requested +${delta}, available ${stock}). Would you like a replacement or should I keep the current quantity?`
-              : `${name} חסר במלאי להגדלה שביקשת (תוספת ${delta}, זמינות ${stock}). להציע חלופה או להשאיר את הכמות הנוכחית?`,
+              ? `${mainName} is short on stock for the requested increase (requested +${delta}, available ${stock}). Would you like a replacement or should I keep the current quantity?`
+              : `${mainName} חסר במלאי להגדלה שביקשת (תוספת ${delta}, זמינות ${stock}). להציע חלופה או להשאיר את הכמות הנוכחית?`,
             options: altNames.length ? altNames : undefined,
           });
         }
       } else {
-        // add to stock
         await conn.query(
           `UPDATE product SET stock_amount = stock_amount + ? WHERE id = ? AND shop_id = ?`,
           [Math.abs(delta), Number(orig.product_id), shop_id]
@@ -178,7 +214,9 @@ async function applyOrderModifications({
         ]);
         qtyDecreased.push({
           product_id: Number(orig.product_id),
-          name,
+          name: isEnglish
+            ? (orig.display_name_en && orig.display_name_en.trim()) || orig.name
+            : orig.name,
           before: Number(orig.amount),
           after: newQty,
           delta,
@@ -188,7 +226,7 @@ async function applyOrderModifications({
 
     // add new products to the order
     for (const p of modelProducts) {
-      if (byName.has(p.name)) continue;
+      if (existingNames.has(p.name)) continue;
       const row = await findBestProductForRequest(shop_id, p);
 
       //the product not selling at the shop
@@ -208,18 +246,17 @@ async function applyOrderModifications({
           alternatives: alts,
         });
 
-        const altNames = alts.map((a) => a.name);
+        const altNames = alts.map((a) => display(a));
         const tpl = pickAltTemplate(isEnglish, altTemplateIdx++);
-        const displayName = isEnglish && p?.outputName ? p.outputName : p.name;
+
+        const subject = subjectForReq(p);
 
         stockQuestions.push({
           name: p.name,
           question: altNames.length
-            ? isEnglish
-              ? tpl(displayName, altNames)
-              : tpl(p.name, altNames)
+            ? tpl(subject, altNames)
             : isEnglish
-            ? `Couldn't find "${displayName}". Would you like a replacement or should I skip it?`
+            ? `Couldn't find "${subject}". Would you like a replacement or should I skip it?`
             : `לא מצאתי "${p.name}". להציע חלופה או לדלג?`,
           options: altNames.length ? altNames : undefined,
         });
@@ -270,41 +307,47 @@ async function applyOrderModifications({
           available: stock,
           alternatives: alts,
         });
-        const altNames = alts.map((a) => a.name);
+
+        const altNames = alts.map((a) =>
+          isEnglish
+            ? (a.display_name_en && a.display_name_en.trim()) || a.name
+            : a.name
+        );
         const tpl = pickAltTemplate(isEnglish, altTemplateIdx++);
-        const displayName = isEnglish && p?.outputName ? p.outputName : p.name;
+        const mainName = isEnglish
+          ? (row.display_name_en && row.display_name_en.trim()) || row.name
+          : row.name;
+
+        const subject = subjectForReq(p);
 
         stockQuestions.push({
           name: p.name,
           question: altNames.length
             ? isEnglish
-              ? `${
-                  row.name
-                } is short on stock (requested ${need}, available ${stock}). ${tpl(
-                  displayName,
+              ? `${mainName} is short on stock (requested ${need}, available ${stock}). ${tpl(
+                  subject,
                   altNames
                 )}`
-              : `${
-                  row.name
-                } חסר במלאי (התבקשה כמות ${need}, זמינות ${stock}). ${tpl(
+              : `${mainName} חסר במלאי (התבקשה כמות ${need}, זמינות ${stock}). ${tpl(
                   p.name,
                   altNames
                 )}`
             : isEnglish
-            ? `${row.name} is short on stock (requested ${need}, available ${stock}). Would you like a replacement or should I skip it?`
-            : `${row.name} חסר במלאי (התבקשה כמות ${need}, זמינות ${stock}). להציע חלופה או לדלג?`,
+            ? `${mainName} is short on stock (requested ${need}, available ${stock}). Would you like a replacement or should I skip it?`
+            : `${mainName} חסר במלאי (התבקשה כמות ${need}, זמינות ${stock}). להציע חלופה או לדלג?`,
           options: altNames.length ? altNames : undefined,
         });
       }
     }
 
     const [curItems] = await conn.query(
-      `SELECT oi.product_id, oi.amount, p.price, p.name
-         FROM order_item oi
-         JOIN product p ON p.id = oi.product_id
-        WHERE oi.order_id = ?`,
+      `SELECT oi.product_id, oi.amount, p.price, p.name, p.display_name_en
+     FROM order_item oi
+     JOIN product p ON p.id = oi.product_id
+    WHERE oi.order_id = ?`,
       [order_id]
     );
+
     let total = 0;
     for (const it of curItems) {
       total = addMoney(total, mulMoney(Number(it.amount), Number(it.price)));
@@ -320,7 +363,9 @@ async function applyOrderModifications({
       ok: true,
       total,
       items: curItems.map((it) => ({
-        name: it.name,
+        name: isEnglish
+          ? (it.display_name_en && it.display_name_en.trim()) || it.name
+          : it.name,
         amount: Number(it.amount),
         price: Number(it.price),
       })),
@@ -408,10 +453,10 @@ module.exports = {
       items ||
       (
         await db.query(
-          `SELECT oi.*, p.name, p.category, p.sub_category AS 'sub-category'
-       FROM order_item oi
-       LEFT JOIN product p ON p.id = oi.product_id
-      WHERE oi.order_id = ?`,
+          `SELECT oi.*, p.name, p.display_name_en, p.category, p.sub_category AS 'sub-category'
+          FROM order_item oi
+          LEFT JOIN product p ON p.id = oi.product_id
+          WHERE oi.order_id = ?`,
           [order.id]
         )
       )[0];
@@ -488,21 +533,7 @@ module.exports = {
         isEnglish,
       });
 
-      const outMap = new Map();
-      for (const p of modelProducts) {
-        if (p && typeof p.outputName === "string" && p.outputName.trim()) {
-          outMap.set(p.name, p.outputName.trim());
-        }
-      }
-
-      // הוסף outputName לפריטים שיוצאים להצגה
-      const itemsForView = txRes.items.map((it) => ({
-        ...it,
-        outputName: isEnglish ? outMap.get(it.name) || undefined : undefined,
-      }));
-
-      // ואז
-      const itemsBlock = buildItemsBlock({ items: itemsForView, isEnglish });
+      const itemsBlock = buildItemsBlock({ items: txRes.items, isEnglish });
 
       const combinedQuestions = [
         ...modelQuestions,
@@ -578,15 +609,17 @@ module.exports = {
       console.error("[ORD-MODIFY] Fatal apply error:", e);
 
       const [curItems] = await db.query(
-        `SELECT oi.product_id, oi.amount, oi.price, p.name
-           FROM order_item oi
-           JOIN product p ON p.id = oi.product_id
-          WHERE oi.order_id = ?`,
+        `SELECT oi.product_id, oi.amount, oi.price, p.name, p.display_name_en
+     FROM order_item oi
+     JOIN product p ON p.id = oi.product_id
+    WHERE oi.order_id = ?`,
         [order.id]
       );
 
       const itemsForView = (curItems || []).map((it) => ({
-        name: it.name,
+        name: isEnglish
+          ? (it.display_name_en && it.display_name_en.trim()) || it.name
+          : it.name,
         amount: Number(it.amount),
         price: Number(it.price),
       }));
