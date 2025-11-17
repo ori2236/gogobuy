@@ -13,6 +13,35 @@ const DEFAULT_PROMPT_SUB = "defaultSystemPrompt";
 const CLASSIFIER_PROMPT_CAT = "initial";
 const CLASSIFIER_PROMPT_SUB = "initial-classification";
 
+async function wasSentBefore(customer_id, shop_id, message) {
+  const DEDUP_WINDOW_SECONDS = 30;
+  const [recentSame] = await db.query(
+    `
+      SELECT id
+      FROM chat
+      WHERE customer_id = ?
+        AND shop_id = ?
+        AND sender = 'customer'
+        AND message = ?
+        AND created_at >= (NOW() - INTERVAL ? SECOND)
+      ORDER BY id DESC
+      LIMIT 1
+      `,
+    [customer_id, shop_id, message, DEDUP_WINDOW_SECONDS]
+  );
+
+  if (recentSame.length) {
+    console.log("[DEDUP] skipping logically duplicate message", {
+      customer_id,
+      shop_id,
+      message,
+    });
+    return true;
+  }
+
+  return false;
+}
+
 function isValidCategorySub(category, subcategory) {
   const ALLOWED = {
     ORD: new Set(["CREATE", "MODIFY", "REVIEW", "CHECKOUT", "CANCEL"]),
@@ -241,6 +270,11 @@ function buildOpenQuestionsContext({ openQs = [], closedQs = [] }) {
 module.exports = {
   async processMessage(message, phone_number, shop_id) {
     const customer_id = await ensureCustomer(shop_id, phone_number);
+
+    const wasSent = await wasSentBefore(customer_id, shop_id, message);
+    if (wasSent) {
+      return { skipSend: true };
+    }
 
     const activeOrder = await getActiveOrder(customer_id, shop_id);
     const order_id = activeOrder ? activeOrder.id : null;

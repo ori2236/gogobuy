@@ -1,6 +1,6 @@
 const express = require("express");
 const router = express.Router();
-
+const db = require("../config/db");
 const { sendWhatsAppText } = require("../config/whatsapp");
 const customerInteractionController = require("../controllers/CustomerInteractionController");
 
@@ -26,7 +26,8 @@ router.post("/webhooks", async (req, res) => {
 
     if (!msg) return res.sendStatus(200);
 
-    const from = msg.from; // מספר בווטסאפ (E.164 ללא +)
+    const waMessageId = msg.id;
+    const from = msg.from;
     let messageText = "";
 
     if (msg.type === "text") {
@@ -35,26 +36,72 @@ router.post("/webhooks", async (req, res) => {
       messageText = "";
     }
 
-    let reply = "תודה";
-    if (messageText) {
-      const botResp = await customerInteractionController.processMessage(
-        messageText,
-        from,
-        SHOP_ID
-      );
+    if (waMessageId) {
+      try {
+        const [existing] = await db.query(
+          "SELECT id FROM whatsapp_incoming WHERE wa_message_id = ? LIMIT 1",
+          [waMessageId]
+        );
 
-      if (typeof botResp === "string") reply = botResp;
-      else if (botResp?.message) reply = String(botResp.message);
-      else if (botResp?.reply) reply = String(botResp.reply);
-      else reply = "תודה";
+        if (existing.length) {
+          console.log("Duplicate WhatsApp message, skipping", waMessageId);
+          return res.sendStatus(200);
+        }
+
+        await db.query(
+          "INSERT INTO whatsapp_incoming (wa_message_id) VALUES (?)",
+          [waMessageId]
+        );
+      } catch (err) {
+        if (err && err.code === "ER_DUP_ENTRY") {
+          console.log(
+            "Duplicate WhatsApp message (race), skipping",
+            waMessageId
+          );
+          return res.sendStatus(200);
+        }
+        console.error("Error when inserting whatsapp_incoming:", err);
+        return res.sendStatus(200);
+      }
     }
 
-    await sendWhatsAppText(from, reply);
-    console.log("Bot replied to", from);
+    res.sendStatus(200);
 
-    return res.sendStatus(200);
+    (async () => {
+      try {
+        let reply = "תודה";
+
+        if (messageText) {
+          const botResp = await customerInteractionController.processMessage(
+            messageText,
+            from,
+            SHOP_ID
+          );
+
+          if (botResp && botResp.skipSend) {
+            console.log(
+              "Skipping WhatsApp reply due to logical duplicate for waMessageId",
+              waMessageId
+            );
+            return;
+          }
+
+          if (typeof botResp === "string") reply = botResp;
+          else if (botResp?.message) reply = String(botResp.message);
+          else if (botResp?.reply) reply = String(botResp.reply);
+        }
+
+        await sendWhatsAppText(from, reply);
+        console.log("Bot replied to", from, "for waMessageId", waMessageId);
+      } catch (err) {
+        console.error(
+          "Webhook async error:",
+          err?.response?.data || err.message
+        );
+      }
+    })();
   } catch (e) {
-    console.error("Webhook error", e?.response?.data || e.message);
+    console.error("Webhook error (outer):", e?.response?.data || e.message);
     return res.sendStatus(200);
   }
 });

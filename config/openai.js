@@ -22,7 +22,7 @@ async function chat({
     ...history,
     { role: "user", content: message },
   ];
-  //console.log("messages:", messages);
+  
   const r = await client.chat.completions.create({
     model: deployment,
     messages,

@@ -1,5 +1,17 @@
 const db = require("../config/db");
 
+const MIN_PARTIAL_COVERAGE = 0.65;
+
+function tokenizeName(str) {
+  if (!str) return [];
+  return String(str)
+    .toLowerCase()
+    .replace(/[^\w\u0590-\u05FF]+/g, " ")
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter(Boolean);
+}
+
 function safeParseJson(txt) {
   if (typeof txt !== "string") throw new Error("safeParseJson expects string");
   try {
@@ -86,7 +98,7 @@ function normalizeIncomingQuestions(qs, { preserveOptions = false } = {}) {
   }
   return out;
 }
-
+/*
 async function findBestProductForRequest(shop_id, req) {
   const category = (req?.category || "").trim();
   const subCategory = (req?.["sub-category"] || req?.sub_category || "").trim();
@@ -159,6 +171,163 @@ async function findBestProductForRequest(shop_id, req) {
 
   return null;
 }
+*/
+
+
+async function findBestProductForRequest(shop_id, req) {
+  const category = (req?.category || "").trim();
+  const subCategory = (req?.["sub-category"] || req?.sub_category || "").trim();
+  const nameRaw = (req?.name || "").trim();
+
+  const reqTokens = tokenizeName(nameRaw);
+  if (!reqTokens.length) {
+    //there is no name, category + sub_category
+    if (category && subCategory) {
+      const [rows] = await db.query(
+        `SELECT id, name, display_name_en, price, stock_amount, category, sub_category
+           FROM product
+          WHERE shop_id = ?
+            AND category = ?
+            AND sub_category = ?
+          ORDER BY updated_at DESC, id DESC
+          LIMIT 1`,
+        [shop_id, category, subCategory]
+      );
+      if (rows && rows.length) return rows[0];
+    }
+    return null;
+  }
+
+  // category + sub_category
+  if (category && subCategory) {
+    //all the tokens in the product name
+    {
+      let sql = `
+        SELECT id, name, display_name_en, price, stock_amount, category, sub_category
+        FROM product
+        WHERE shop_id = ?
+          AND category = ?
+          AND sub_category = ?
+      `;
+      const params = [shop_id, category, subCategory];
+
+      for (const t of reqTokens) {
+        sql += ` AND (name COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
+                 OR display_name_en COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%'))`;
+        params.push(t, t);
+      }
+
+      const [rows] = await db.query(sql, params);
+
+      if (rows && rows.length) {
+        let best = null;
+        for (const r of rows) {
+          const candTokens = tokenizeName(
+            (r.name || "") + " " + (r.display_name_en || "")
+          );
+          const wordCount = candTokens.length || 9999;
+          if (
+            !best ||
+            wordCount < best.wordCount ||
+            (wordCount === best.wordCount && r.id > best.row.id)
+          ) {
+            best = { row: r, wordCount };
+          }
+        }
+        if (best) return best.row;
+      }
+    }
+
+    // MIN_PARTIAL_COVERAGE
+    {
+      const [rows] = await db.query(
+        `
+        SELECT id, name, display_name_en, price, stock_amount, category, sub_category
+        FROM product
+        WHERE shop_id = ?
+          AND category = ?
+          AND sub_category = ?
+      `,
+        [shop_id, category, subCategory]
+      );
+
+      if (rows && rows.length) {
+        const scored = [];
+        const reqSet = new Set(reqTokens);
+
+        for (const r of rows) {
+          const candTokens = tokenizeName(
+            (r.name || "") + " " + (r.display_name_en || "")
+          );
+          if (!candTokens.length) continue;
+
+          let common = 0;
+          for (const t of reqSet) {
+            if (candTokens.includes(t)) common++;
+          }
+          const coverage = common / reqTokens.length;
+
+          if (coverage >= MIN_PARTIAL_COVERAGE) {
+            scored.push({
+              row: r,
+              coverage,
+              wordCount: candTokens.length,
+            });
+          }
+        }
+
+        if (scored.length) {
+          scored.sort(
+            (a, b) =>
+              b.coverage - a.coverage ||
+              a.wordCount - b.wordCount ||
+              b.row.id - a.row.id
+          );
+          return scored[0].row;
+        }
+      }
+    }
+    return null;
+  }
+
+  //all categories
+  {
+    let sql = `
+      SELECT id, name, display_name_en, price, stock_amount, category, sub_category
+      FROM product
+      WHERE shop_id = ?
+    `;
+    const params = [shop_id];
+
+    for (const t of reqTokens) {
+      sql += ` AND (name COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
+               OR display_name_en COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%'))`;
+      params.push(t, t);
+    }
+
+    const [rows] = await db.query(sql, params);
+    if (rows && rows.length) {
+      let best = null;
+      for (const r of rows) {
+        const candTokens = tokenizeName(
+          (r.name || "") + " " + (r.display_name_en || "")
+        );
+        const wordCount = candTokens.length || 9999;
+        if (
+          !best ||
+          wordCount < best.wordCount ||
+          (wordCount === best.wordCount && r.id > best.row.id)
+        ) {
+          best = { row: r, wordCount };
+        }
+      }
+      if (best) return best.row;
+    }
+  }
+
+  return null;
+}
+
 
 async function searchProducts(shop_id, products) {
   const found = [];
@@ -196,7 +365,7 @@ async function searchProducts(shop_id, products) {
 
   return { found, notFound };
 }
-
+/*
 async function fetchAlternatives(
   shop_id,
   category,
@@ -245,6 +414,94 @@ async function fetchAlternatives(
 
   return rows || [];
 }
+*/
+
+async function fetchAlternatives(
+  shop_id,
+  category,
+  subCategory,
+  excludeIds = [],
+  limit = 3,
+  requestedName = null
+) {
+  if (!category && !subCategory) return [];
+
+  const reqTokens = tokenizeName(requestedName || "");
+
+  async function fetchByCatSub(cat, sub) {
+    const params = [shop_id];
+    let sql = `
+      SELECT id, name, display_name_en, price, stock_amount, category, sub_category
+      FROM product
+      WHERE shop_id = ?
+    `;
+    if (cat) {
+      sql += ` AND category = ?`;
+      params.push(cat);
+    }
+    if (sub) {
+      sql += ` AND sub_category = ?`;
+      params.push(sub);
+    }
+    if (excludeIds.length) {
+      sql += ` AND id NOT IN (${excludeIds.map(() => "?").join(",")})`;
+      params.push(...excludeIds);
+    }
+
+    const [rows] = await db.query(sql, params);
+    if (!rows || !rows.length) return [];
+
+    // all tokens
+    if (reqTokens.length) {
+      const reqSet = new Set(reqTokens);
+      const scored = rows.map((r) => {
+        const candTokens = tokenizeName(
+          (r.name || "") + " " + (r.display_name_en || "")
+        );
+        let common = 0;
+        for (const t of reqSet) {
+          if (candTokens.includes(t)) common++;
+        }
+        const score = reqTokens.length > 0 ? common / reqTokens.length : 0;
+        return {
+          row: r,
+          score,
+          wordCount: candTokens.length || 9999,
+        };
+      });
+
+      const positive = scored
+        .filter((s) => s.score > 0)
+        .sort(
+          (a, b) =>
+            b.score - a.score ||
+            a.wordCount - b.wordCount ||
+            b.row.id - a.row.id
+        )
+        .map((s) => s.row);
+
+      if (positive.length >= limit) return positive.slice(0, limit);
+
+      const zero = scored.filter((s) => s.score === 0).map((s) => s.row);
+
+      return [...positive, ...zero].slice(0, limit);
+    }
+
+    return rows.slice(0, limit);
+  }
+
+  //category + subCategory
+  let rows = await fetchByCatSub(category, subCategory);
+  if (rows && rows.length) return rows;
+
+  //category
+  if (category) {
+    rows = await fetchByCatSub(category, null);
+    if (rows && rows.length) return rows;
+  }
+
+  return [];
+}
 
 const ALT_TEMPLATES_HE = [
   (req, names) =>
@@ -284,7 +541,17 @@ async function buildAlternativeQuestions(
     if (!cat && !sub) continue;
 
     const exclude = Array.from(usedIds);
-    const alts = await fetchAlternatives(shop_id, cat, sub, exclude, 3);
+    const mainName = nf.requested_name || nf.requested_output_name || null;
+
+    const alts = await fetchAlternatives(
+      shop_id,
+      cat,
+      sub,
+      exclude,
+      3,
+      mainName
+    );
+
     if (!alts || !alts.length) continue;
 
     alts.forEach((a) => usedIds.add(a.id));

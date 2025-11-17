@@ -161,22 +161,25 @@ async function applyOrderModifications({
           });
         } else {
           const tpl = pickAltTemplate(isEnglish, altTemplateIdx++);
+          const mainName = isEnglish
+            ? (orig.display_name_en && orig.display_name_en.trim()) || orig.name
+            : orig.name;
+
           const alts = await fetchAlternatives(
             shop_id,
             orig.category || prod?.category || null,
             orig.sub_category || prod?.sub_category || null,
             [Number(orig.product_id)],
-            3
+            3,
+            mainName
           );
+
 
           const altNames = alts.map((a) =>
             isEnglish
               ? (a.display_name_en && a.display_name_en.trim()) || a.name
               : a.name
           );
-          const mainName = isEnglish
-            ? (orig.display_name_en && orig.display_name_en.trim()) || orig.name
-            : orig.name;
 
           insufficientExistingIncreases.push({
             name: mainName,
@@ -234,7 +237,7 @@ async function applyOrderModifications({
         const cat = (p.category || "").trim() || null;
         const sub = (p["sub-category"] || p.sub_category || "").trim() || null;
 
-        const alts = await fetchAlternatives(shop_id, cat, sub, [], 3);
+        const alts = await fetchAlternatives(shop_id, cat, sub, [], 3, p.name);
 
         notFoundAdds.push({
           requested: {
@@ -294,13 +297,19 @@ async function applyOrderModifications({
           price: Number(lock?.[0]?.price ?? row.price),
         });
       } else {
+        const mainName = isEnglish
+          ? (row.display_name_en && row.display_name_en.trim()) || row.name
+          : row.name;
+
         const alts = await fetchAlternatives(
           shop_id,
           lock?.[0]?.category || row.category || null,
           lock?.[0]?.sub_category || row.sub_category || null,
           [Number(row.id)],
-          3
+          3,
+          mainName
         );
+
         insufficientNewAdds.push({
           name: row.name,
           requested: need,
@@ -314,9 +323,6 @@ async function applyOrderModifications({
             : a.name
         );
         const tpl = pickAltTemplate(isEnglish, altTemplateIdx++);
-        const mainName = isEnglish
-          ? (row.display_name_en && row.display_name_en.trim()) || row.name
-          : row.name;
 
         const subject = subjectForReq(p);
 
