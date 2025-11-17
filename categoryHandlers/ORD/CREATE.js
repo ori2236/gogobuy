@@ -90,40 +90,36 @@ module.exports = {
         delivery_address: null,
       });
 
-      const summaryLine =
-        typeof parsed?.summary_line === "string" && parsed.summary_line.trim()
-          ? parsed.summary_line.trim()
-          : isEnglish
-          ? "To complete your order, I need a few clarifications:"
-          : "כדי להשלים את ההזמנה חסרות כמה הבהרות:";
+      const hasQuestions = curated.questions && curated.questions.length > 0;
+      const orderIdPart = emptyOrder?.order_id
+        ? isEnglish
+          ? `(Order: #${emptyOrder.order_id})`
+          : `(הזמנה מספר: #${emptyOrder.order_id})`
+        : "";
 
-      const headerBlock = isEnglish
-        ? [
-            emptyOrder?.order_id ? `Order #: #${emptyOrder.order_id}` : null,
-            `Subtotal: ₪${(emptyOrder.totalPrice ?? 0).toFixed(2)}`,
-          ]
-            .filter(Boolean)
-            .join("\n")
-        : [
-            emptyOrder?.order_id ? `מספר הזמנה: #${emptyOrder.order_id}` : null,
-            `סה״כ ביניים: ₪${(emptyOrder.totalPrice ?? 0).toFixed(2)}`,
-          ]
-            .filter(Boolean)
-            .join("\n");
 
-      const itemsBlock = "";
-      const questionsBlock = buildQuestionsBlock({
-        questions: curated.questions,
-        isEnglish,
-      });
+      let summaryLine;
+      if (isEnglish) {
+        if (hasQuestions) {
+          summaryLine =
+            `Your order is currently empty ${orderIdPart}.` +
+            `\nTo build an order that fits what you want, I need your answers to a few questions:`;
+        } else {
+          summaryLine = `Your order is currently empty ${orderIdPart}.`;
+        }
+      } else {
+        if (hasQuestions) {
+          summaryLine =
+            `ההזמנה שלך כרגע ריקה ${orderIdPart}.` +
+            `\nכדי שאוכל לבנות עבורך הזמנה שמתאימה לך, אני צריך תשובה לכמה שאלות:`;
+        } else {
+          summaryLine = `ההזמנה שלך כרגע ריקה ${orderIdPart}.`;
+        }
+      }
 
-      console.log(
-        "[OPEN-Q1] combinedQuestions preview",
-        (curated.questions || []).map((q) => ({
-          q: q?.question,
-          options: q?.options,
-        }))
-      );
+      const questionsLines = (curated.questions || [])
+        .map((q) => `• ${q.question}`)
+        .join("\n");
 
       await saveOpenQuestions({
         customer_id,
@@ -132,15 +128,9 @@ module.exports = {
         questions: curated.questions,
       });
 
-      const finalMessage = [
-        summaryLine,
-        itemsBlock,
-        "",
-        headerBlock,
-        questionsBlock,
-      ]
+      const finalMessage = [summaryLine, questionsLines]
         .filter(Boolean)
-        .join("\n");
+        .join("\n\n");
 
       return finalMessage;
     }
@@ -249,17 +239,53 @@ module.exports = {
       ...stockAltQuestions,
     ];
 
-    console.log(
-      "[OPEN-Q2] combinedQuestions preview",
-      combinedQuestions.map((q) => ({ q: q?.question, options: q?.options }))
-    );
-
     await saveOpenQuestions({
       customer_id,
       shop_id,
       order_id: orderRes?.order_id || null,
       questions: combinedQuestions,
     });
+
+    const hasItems = Array.isArray(orderRes.items) && orderRes.items.length > 0;
+
+    if (!hasItems) {
+      const hasQuestions = combinedQuestions.length > 0;
+
+      const orderIdPart = orderRes?.order_id
+        ? isEnglish
+          ? `(Order: #${orderRes.order_id})`
+          : `(הזמנה מספר: #${orderRes.order_id})`
+        : "";
+
+      let summaryLine;
+      if (isEnglish) {
+        if (hasQuestions) {
+          summaryLine =
+            `Your order is currently empty ${orderIdPart}.` +
+            `\nTo build an order that fits what you want, I need your answers to a few questions:`;
+        } else {
+          summaryLine = `Your order is currently empty ${orderIdPart}.`;
+        }
+      } else {
+        if (hasQuestions) {
+          summaryLine =
+            `ההזמנה שלך כרגע ריקה ${orderIdPart}.` +
+            `\nכדי שאוכל לבנות עבורך הזמנה שמתאימה לך, אני צריך תשובה לכמה שאלות:`;
+        } else {
+          summaryLine = `ההזמנה שלך כרגע ריקה ${orderIdPart}.`;
+        }
+      }
+
+      const questionsLines = (combinedQuestions || [])
+        .map((q) => `• ${q.question}`)
+        .join("\n");
+
+      const finalMessage = [summaryLine, questionsLines]
+        .filter(Boolean)
+        .join("\n\n");
+
+      return finalMessage;
+    }
 
     const [rows] = await db.query(
       `SELECT
@@ -291,14 +317,14 @@ module.exports = {
 
     const headerBlock = isEnglish
       ? [
-          orderRes?.order_id ? `Order #: #${orderRes.order_id}` : null,
-          `Subtotal: ₪${(orderRes.totalPrice ?? 0).toFixed(2)}`,
+          orderRes?.order_id ? `Order: #${orderRes.order_id}` : null,
+          `Subtotal: *₪${(orderRes.totalPrice ?? 0).toFixed(2)}*`,
         ]
           .filter(Boolean)
           .join("\n")
       : [
           orderRes?.order_id ? `מספר הזמנה: #${orderRes.order_id}` : null,
-          `סה״כ ביניים: ₪${(orderRes.totalPrice ?? 0).toFixed(2)}`,
+          `סה״כ ביניים: *₪${(orderRes.totalPrice ?? 0).toFixed(2)}*`,
         ]
           .filter(Boolean)
           .join("\n");

@@ -174,7 +174,6 @@ async function applyOrderModifications({
             mainName
           );
 
-
           const altNames = alts.map((a) =>
             isEnglish
               ? (a.display_name_en && a.display_name_en.trim()) || a.name
@@ -187,7 +186,7 @@ async function applyOrderModifications({
             available: stock,
             alternatives: alts,
           });
-          
+
           stockQuestions.push({
             name: mainName,
             question: altNames.length
@@ -539,8 +538,7 @@ module.exports = {
         isEnglish,
       });
 
-      const itemsBlock = buildItemsBlock({ items: txRes.items, isEnglish });
-
+      const hasItems = Array.isArray(txRes.items) && txRes.items.length > 0;
       const combinedQuestions = [
         ...modelQuestions,
         ...(Array.isArray(txRes.questions) ? txRes.questions : []),
@@ -553,27 +551,65 @@ module.exports = {
         questions: combinedQuestions,
       });
 
-      const summaryLine =
+      const hasQuestions = combinedQuestions.length > 0;
+
+      let summaryLine;
+      let itemsBlock = "";
+      let headerBlock = ""; /*
+      const questionsBlockModify = buildQuestionsBlock({
+        questions: combinedQuestions,
+        isEnglish,
+      });*/
+
+      if (!hasItems) {
+        //empty order
+        const orderIdPart = isEnglish
+          ? `(Order: #${order.id})`
+          : `(הזמנה מספר: #${order.id})`;
+
+        if (isEnglish) {
+          if (hasQuestions) {
+            summaryLine =
+              `Your order is currently empty ${orderIdPart}.` +
+              `\nTo build an order that fits what you want, I need your answers to a few questions:`;
+          } else {
+            summaryLine = `Your order is currently empty ${orderIdPart}.`;
+          }
+        } else {
+          if (hasQuestions) {
+            summaryLine =
+              `ההזמנה שלך כרגע ריקה ${orderIdPart}.` +
+              `\nכדי שאוכל לבנות עבורך הזמנה שמתאימה לך, אני צריך תשובה לכמה שאלות:`;
+          } else {
+            summaryLine = `ההזמנה שלך כרגע ריקה ${orderIdPart}.`;
+          }
+        }
+
+        const questionsLines = (combinedQuestions || [])
+          .map((q) => `• ${q.question}`)
+          .join("\n");
+
+        return [summaryLine, questionsLines].filter(Boolean).join("\n\n");
+      }
+
+      //there is items in the order
+      itemsBlock = buildItemsBlock({ items: txRes.items, isEnglish });
+      summaryLine =
         typeof parsed?.summary_line === "string" && parsed.summary_line.trim()
           ? parsed.summary_line.trim()
           : isEnglish
           ? "Here is your updated order:"
           : "זוהי ההזמנה המעודכנת שלך:";
 
-      const headerBlock = isEnglish
+      headerBlock = isEnglish
         ? [
-            `Order #: #${order.id}`,
-            `Subtotal: ₪${Number(txRes.total || 0).toFixed(2)}`,
+            `Order: #${order.id}`,
+            `Subtotal: *₪${Number(txRes.total || 0).toFixed(2)}*`,
           ].join("\n")
         : [
             `מספר הזמנה: #${order.id}`,
-            `סה״כ ביניים: ₪${Number(txRes.total || 0).toFixed(2)}`,
+            `סה״כ ביניים: *₪${Number(txRes.total || 0).toFixed(2)}*`,
           ].join("\n");
-
-      const questionsBlock = buildQuestionsBlock({
-        questions: combinedQuestions,
-        isEnglish,
-      });
 
       console.log(
         "[ORD-MODIFY] Current items:",
@@ -607,6 +643,11 @@ module.exports = {
         "[ORD-MODIFY] Insufficient new adds:",
         JSON.stringify(txRes.meta.insufficientNewAdds, null, 2)
       );
+
+      const questionsBlock = buildQuestionsBlock({
+        questions: combinedQuestions,
+        isEnglish,
+      });
 
       return [summaryLine, itemsBlock, " ", headerBlock, questionsBlock]
         .filter(Boolean)
@@ -642,10 +683,21 @@ module.exports = {
       };
 
       const itemsBlock = buildItemsBlock({ items: itemsForView, isEnglish });
-      const headerBlock = [
-        `מספר הזמנה: #${order.id}`,
-        `סה״כ ביניים: ₪${Number(order.price || 0).toFixed(2)}`,
-      ].join("\n");
+      let total = 0;
+      for (const it of curItems) {
+        total = addMoney(total, mulMoney(Number(it.amount), Number(it.price)));
+      }
+
+      const headerBlock = isEnglish
+        ? [
+            `Order: #${order.id}`,
+            `Subtotal: *₪${Number(total || 0).toFixed(2)}*`,
+          ].join("\n")
+        : [
+            `מספר הזמנה: #${order.id}`,
+            `סה״כ ביניים: *₪${Number(total || 0).toFixed(2)}*`,
+          ].join("\n");
+
       const questionsBlock = buildQuestionsBlock({
         questions: [techQuestion],
         isEnglish,
