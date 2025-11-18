@@ -1,5 +1,5 @@
 const db = require("../config/db");
-
+const { normalizeIncomingQuestions } = require("./normalize");
 const MIN_PARTIAL_COVERAGE = 0.65;
 
 function tokenizeName(str) {
@@ -59,120 +59,6 @@ function parseModelAnswer(answer) {
   }
   return safeParseJson(content);
 }
-
-function isEnglishSummary(summaryLine) {
-  if (typeof summaryLine !== "string") return false;
-  const hasLatin = /[A-Za-z]/.test(summaryLine);
-  const hasHeb = /[\u0590-\u05FF]/.test(summaryLine);
-  if (hasLatin && !hasHeb) return true;
-  if (
-    summaryLine.startsWith("Great, here’s") ||
-    summaryLine.startsWith("To complete your order")
-  )
-    return true;
-  return false;
-}
-
-function normalizeIncomingQuestions(qs, { preserveOptions = false } = {}) {
-  if (!Array.isArray(qs)) return [];
-  const out = [];
-  for (const q of qs) {
-    if (!q) continue;
-    if (typeof q === "string" && q.trim()) {
-      const base = { name: null, question: q.trim() };
-      out.push(base);
-    } else if (
-      typeof q === "object" &&
-      typeof q.question === "string" &&
-      q.question.trim()
-    ) {
-      const item = {
-        name: typeof q.name === "string" ? q.name : null,
-        question: q.question.trim(),
-      };
-      if (preserveOptions && Array.isArray(q.options)) {
-        item.options = q.options.map((s) => String(s).trim()).filter(Boolean);
-      }
-      out.push(item);
-    }
-  }
-  return out;
-}
-/*
-async function findBestProductForRequest(shop_id, req) {
-  const category = (req?.category || "").trim();
-  const subCategory = (req?.["sub-category"] || req?.sub_category || "").trim();
-  const nameRaw = (req?.name || "").trim();
-
-  const tokens = nameRaw
-    .replace(/\s+/g, " ")
-    .split(" ")
-    .map((t) => t.trim())
-    .filter(Boolean);
-
-  if (tokens.length) {
-    // category + sub_category + ALL tokens in name
-    if (category && subCategory) {
-      let sql = `
-        SELECT id, name, display_name_en, price, stock_amount, category, sub_category
-        FROM product
-        WHERE shop_id = ?
-          AND category = ?
-          AND sub_category = ?
-      `;
-      const params = [shop_id, category, subCategory];
-      for (const t of tokens) {
-        sql += ` AND (name COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
-               OR display_name_en COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%'))`;
-        params.push(t, t);
-      }
-
-      sql += ` ORDER BY updated_at DESC, id DESC LIMIT 1`;
-      const [rows] = await db.query(sql, params);
-      if (rows && rows.length) return rows[0];
-    }
-
-    // ALL tokens in name
-    {
-      let sql = `
-        SELECT id, name, display_name_en, price, stock_amount, category, sub_category
-        FROM product
-        WHERE shop_id = ?
-      `;
-      const params = [shop_id];
-      for (const t of tokens) {
-        sql += ` AND (name COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
-               OR display_name_en COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%'))`;
-        params.push(t, t);
-      }
-
-      sql += ` ORDER BY updated_at DESC, id DESC LIMIT 1`;
-      const [rows] = await db.query(sql, params);
-      if (rows && rows.length) return rows[0];
-    }
-
-    return null;
-  }
-
-  // by category if there is no name
-  if (category && subCategory) {
-    const [rows] = await db.query(
-      `SELECT id, name, display_name_en, price, stock_amount, category, sub_category
-         FROM product
-        WHERE shop_id = ?
-          AND category = ?
-          AND sub_category = ?
-        ORDER BY updated_at DESC, id DESC
-        LIMIT 1`,
-      [shop_id, category, subCategory]
-    );
-    if (rows && rows.length) return rows[0];
-  }
-
-  return null;
-}
-*/
-
 
 async function findBestProductForRequest(shop_id, req) {
   const category = (req?.category || "").trim();
@@ -365,56 +251,6 @@ async function searchProducts(shop_id, products) {
 
   return { found, notFound };
 }
-/*
-async function fetchAlternatives(
-  shop_id,
-  category,
-  subCategory,
-  excludeIds = [],
-  limit = 3
-) {
-  if (!category && !subCategory) return [];
-  const params = [shop_id];
-  let sql = `
-    SELECT id, name, display_name_en, price, stock_amount, category, sub_category
-    FROM product
-    WHERE shop_id = ?`;
-  if (category) {
-    sql += ` AND category = ?`;
-    params.push(category);
-  }
-  if (subCategory) {
-    sql += ` AND sub_category = ?`;
-    params.push(subCategory);
-  }
-  if (excludeIds.length) {
-    sql += ` AND id NOT IN (${excludeIds.map(() => "?").join(",")})`;
-    params.push(...excludeIds);
-  }
-  sql += ` ORDER BY updated_at DESC, id DESC LIMIT ?`;
-  params.push(limit);
-  const [rows] = await db.query(sql, params);
-
-  if ((!rows || !rows.length) && category && subCategory) {
-    const params2 = [shop_id, category];
-    let sql2 = `
-      SELECT id, name, display_name_en, price, stock_amount, category, sub_category
-      FROM product
-      WHERE shop_id = ?
-        AND category = ?`;
-    if (excludeIds.length) {
-      sql2 += ` AND id NOT IN (${excludeIds.map(() => "?").join(",")})`;
-      params2.push(...excludeIds);
-    }
-    sql2 += ` ORDER BY updated_at DESC, id DESC LIMIT ?`;
-    params2.push(limit);
-    const [rows2] = await db.query(sql2, params2);
-    return rows2 || [];
-  }
-
-  return rows || [];
-}
-*/
 
 async function fetchAlternatives(
   shop_id,
@@ -634,10 +470,6 @@ module.exports = {
   // JSON parsing
   safeParseJson,
   parseModelAnswer,
-
-  // Language & questions
-  isEnglishSummary,
-  normalizeIncomingQuestions,
 
   // Product search & alternatives
   findBestProductForRequest,

@@ -3,23 +3,22 @@ const db = require("../../config/db");
 const { getPromptFromDB } = require("../../repositories/prompt");
 const { getOrder } = require("../../utilities/orders");
 const { addMoney, mulMoney, roundTo } = require("../../utilities/decimal");
+const { isEnglishSummary } = require("../../utilities/lang");
 const {
   parseModelAnswer,
-  isEnglishSummary,
-  normalizeIncomingQuestions,
   pickAltTemplate,
   findBestProductForRequest,
   fetchAlternatives,
   buildItemsBlock,
   buildQuestionsBlock,
 } = require("../../utilities/products");
-
 const {
   saveOpenQuestions,
   closeQuestionsByIds,
   deleteQuestionsByIds,
   buildOpenQuestionsContextForPrompt,
 } = require("../../utilities/openQuestions");
+const { normalizeIncomingQuestions } = require("../../utilities/normalize");
 
 const PROMPT_CAT = "ORD";
 const PROMPT_SUB = "MODIFY";

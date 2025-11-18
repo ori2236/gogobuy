@@ -2,10 +2,9 @@ const { chat } = require("../../config/openai");
 const db = require("../../config/db");
 const { getPromptFromDB } = require("../../repositories/prompt");
 const { createOrderWithStockReserve } = require("../../utilities/orders");
+const {isEnglishSummary} = require("../../utilities/lang")
 const {
   parseModelAnswer,
-  isEnglishSummary,
-  normalizeIncomingQuestions,
   searchProducts,
   buildAlternativeQuestions,
   buildItemsBlock,
@@ -17,7 +16,7 @@ const {
   deleteQuestionsByIds,
   buildOpenQuestionsContextForPrompt,
 } = require("../../utilities/openQuestions");
-
+const {normalizeIncomingQuestions} = require("../../utilities/normalize")
 const PROMPT_CAT = "ORD";
 const PROMPT_SUB = "CREATE";
 

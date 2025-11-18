@@ -15,4 +15,24 @@ function addMoney(a, b, dp = 2) {
   return roundTo(Number(a) + Number(b), dp);
 }
 
-module.exports = { roundTo, addDec, subDec, mulMoney, addMoney };
+function formatMoney(num) {
+  const n = Number(num || 0);
+  return n.toFixed(2);
+}
+
+function formatQuantity(amount) {
+  const n = Number(amount || 0);
+  //if the number is int no .0
+  if (Number.isInteger(n)) return String(n);
+  return String(n);
+}
+
+module.exports = {
+  roundTo,
+  addDec,
+  subDec,
+  mulMoney,
+  addMoney,
+  formatMoney,
+  formatQuantity,
+};

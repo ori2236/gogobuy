@@ -2,14 +2,23 @@ const db = require("../config/db");
 const { chat } = require("../config/openai");
 const { orderProducts } = require("../categoryHandlers/ORD/CREATE");
 const { modifyOrder } = require("../categoryHandlers/ORD/MODIFY");
-const { getPromptFromDB } = require("../repositories/prompt");
+const { buildOrderReviewMessage } = require("../categoryHandlers/ORD/REVIEW");
+const {
+  getPromptFromDB,
+  buildClassifierContextHeader,
+  buildOpenQuestionsContext,
+} = require("../repositories/prompt");
 const {
   fetchOpenQuestions,
   fetchRecentClosedQuestions,
 } = require("../utilities/openQuestions");
-
-const DEFAULT_PROMPT_CAT = "defaultSystemPrompt";
-const DEFAULT_PROMPT_SUB = "defaultSystemPrompt";
+const { normalizeOutboundMessage } = require("../utilities/normalize");
+const {
+  getActiveOrder,
+  getOrderItems,
+  buildActiveOrderSignals,
+} = require("../utilities/orders");
+const { detectIsEnglish } = require("../utilities/lang");
 const CLASSIFIER_PROMPT_CAT = "initial";
 const CLASSIFIER_PROMPT_SUB = "initial-classification";
 
@@ -147,126 +156,6 @@ function parseModelMessage(raw) {
   return { type: "raw", text: raw };
 }
 
-function normalizeOutboundMessage(payload) {
-  if (!payload) return "";
-  if (typeof payload === "string") return payload.trim();
-
-  if (payload && typeof payload.reply === "string") {
-    return payload.reply.trim();
-  }
-  if (payload && typeof payload.message === "string") {
-    return payload.message.trim();
-  }
-  if (payload && payload.message && typeof payload.message.reply === "string") {
-    return payload.message.reply.trim();
-  }
-
-  try {
-    return JSON.stringify(payload);
-  } catch {
-    return String(payload);
-  }
-}
-
-async function getActiveOrder(customer_id, shop_id) {
-  const [rows] = await db.query(
-    `SELECT *
-       FROM orders
-      WHERE customer_id = ? AND shop_id = ?
-      ORDER BY updated_at DESC, id DESC
-      LIMIT 1`,
-    [customer_id, shop_id]
-  );
-  return rows[0] || null;
-}
-
-async function getOrderItems(order_id) {
-  const [rows] = await db.query(
-    `SELECT oi.*, p.name, p.category, p.sub_category AS 'sub-category'
-       FROM order_item oi
-       LEFT JOIN product p ON p.id = oi.product_id
-      WHERE oi.order_id = ?`,
-    [order_id]
-  );
-  return rows;
-}
-
-function buildActiveOrderSignals(order, items) {
-  if (!order) {
-    return {
-      ACTIVE_ORDER_EXISTS: false,
-      ACTIVE_ORDER_SUMMARY: "none",
-    };
-  }
-  const examples = (items || [])
-    .slice(0, 3)
-    .map((i) => `${i.name} ×${(+i.amount).toString().replace(/\.0+$/, "")}`);
-  return {
-    ACTIVE_ORDER_EXISTS: true,
-    ACTIVE_ORDER_SUMMARY: `order_id=${order.id}; items=${
-      items.length
-    }; examples=[${examples.join(", ")}]`,
-  };
-}
-
-function oneLine(str) {
-  return String(str || "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 800);
-}
-
-function buildClassifierContextHeader({ sig }) {
-  return [
-    "CONTEXT SIGNALS",
-    `- ACTIVE_ORDER_EXISTS = ${sig.ACTIVE_ORDER_EXISTS}`,
-    `- ACTIVE_ORDER_SUMMARY = ${oneLine(sig.ACTIVE_ORDER_SUMMARY)}`,
-
-    "",
-    "CLASSIFICATION BIAS",
-    "- If ACTIVE_ORDER_EXISTS=true and the message indicates add/remove/change quantity/replace → classify as: 1, ORD, ORD.MODIFY.",
-    '- If ACTIVE_ORDER_EXISTS=true but the user explicitly says "new order"/"start a new cart"/"סל חדש" → classify as: 1, ORD, ORD.CREATE.',
-    "- If ACTIVE_ORDER_EXISTS=false and the message is about adding items → classify as: 1, ORD, ORD.CREATE.",
-    '- "what\'s in my cart"/"מה יש בסל" → 1, ORD, ORD.REVIEW.',
-    '- "finish/pay"/"לתשלום"/"סיימתי" → 1, ORD, ORD.CHECKOUT.',
-    '- "cancel the order"/"בטל הזמנה" → 1, ORD, ORD.CANCEL.',
-    "",
-  ].join("\n");
-}
-
-function buildOpenQuestionsContext({ openQs = [], closedQs = [] }) {
-  const toLite = (q) => ({
-    id: q.id,
-    order_id: q.order_id,
-    product_name: q.product_name,
-    question_text: q.question_text,
-    options: (() => {
-      try {
-        return q.option_set ? JSON.parse(q.option_set) : null;
-      } catch {
-        return null;
-      }
-    })(),
-    asked_at: q.asked_at,
-  });
-  const openLite = openQs.map(toLite);
-  const closedLite = closedQs.map(toLite);
-
-  return [
-    "OPEN QUESTIONS CONTEXT",
-    `- OPEN_QUESTIONS_COUNT = ${openLite.length}`,
-    `- CLOSED_QUESTIONS_RECENT_COUNT = ${closedLite.length}`,
-    "- OPEN_QUESTIONS (JSON, last 48h):",
-    JSON.stringify(openLite).slice(0, 3000),
-    "- CLOSED_QUESTIONS_RECENT (JSON, last 48h):",
-    JSON.stringify(closedLite).slice(0, 2000),
-    "",
-    "HINT",
-    "- With open questions, the next customer message is LIKELY an answer → bias towards ORD.MODIFY if it refers to items/alternatives/quantities.",
-    "",
-  ].join("\n");
-}
-
 module.exports = {
   async processMessage(message, phone_number, shop_id) {
     const customer_id = await ensureCustomer(shop_id, phone_number);
@@ -362,9 +251,10 @@ module.exports = {
         message,
       });
 
+      let botPayload = "";
       if (category == "ORD") {
         if (subcategory == "CREATE") {
-          const resp = await orderProducts({
+          botPayload = await orderProducts({
             message,
             customer_id,
             shop_id,
@@ -372,17 +262,8 @@ module.exports = {
             openQuestions: openQs,
             recentClosed: closedQs,
           });
-          const botText = normalizeOutboundMessage(resp);
-          await saveChat({
-            customer_id,
-            shop_id,
-            sender: "bot",
-            status: "classified",
-            message: botText,
-          });
-          return resp;
         } else if (subcategory == "MODIFY") {
-          const resp = await modifyOrder({
+          botPayload = await modifyOrder({
             message,
             customer_id,
             shop_id,
@@ -393,17 +274,29 @@ module.exports = {
             openQuestions: openQs,
             recentClosed: closedQs,
           });
-          const botText = normalizeOutboundMessage(resp);
-          await saveChat({
-            customer_id,
-            shop_id,
-            sender: "bot",
-            status: "classified",
-            message: botText,
-          });
-          return resp;
+        } else if (subcategory == "REVIEW") {
+          const isEnglish = detectIsEnglish(message);
+          botPayload = buildOrderReviewMessage(activeOrder, items, isEnglish);
+        } else if (subcategory == "CHECKOUT" || subcategory == "CANCEL") {
+          // placeholder עד שימומש
+          const isEnglish = detectIsEnglish(message);
+          botPayload = isEnglish
+            ? "At the moment you can only create, modify and review orders. Checkout and cancel will be available soon."
+            : "כרגע יש לנו תמיכה רק ביצירת, עריכת וצפייה בהזמנות. סיום וביטול הזמנה יתווספו בהמשך.";
         }
+
+        const botText = normalizeOutboundMessage(botPayload);
+        await saveChat({
+          customer_id,
+          shop_id,
+          sender: "bot",
+          status: "classified",
+          message: botText,
+        });
+
+        return botPayload;
       }
+
       //temporary until the case is handled
       await saveChat({
         customer_id,
@@ -412,7 +305,7 @@ module.exports = {
         status: "close",
         message: "",
       });
-      return "כרגע יש לנו תמיכה רק ביצירת ועריכת הזמנות אבל זיהינו שהכוונה שלך היא לא אחת מאלו";
+      return "כרגע יש לנו תמיכה רק ביצירת, עריכת וצפייה בהזמנות אבל זיהינו שהכוונה שלך היא לא אחת מאלו";
     } else {
       //if not classified and not clarify
       await saveChat({

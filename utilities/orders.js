@@ -347,8 +347,52 @@ async function getOrder(order_id) {
   return rows[0] || null;
 }
 
+async function getActiveOrder(customer_id, shop_id) {
+  const [rows] = await db.query(
+    `SELECT *
+       FROM orders
+      WHERE customer_id = ? AND shop_id = ?
+      ORDER BY updated_at DESC, id DESC
+      LIMIT 1`,
+    [customer_id, shop_id]
+  );
+  return rows[0] || null;
+}
+
+async function getOrderItems(order_id) {
+  const [rows] = await db.query(
+    `SELECT oi.*, p.name, p.display_name_en, p.category, p.sub_category AS 'sub-category'
+       FROM order_item oi
+       LEFT JOIN product p ON p.id = oi.product_id
+      WHERE oi.order_id = ?`,
+    [order_id]
+  );
+  return rows;
+}
+
+function buildActiveOrderSignals(order, items) {
+  if (!order) {
+    return {
+      ACTIVE_ORDER_EXISTS: false,
+      ACTIVE_ORDER_SUMMARY: "none",
+    };
+  }
+  const examples = (items || [])
+    .slice(0, 3)
+    .map((i) => `${i.name} ×${(+i.amount).toString().replace(/\.0+$/, "")}`);
+  return {
+    ACTIVE_ORDER_EXISTS: true,
+    ACTIVE_ORDER_SUMMARY: `order_id=${order.id}; items=${
+      items.length
+    }; examples=[${examples.join(", ")}]`,
+  };
+}
+
 module.exports = {
   createOrderWithStockReserve,
   expireStalePendingOrders,
   getOrder,
+  getActiveOrder,
+  getOrderItems,
+  buildActiveOrderSignals,
 };
