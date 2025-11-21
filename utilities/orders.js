@@ -252,91 +252,6 @@ async function createOrderWithStockReserve({
   }
 }
 
-async function expireStalePendingOrders({ hours = 24, shop_id = null } = {}) {
-  const conn = await db.getConnection();
-  try {
-    await conn.beginTransaction();
-
-    const params = [hours];
-    let sql = `
-      SELECT id, shop_id
-      FROM orders
-      WHERE status = 'pending'
-        AND TIMESTAMPDIFF(HOUR, GREATEST(created_at, updated_at), NOW()) >= ?`;
-    if (shop_id) {
-      sql += ` AND shop_id = ?`;
-      params.push(shop_id);
-    }
-
-    const [orders] = await conn.query(sql + ` FOR UPDATE`, params);
-
-    if (!orders.length) {
-      await conn.commit();
-      return { ok: true, expired: 0 };
-    }
-
-    for (const row of orders) {
-      const orderId = Number(row.id);
-      const orderShopId = Number(row.shop_id);
-
-      const [[ord]] = await conn.query(
-        `SELECT id, shop_id, status
-           FROM orders
-          WHERE id = ? FOR UPDATE`,
-        [orderId]
-      );
-      if (!ord || ord.status !== "pending") {
-        continue;
-      }
-
-      const [items] = await conn.query(
-        `SELECT product_id, amount
-           FROM order_item
-          WHERE order_id = ?
-          FOR UPDATE`,
-        [orderId]
-      );
-
-      if (items.length) {
-        const ids = items.map((i) => Number(i.product_id));
-        const placeholders = ids.map(() => "?").join(",");
-
-        await conn.query(
-          `SELECT id
-             FROM product
-            WHERE id IN (${placeholders}) AND shop_id = ?
-            FOR UPDATE`,
-          [...ids, orderShopId]
-        );
-
-        for (const it of items) {
-          await conn.query(
-            `UPDATE product
-                SET stock_amount = COALESCE(stock_amount,0) + ?
-              WHERE id = ? AND shop_id = ?`,
-            [Number(it.amount), Number(it.product_id), orderShopId]
-          );
-        }
-      }
-
-      await conn.query(`DELETE FROM order_item WHERE order_id = ?`, [orderId]);
-
-      await conn.query(
-        `DELETE FROM orders WHERE id = ? AND status = 'pending'`,
-        [orderId]
-      );
-    }
-
-    await conn.commit();
-    return { ok: true, expired: orders.length };
-  } catch (e) {
-    await conn.rollback();
-    throw e;
-  } finally {
-    conn.release();
-  }
-}
-
 async function getOrder(order_id) {
   const [rows] = await db.query(
     `SELECT *
@@ -524,7 +439,6 @@ async function checkIfToCancelOrder({
 
 module.exports = {
   createOrderWithStockReserve,
-  expireStalePendingOrders,
   getOrder,
   getActiveOrder,
   getOrderItems,
