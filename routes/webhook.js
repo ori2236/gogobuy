@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const db = require("../config/db");
 const { sendWhatsAppText } = require("../config/whatsapp");
-const customerInteractionController = require("../controllers/CustomerInteractionController");
+const { processMessage } = require("../controllers/CustomerInteractionController");
 
 const VERIFY_TOKEN = (process.env.WHATSAPP_VERIFY_TOKEN || "").trim();
 
@@ -72,7 +72,7 @@ router.post("/webhooks", async (req, res) => {
         let reply = "תודה";
 
         if (messageText) {
-          const botResp = await customerInteractionController.processMessage(
+          const botResp = await processMessage(
             messageText,
             from,
             SHOP_ID

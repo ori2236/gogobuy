@@ -2,7 +2,8 @@ const db = require("../config/db");
 const { chat } = require("../config/openai");
 const { orderProducts } = require("../categoryHandlers/ORD/CREATE");
 const { modifyOrder } = require("../categoryHandlers/ORD/MODIFY");
-const { buildOrderReviewMessage } = require("../categoryHandlers/ORD/REVIEW");
+const { orderReview } = require("../categoryHandlers/ORD/REVIEW");
+const { askToCancelOrder } = require("../categoryHandlers/ORD/CANCEL");
 const {
   getPromptFromDB,
   buildClassifierContextHeader,
@@ -17,6 +18,7 @@ const {
   getActiveOrder,
   getOrderItems,
   buildActiveOrderSignals,
+  checkIfToCancelOrder,
 } = require("../utilities/orders");
 const { detectIsEnglish } = require("../utilities/lang");
 const CLASSIFIER_PROMPT_CAT = "initial";
@@ -156,49 +158,85 @@ function parseModelMessage(raw) {
   return { type: "raw", text: raw };
 }
 
-module.exports = {
-  async processMessage(message, phone_number, shop_id) {
-    const customer_id = await ensureCustomer(shop_id, phone_number);
+async function processMessage(message, phone_number, shop_id) {
+  const customer_id = await ensureCustomer(shop_id, phone_number);
 
-    const wasSent = await wasSentBefore(customer_id, shop_id, message);
-    if (wasSent) {
-      return { skipSend: true };
-    }
+  const wasSent = await wasSentBefore(customer_id, shop_id, message);
+  if (wasSent) {
+    return { skipSend: true };
+  }
 
-    const activeOrder = await getActiveOrder(customer_id, shop_id);
-    const order_id = activeOrder ? activeOrder.id : null;
-    const items = activeOrder ? await getOrderItems(activeOrder.id) : [];
-    const sig = buildActiveOrderSignals(activeOrder, items);
-    const openQs = await fetchOpenQuestions(customer_id, shop_id, 7);
-    const closedQs = await fetchRecentClosedQuestions(customer_id, shop_id, 5);
+  const activeOrder = await getActiveOrder(customer_id, shop_id);
+  const order_id = activeOrder ? activeOrder.id : null;
+  const items = activeOrder ? await getOrderItems(activeOrder.id) : [];
+  const sig = buildActiveOrderSignals(activeOrder, items);
 
-    let systemPromptBase = await getPromptFromDB(
-      CLASSIFIER_PROMPT_CAT,
-      CLASSIFIER_PROMPT_SUB
+  const cancelReply = await checkIfToCancelOrder({
+    activeOrder,
+    message,
+    customer_id,
+    shop_id,
+    saveChat,
+  });
+
+  if (cancelReply) return cancelReply;
+
+  const openQs = await fetchOpenQuestions(customer_id, shop_id, 7);
+  const closedQs = await fetchRecentClosedQuestions(customer_id, shop_id, 5);
+
+  let systemPromptBase = await getPromptFromDB(
+    CLASSIFIER_PROMPT_CAT,
+    CLASSIFIER_PROMPT_SUB
+  );
+  const contextHeader = buildClassifierContextHeader({ sig });
+  const openQuestionsCtx = buildOpenQuestionsContext({ openQs, closedQs });
+  const systemPrompt = [
+    systemPromptBase,
+    "",
+    "=== STRUCTURED CONTEXT ===",
+    contextHeader,
+    openQuestionsCtx,
+  ].join("\n");
+
+  let history = await getHistory(customer_id, shop_id, 7);
+  console.log("history:", history);
+  const answer = await chat({ message, history, systemPrompt });
+  const replyText =
+    typeof answer === "string"
+      ? answer
+      : answer && typeof answer.message === "string"
+      ? answer.message
+      : "";
+
+  const parsed = parseModelMessage(replyText);
+
+  if (parsed.type === "clarify") {
+    await saveChat({
+      customer_id,
+      shop_id,
+      sender: "customer",
+      status: "unclassified",
+      message,
+    });
+
+    //bot's question
+    await saveChat({
+      customer_id,
+      shop_id,
+      sender: "bot",
+      status: "unclassified",
+      message: parsed.text,
+    });
+    return parsed.text || "לא התקבלה תשובה מהמודל.";
+  } else if (parsed.type === "classified") {
+    const { category, subcategory } = parsed;
+    console.log(
+      `[classification] category=${category}, subcategory=${subcategory}`
     );
-    const contextHeader = buildClassifierContextHeader({ sig });
-    const openQuestionsCtx = buildOpenQuestionsContext({ openQs, closedQs });
-    const systemPrompt = [
-      systemPromptBase,
-      "",
-      "=== STRUCTURED CONTEXT ===",
-      contextHeader,
-      openQuestionsCtx,
-    ].join("\n");
 
-    let history = await getHistory(customer_id, shop_id, 7);
-    console.log("history:", history);
-    const answer = await chat({ message, history, systemPrompt });
-    const replyText =
-      typeof answer === "string"
-        ? answer
-        : answer && typeof answer.message === "string"
-        ? answer.message
-        : "";
-
-    const parsed = parseModelMessage(replyText);
-
-    if (parsed.type === "clarify") {
+    if (!isValidCategorySub(category, subcategory)) {
+      const apology =
+        "מצטערים, לא הצלחנו להבין את הבקשה. נשמח אם תנוסח שוב בקצרה";
       await saveChat({
         customer_id,
         shop_id,
@@ -207,146 +245,138 @@ module.exports = {
         message,
       });
 
-      //bot's question
       await saveChat({
         customer_id,
         shop_id,
         sender: "bot",
         status: "unclassified",
-        message: parsed.text,
+        message: apology,
       });
-      return parsed.text || "לא התקבלה תשובה מהמודל.";
-    } else if (parsed.type === "classified") {
-      const { category, subcategory } = parsed;
-      console.log(
-        `[classification] category=${category}, subcategory=${subcategory}`
-      );
+      return apology;
+    }
 
-      if (!isValidCategorySub(category, subcategory)) {
-        const apology =
-          "מצטערים, לא הצלחנו להבין את הבקשה. נשמח אם תנוסח שוב בקצרה";
-        await saveChat({
-          customer_id,
-          shop_id,
-          sender: "customer",
-          status: "unclassified",
+    await saveChat({
+      customer_id,
+      shop_id,
+      sender: "customer",
+      status: "classified",
+      message,
+    });
+
+    let botPayload = "";
+    if (category == "ORD") {
+      if (subcategory == "CREATE") {
+        botPayload = await orderProducts({
           message,
-        });
-
-        await saveChat({
           customer_id,
           shop_id,
-          sender: "bot",
-          status: "unclassified",
-          message: apology,
+          history,
+          openQuestions: openQs,
+          recentClosed: closedQs,
         });
-        return apology;
-      }
-
-      await saveChat({
-        customer_id,
-        shop_id,
-        sender: "customer",
-        status: "classified",
-        message,
-      });
-
-      let botPayload = "";
-      if (category == "ORD") {
-        if (subcategory == "CREATE") {
-          botPayload = await orderProducts({
-            message,
-            customer_id,
-            shop_id,
-            history,
-            openQuestions: openQs,
-            recentClosed: closedQs,
-          });
-        } else if (subcategory == "MODIFY") {
-          botPayload = await modifyOrder({
-            message,
-            customer_id,
-            shop_id,
-            order_id,
-            activeOrder,
-            items,
-            history,
-            openQuestions: openQs,
-            recentClosed: closedQs,
-          });
-        } else if (subcategory == "REVIEW") {
-          const isEnglish = detectIsEnglish(message);
-          botPayload = buildOrderReviewMessage(activeOrder, items, isEnglish);
-        } else if (subcategory == "CHECKOUT" || subcategory == "CANCEL") {
-          // placeholder עד שימומש
-          const isEnglish = detectIsEnglish(message);
-          botPayload = isEnglish
-            ? "At the moment you can only create, modify and review orders. Checkout and cancel will be available soon."
-            : "כרגע יש לנו תמיכה רק ביצירת, עריכת וצפייה בהזמנות. סיום וביטול הזמנה יתווספו בהמשך.";
-        }
-
-        const botText = normalizeOutboundMessage(botPayload);
-        await saveChat({
+      } else if (subcategory == "MODIFY") {
+        botPayload = await modifyOrder({
+          message,
           customer_id,
           shop_id,
-          sender: "bot",
-          status: "classified",
-          message: botText,
+          order_id,
+          activeOrder,
+          items,
+          history,
+          openQuestions: openQs,
+          recentClosed: closedQs,
         });
-
-        return botPayload;
+      } else if (subcategory == "REVIEW") {
+        const isEnglish = detectIsEnglish(message);
+        botPayload = await orderReview(
+          activeOrder,
+          items,
+          isEnglish,
+          customer_id,
+          shop_id
+        );
+      } else if (subcategory == "CANCEL") {
+        const isEnglish = detectIsEnglish(message);
+        botPayload = await askToCancelOrder(
+          activeOrder,
+          isEnglish,
+          customer_id,
+          shop_id
+        );
+      } else if (subcategory == "CHECKOUT") {
+        const isEnglish = detectIsEnglish(message);
+        botPayload = isEnglish
+          ? "At the moment you can only create, modify, cancel and review orders. Checkout will be available soon."
+          : "כרגע יש לנו תמיכה רק ביצירת, עריכת, ביטול וצפייה בהזמנות. סיום הזמנה יתווסף בהמשך.";
       }
 
-      //temporary until the case is handled
-      await saveChat({
-        customer_id,
-        shop_id,
-        sender: "server",
-        status: "close",
-        message: "",
-      });
-      return "כרגע יש לנו תמיכה רק ביצירת, עריכת וצפייה בהזמנות אבל זיהינו שהכוונה שלך היא לא אחת מאלו";
-    } else {
-      //if not classified and not clarify
-      await saveChat({
-        customer_id,
-        shop_id,
-        sender: "customer",
-        status: "unclassified",
-        message,
-      });
+      const botText = normalizeOutboundMessage(botPayload);
       await saveChat({
         customer_id,
         shop_id,
         sender: "bot",
-        status: "unclassified",
-        message: replyText || "",
+        status: "classified",
+        message: botText,
       });
-      return replyText || "לא התקבלה תשובה מהמודל.";
-    }
-  },
 
-  async handleMessage(req, res, next) {
-    const { message, phone_number, shop_id } = req.body;
-    if (!message || typeof message !== "string" || !phone_number || !shop_id) {
-      return res.status(400).json({
-        success: false,
-        message: "message, phone_number and shop_id are required",
-      });
+      return botPayload;
     }
 
-    try {
-      const responseMessage = await module.exports.processMessage(
-        message,
-        phone_number,
-        shop_id
-      );
+    //temporary until the case is handled
+    await saveChat({
+      customer_id,
+      shop_id,
+      sender: "server",
+      status: "close",
+      message: "",
+    });
+    return "כרגע יש לנו תמיכה רק ביצירת, עריכת, ביטול וצפייה בהזמנות אבל זיהינו שהכוונה שלך היא לא אחת מאלו";
+  } else {
+    //if not classified and not clarify
+    await saveChat({
+      customer_id,
+      shop_id,
+      sender: "customer",
+      status: "unclassified",
+      message,
+    });
+    await saveChat({
+      customer_id,
+      shop_id,
+      sender: "bot",
+      status: "unclassified",
+      message: replyText || "",
+    });
+    return replyText || "לא התקבלה תשובה מהמודל.";
+  }
+}
 
-      const messageText = normalizeOutboundMessage(responseMessage);
-      res.json({ success: true, message: messageText });
-    } catch (error) {
-      console.error(error);
-      next(error);
-    }
-  },
+async function handleMessage(req, res, next) {
+  const { message, phone_number, shop_id } = req.body;
+  if (!message || typeof message !== "string" || !phone_number || !shop_id) {
+    return res.status(400).json({
+      success: false,
+      message: "message, phone_number and shop_id are required",
+    });
+  }
+
+  try {
+    const responseMessage = await module.exports.processMessage(
+      message,
+      phone_number,
+      shop_id
+    );
+
+    const messageText = normalizeOutboundMessage(responseMessage);
+    res.json({ success: true, message: messageText });
+  } catch (error) {
+    console.error(error);
+    next(error);
+  }
+}
+
+module.exports = {
+  processMessage,
+  handleMessage,
+  saveChat,
 };

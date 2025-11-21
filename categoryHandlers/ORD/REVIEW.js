@@ -2,14 +2,32 @@ const {
   formatMoney,
   formatQuantity,
   addMoney,
-  mulMoney,
 } = require("../../utilities/decimal");
+const { saveOpenQuestions } = require("../../utilities/openQuestions");
 
-function buildOrderReviewMessage(order, items, isEnglish = false) {
+async function orderReview(order, items, isEnglish, customer_id, shop_id) {
   // no open order
   if (!order) {
-    return isEnglish ? "There is no open order.\nwould you like to open a new one?" :
-     "אין לך כרגע הזמנה פתוחה,\n תרצה לפתוח הזמנה חדשה?";
+    const botPayload = isEnglish
+      ? "You don't have any open orders at the moment. Would you like to start a new order?"
+      : "אין לך הזמנה פתוחה כרגע. תרצה לפתוח הזמנה חדשה?";
+
+    const question = botPayload.split(". ")[1];
+
+    await saveOpenQuestions({
+      customer_id,
+      shop_id,
+      order_id: null,
+      questions: [
+        {
+          name: null,
+          question,
+          options: isEnglish ? ["yes", "no"] : ["כן", "לא"],
+        },
+      ],
+    });
+
+    return botPayload;
   }
 
   // empty order
@@ -53,7 +71,6 @@ function buildOrderReviewMessage(order, items, isEnglish = false) {
     );
   }
 
-
   lines.push("");
 
   if (isEnglish) {
@@ -68,5 +85,5 @@ function buildOrderReviewMessage(order, items, isEnglish = false) {
 }
 
 module.exports = {
-  buildOrderReviewMessage,
+  orderReview,
 };
