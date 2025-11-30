@@ -33,12 +33,13 @@ HRS — Opening hours
   HRS.UNUSUAL — opening hours at unusual days (holidays/special days/holiday eves)
 
 INV — Inventory & products
-  INV.AVAIL — is a product in stock? (availability/brand/size)
-  INV.SUBSTITUTE — ask for an alternative (if OOS, suggest close match)
-  INV.SUGGEST — ask for similar/ideas (recommendations without specific OOS)
+  INV.AVAIL — questions about current inventory: whether the store has certain product(s) in stock, which variants/brands/flavours of them are available, or how many units are available
+  INV.PRICE_AND_SALES — price or promotion of specific product(s)
+  INV.DETAILS — ingredients and attributes (kosher, lactose-free, gluten, allergens, organic, etc.)
+  INV.SUGGEST — ask for product ideas or similar items (recommendations without editing an existing order)
 
 PRM — Promotions & coupons
-  PRM.CURRENT — active deals now (current promotions/discounts/coupons)
+  PRM.CURRENT — general questions about current promotions/discounts/coupons in the store (not tied to specific products)
 
 SHP — Delivery & pickup
   SHP.ZONES — coverage areas (do you deliver to X? zip/city range)
@@ -64,6 +65,8 @@ RULES
 ANAPHORA HINTS
 - Phrases like "עוד כאלה", "תוסיף עוד", "תוריד מזה", "replace X with Y" typically refer to ORD.MODIFY when ACTIVE_ORDER_EXISTS=true.
 - If unclear between MODIFY/CREATE, prefer MODIFY when ACTIVE_ORDER_EXISTS=true.
+- If the customer asks about the price or deal of specific product(s), use INV.PRICE_AND_SALES.
+- If the customer asks about deals/promotions in general (without specific products), use PRM.CURRENT.
 
 === OPEN QUESTIONS & CONTEXT USE ===
 You will receive a "=== STRUCTURED CONTEXT ===" section with:

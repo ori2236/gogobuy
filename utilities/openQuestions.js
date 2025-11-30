@@ -82,7 +82,6 @@ async function getOpenQuestions(
   }));
 }
 
-/** שליפת שאלות פתוחות אחרונות (48 שעות), מוגבל ברירת מחדל ל-7 */
 async function fetchOpenQuestions(customer_id, shop_id, limit = 7) {
   const [rows] = await db.query(
     `SELECT id, order_id, product_name, question_text, status, asked_at, option_set
@@ -111,7 +110,6 @@ async function fetchRecentClosedQuestions(customer_id, shop_id, limit = 7) {
   return rows || [];
 }
 
-/** סגירת שאלות (עדכון ל-close) */
 async function closeQuestionsByIds(ids = []) {
   if (!Array.isArray(ids) || !ids.length) return 0;
   const [res] = await db.query(
@@ -123,7 +121,6 @@ async function closeQuestionsByIds(ids = []) {
   return res?.affectedRows || 0;
 }
 
-/** מחיקת שאלות לפי מזהים (למקרים של “נענתה בוודאות”) */
 async function deleteQuestionsByIds(ids = []) {
   if (!Array.isArray(ids) || !ids.length) return 0;
   const [res] = await db.query(
@@ -135,8 +132,7 @@ async function deleteQuestionsByIds(ids = []) {
 }
 
 function buildOpenQuestionsContextForPrompt(
-  openQuestions = [],
-  recentClosed = []
+  openQuestions = []
 ) {
   const lite = (qs) =>
     qs.map((q) => ({
