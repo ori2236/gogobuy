@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const db = require("../config/db");
 const { sendWhatsAppText } = require("../config/whatsapp");
-const { processMessage } = require("../controllers/CustomerInteractionController");
+const { processMessage } = require("../services/messageFlow");
 
 const VERIFY_TOKEN = (process.env.WHATSAPP_VERIFY_TOKEN || "").trim();
 

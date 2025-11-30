@@ -1,6 +1,100 @@
 const db = require("../config/db");
-const { normalizeIncomingQuestions } = require("./normalize");
+const { normalizeIncomingQuestions } = require("../utilities/normalize");
+
 const MIN_PARTIAL_COVERAGE = 0.65;
+
+const SUBCATEGORY_GROUPS = {
+  // ===== Dairy & Eggs =====
+  Cheese: ["Cheese", "Spreads & Cream Cheese"],
+  "Spreads & Cream Cheese": ["Spreads & Cream Cheese", "Cheese"],
+
+  Yogurt: ["Yogurt", "Desserts & Puddings"],
+  "Desserts & Puddings": ["Desserts & Puddings", "Yogurt"],
+
+  Milk: ["Milk", "Milk Alternatives"],
+  "Milk Alternatives": ["Milk Alternatives", "Milk"],
+
+  // ===== Bakery =====
+  Bread: ["Bread", "Rolls & Buns", "Baguettes & Artisan"],
+  "Rolls & Buns": ["Rolls & Buns", "Bread"],
+  "Baguettes & Artisan": ["Baguettes & Artisan", "Bread"],
+
+  "Cakes & Pastries": ["Cakes & Pastries", "Cookies & Biscuits"],
+  "Cookies & Biscuits": ["Cookies & Biscuits", "Cakes & Pastries"],
+
+  "Pita & Flatbread": ["Pita & Flatbread", "Tortillas & Wraps"],
+  "Tortillas & Wraps": ["Tortillas & Wraps", "Pita & Flatbread"],
+
+  // ===== Produce =====
+  Fruits: ["Fruits", "Organic Produce"],
+  Vegetables: ["Vegetables", "Organic Produce"],
+  "Organic Produce": ["Organic Produce", "Fruits", "Vegetables"],
+
+  "Prepped Produce": ["Prepped Produce", "Vegetables"],
+
+  // ===== Meat & Poultry =====
+  Beef: ["Beef", "Ground/Minced"],
+  "Ground/Minced": ["Ground/Minced", "Beef"],
+
+  "Cold Cuts": ["Cold Cuts", "Turkey", "Chicken"],
+  Sausages: ["Sausages", "Mixed & Other Meats"],
+  "Mixed & Other Meats": ["Mixed & Other Meats", "Sausages"],
+
+  // ===== Fish & Seafood =====
+  "Fresh Fish": ["Fresh Fish", "Frozen Fish"],
+  "Frozen Fish": ["Frozen Fish", "Fresh Fish"],
+
+  // ===== Deli & Ready Meals =====
+  "Ready-to-Eat Meals": ["Ready-to-Eat Meals", "Sushi & Sashimi"],
+  "Sushi & Sashimi": ["Sushi & Sashimi", "Ready-to-Eat Meals"],
+
+  // ===== Frozen =====
+  "Pizza & Dough": ["Pizza & Dough", "Ready Meals"],
+  "Ready Meals": ["Ready Meals", "Pizza & Dough"],
+
+  // ===== Pantry =====
+  "Flour & Baking": ["Flour & Baking", "Baking Mixes"],
+  "Baking Mixes": ["Baking Mixes", "Flour & Baking"],
+
+  "Breakfast Cereal": ["Breakfast Cereal", "Granola & Muesli"],
+  "Granola & Muesli": ["Granola & Muesli", "Breakfast Cereal"],
+
+  "Canned Vegetables": ["Canned Vegetables", "Canned Beans & Legumes"],
+  "Canned Beans & Legumes": ["Canned Beans & Legumes", "Canned Vegetables"],
+
+  "Honey & Spreads": ["Honey & Spreads", "Nut Butters", "Jams & Preserves"],
+  "Nut Butters": ["Nut Butters", "Honey & Spreads"],
+  "Jams & Preserves": ["Jams & Preserves", "Honey & Spreads"],
+
+  "Asian Pantry": ["Asian Pantry", "Sauces & Condiments"],
+  "Mediterranean Pantry": ["Mediterranean Pantry", "Sauces & Condiments"],
+  "Mexican Pantry": ["Mexican Pantry", "Sauces & Condiments"],
+  "Sauces & Condiments": [
+    "Sauces & Condiments",
+    "Asian Pantry",
+    "Mediterranean Pantry",
+    "Mexican Pantry",
+  ],
+
+  // ===== Snacks =====
+  "Chips & Crisps": ["Chips & Crisps", "Pretzels & Popcorn"],
+  "Pretzels & Popcorn": ["Pretzels & Popcorn", "Chips & Crisps"],
+
+  // ===== Personal Care =====
+  "Bath & Body": ["Bath & Body", "Hand Soap & Sanitizers"],
+  "Hand Soap & Sanitizers": ["Hand Soap & Sanitizers", "Bath & Body"],
+
+  // ===== Health & Wellness =====
+  "Pain Relief": ["Pain Relief", "Cough & Cold"],
+  "Cough & Cold": ["Cough & Cold", "Pain Relief"],
+};
+
+function getSubCategoryCandidates(sub) {
+  const s = (sub || "").trim();
+  if (!s) return [];
+  if (SUBCATEGORY_GROUPS[s]) return SUBCATEGORY_GROUPS[s];
+  return [s];
+}
 
 function tokenizeName(str) {
   if (!str) return [];
@@ -62,31 +156,79 @@ function parseModelAnswer(answer) {
 
 async function findBestProductForRequest(shop_id, req) {
   const category = (req?.category || "").trim();
-  const subCategory = (req?.["sub-category"] || req?.sub_category || "").trim();
+  const subCategoryRaw = (
+    req?.["sub-category"] ||
+    req?.sub_category ||
+    ""
+  ).trim();
   const nameRaw = (req?.name || "").trim();
 
+  const primarySub = subCategoryRaw || null;
+  const subCandidates = primarySub ? getSubCategoryCandidates(primarySub) : [];
+
+  const otherSubs = primarySub
+    ? subCandidates.filter((s) => s !== primarySub)
+    : [];
+
   const reqTokens = tokenizeName(nameRaw);
+
   if (!reqTokens.length) {
-    //there is no name, category + sub_category
-    if (category && subCategory) {
-      const [rows] = await db.query(
-        `SELECT id, name, display_name_en, price, stock_amount, category, sub_category
-           FROM product
-          WHERE shop_id = ?
-            AND category = ?
-            AND sub_category = ?
-          ORDER BY updated_at DESC, id DESC
-          LIMIT 1`,
-        [shop_id, category, subCategory]
+    if (category && primarySub) {
+      let [rows] = await db.query(
+        `
+        SELECT id, name, display_name_en, price, stock_amount, category, sub_category
+        FROM product
+        WHERE shop_id = ?
+          AND category = ?
+          AND sub_category = ?
+        ORDER BY updated_at DESC, id DESC
+        LIMIT 1
+        `,
+        [shop_id, category, primarySub]
       );
       if (rows && rows.length) return rows[0];
+
+      if (otherSubs.length) {
+        const params = [shop_id, category, ...otherSubs];
+        let sql = `
+          SELECT id, name, display_name_en, price, stock_amount, category, sub_category
+          FROM product
+          WHERE shop_id = ?
+            AND category = ?
+            AND sub_category IN (${otherSubs.map(() => "?").join(",")})
+          ORDER BY updated_at DESC, id DESC
+          LIMIT 1
+        `;
+        [rows] = await db.query(sql, params);
+        if (rows && rows.length) return rows[0];
+      }
     }
+
     return null;
   }
 
-  // category + sub_category
-  if (category && subCategory) {
-    //all the tokens in the product name
+  if (category && primarySub) {
+    const reqSet = new Set(reqTokens);
+
+    function pickBest(rows) {
+      if (!rows || !rows.length) return null;
+      let best = null;
+      for (const r of rows) {
+        const candTokens = tokenizeName(
+          (r.name || "") + " " + (r.display_name_en || "")
+        );
+        const wordCount = candTokens.length || 9999;
+        if (
+          !best ||
+          wordCount < best.wordCount ||
+          (wordCount === best.wordCount && r.id > best.row.id)
+        ) {
+          best = { row: r, wordCount };
+        }
+      }
+      return best ? best.row : null;
+    }
+
     {
       let sql = `
         SELECT id, name, display_name_en, price, stock_amount, category, sub_category
@@ -95,7 +237,7 @@ async function findBestProductForRequest(shop_id, req) {
           AND category = ?
           AND sub_category = ?
       `;
-      const params = [shop_id, category, subCategory];
+      const params = [shop_id, category, primarySub];
 
       for (const t of reqTokens) {
         sql += ` AND (name COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
@@ -104,28 +246,33 @@ async function findBestProductForRequest(shop_id, req) {
       }
 
       const [rows] = await db.query(sql, params);
-
-      if (rows && rows.length) {
-        let best = null;
-        for (const r of rows) {
-          const candTokens = tokenizeName(
-            (r.name || "") + " " + (r.display_name_en || "")
-          );
-          const wordCount = candTokens.length || 9999;
-          if (
-            !best ||
-            wordCount < best.wordCount ||
-            (wordCount === best.wordCount && r.id > best.row.id)
-          ) {
-            best = { row: r, wordCount };
-          }
-        }
-        if (best) return best.row;
-      }
+      const best = pickBest(rows);
+      if (best) return best;
     }
 
-    // MIN_PARTIAL_COVERAGE
+    if (otherSubs.length) {
+      let sql = `
+        SELECT id, name, display_name_en, price, stock_amount, category, sub_category
+        FROM product
+        WHERE shop_id = ?
+          AND category = ?
+          AND sub_category IN (${otherSubs.map(() => "?").join(",")})
+      `;
+      const params = [shop_id, category, ...otherSubs];
+
+      for (const t of reqTokens) {
+        sql += ` AND (name COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
+                 OR display_name_en COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%'))`;
+        params.push(t, t);
+      }
+
+      const [rows] = await db.query(sql, params);
+      const best = pickBest(rows);
+      if (best) return best;
+    }
+
     {
+      const params = [shop_id, category, primarySub];
       const [rows] = await db.query(
         `
         SELECT id, name, display_name_en, price, stock_amount, category, sub_category
@@ -134,13 +281,11 @@ async function findBestProductForRequest(shop_id, req) {
           AND category = ?
           AND sub_category = ?
       `,
-        [shop_id, category, subCategory]
+        params
       );
 
       if (rows && rows.length) {
         const scored = [];
-        const reqSet = new Set(reqTokens);
-
         for (const r of rows) {
           const candTokens = tokenizeName(
             (r.name || "") + " " + (r.display_name_en || "")
@@ -173,10 +318,56 @@ async function findBestProductForRequest(shop_id, req) {
         }
       }
     }
-    return null;
+
+    if (otherSubs.length) {
+      const params = [shop_id, category, ...otherSubs];
+      const [rows] = await db.query(
+        `
+        SELECT id, name, display_name_en, price, stock_amount, category, sub_category
+        FROM product
+        WHERE shop_id = ?
+          AND category = ?
+          AND sub_category IN (${otherSubs.map(() => "?").join(",")})
+      `,
+        params
+      );
+
+      if (rows && rows.length) {
+        const scored = [];
+        for (const r of rows) {
+          const candTokens = tokenizeName(
+            (r.name || "") + " " + (r.display_name_en || "")
+          );
+          if (!candTokens.length) continue;
+
+          let common = 0;
+          for (const t of reqSet) {
+            if (candTokens.includes(t)) common++;
+          }
+          const coverage = common / reqTokens.length;
+
+          if (coverage >= MIN_PARTIAL_COVERAGE) {
+            scored.push({
+              row: r,
+              coverage,
+              wordCount: candTokens.length,
+            });
+          }
+        }
+
+        if (scored.length) {
+          scored.sort(
+            (a, b) =>
+              b.coverage - a.coverage ||
+              a.wordCount - b.wordCount ||
+              b.row.id - a.row.id
+          );
+          return scored[0].row;
+        }
+      }
+    }
   }
 
-  //all categories
   {
     let sql = `
       SELECT id, name, display_name_en, price, stock_amount, category, sub_category
@@ -213,7 +404,6 @@ async function findBestProductForRequest(shop_id, req) {
 
   return null;
 }
-
 
 async function searchProducts(shop_id, products) {
   const found = [];
@@ -264,22 +454,34 @@ async function fetchAlternatives(
 
   const reqTokens = tokenizeName(requestedName || "");
 
-  async function fetchByCatSub(cat, sub) {
+  async function fetchByCatSub(cat, sub, useGroup = true) {
     const params = [shop_id];
     let sql = `
       SELECT id, name, display_name_en, price, stock_amount, category, sub_category
       FROM product
       WHERE shop_id = ?
     `;
+
     if (cat) {
       sql += ` AND category = ?`;
       params.push(cat);
     }
+
+    let subList = [];
     if (sub) {
-      sql += ` AND sub_category = ?`;
-      params.push(sub);
+      if (useGroup) {
+        subList = getSubCategoryCandidates(sub);
+      } else {
+        subList = [sub];
+      }
     }
-    if (excludeIds.length) {
+
+    if (subList.length) {
+      sql += ` AND sub_category IN (${subList.map(() => "?").join(",")})`;
+      params.push(...subList);
+    }
+
+    if (Array.isArray(excludeIds) && excludeIds.length) {
       sql += ` AND id NOT IN (${excludeIds.map(() => "?").join(",")})`;
       params.push(...excludeIds);
     }
@@ -319,25 +521,81 @@ async function fetchAlternatives(
       if (positive.length >= limit) return positive.slice(0, limit);
 
       const zero = scored.filter((s) => s.score === 0).map((s) => s.row);
-
       return [...positive, ...zero].slice(0, limit);
     }
 
     return rows.slice(0, limit);
   }
 
-  //category + subCategory
-  let rows = await fetchByCatSub(category, subCategory);
-  if (rows && rows.length) return rows;
+  let rows = [];
 
-  //category
+  //category + subCategory
+  if (category && subCategory) {
+    rows = await fetchByCatSub(category, subCategory, false);
+
+    if (!rows || !rows.length) {
+      rows = await fetchByCatSub(category, subCategory, true);
+    }
+
+    if (rows && rows.length) return rows;
+  }
+
+  //only category
   if (category) {
-    rows = await fetchByCatSub(category, null);
+    rows = await fetchByCatSub(category, null, true);
     if (rows && rows.length) return rows;
   }
 
   return [];
 }
+
+const AVAIL_INTROS_HE = [
+  (subject) =>
+    subject
+      ? `לצערנו אין לנו במלאי ${subject},`
+      : `לצערנו המוצר שחיפשת חסר במלאי,`,
+  (subject) =>
+    subject
+      ? `${subject} כרגע לא זמין במלאי,`
+      : `המוצר שחיפשת כרגע לא זמין במלאי,`,
+  (subject) =>
+    subject
+      ? `לא מצאנו את ${subject} במלאי,`
+      : `לא מצאנו את המוצר שחיפשת במלאי,`,
+  (subject) =>
+    subject ? `${subject} חסר כרגע על המדף,` : `המוצר שחיפשת חסר כרגע על המדף,`,
+];
+
+function buildAvailabilityAltText(isEnglish, subject, names, idx) {
+  const list = names.join(" , ");
+  const intros = isEnglish ? AVAIL_INTROS_EN : AVAIL_INTROS_HE;
+  const intro = intros[idx % intros.length](subject);
+
+  const suffix = isEnglish
+    ? ` But we do have ${list}.`
+    : ` אבל כן יש לנו ${list}.`;
+
+  return intro + suffix;
+}
+
+const AVAIL_INTROS_EN = [
+  (subject) =>
+    subject
+      ? `Unfortunately we don't have ${subject} in stock.`
+      : `Unfortunately this product is not in stock.`,
+  (subject) =>
+    subject
+      ? `${subject} is currently out of stock.`
+      : `The product you're looking for is currently out of stock.`,
+  (subject) =>
+    subject
+      ? `We couldn’t find ${subject} in stock.`
+      : `We couldn’t find this product in stock.`,
+  (subject) =>
+    subject
+      ? `${subject} isn’t available right now.`
+      : `This product isn’t available right now.`,
+];
 
 const ALT_TEMPLATES_HE = [
   (req, names) =>
@@ -364,7 +622,8 @@ async function buildAlternativeQuestions(
   shop_id,
   notFound,
   foundIdsSet,
-  isEnglish
+  isEnglish,
+  context = ""
 ) {
   const altQuestions = [];
   const alternativesMap = {};
@@ -411,7 +670,13 @@ async function buildAlternativeQuestions(
     const en = (nf.requested_output_name || "").trim();
     const subject = (isEnglish ? en || he : he || en).trim();
 
-    const questionText = pickAltTemplate(isEnglish, t++)(subject, names);
+    let questionText;
+
+    if (context === "availability") {
+      questionText = buildAvailabilityAltText(isEnglish, subject, names, t++);
+    } else {
+      questionText = pickAltTemplate(isEnglish, t++)(subject, names);
+    }
 
     altQuestions.push({
       name: nf.requested_name || null,
@@ -466,6 +731,55 @@ function buildQuestionsBlock({ questions, isEnglish }) {
   return lines.join("\n");
 }
 
+async function searchVariants(
+  shop_id,
+  { category = null, subCategory = null, searchTerm = null, limit = 50 } = {}
+) {
+  const tokens = tokenizeName(searchTerm || "");
+
+  let sql = `
+    SELECT id, name, display_name_en, price, stock_amount, category, sub_category
+    FROM product
+    WHERE shop_id = ?
+      AND (stock_amount IS NULL OR stock_amount > 0)
+  `;
+  const params = [shop_id];
+
+  if (category) {
+    sql += ` AND category = ?`;
+    params.push(category);
+  }
+
+  if (subCategory) {
+    const subs = getSubCategoryCandidates(subCategory); // מחזיר את הקבוצה
+    if (subs.length) {
+      sql += ` AND sub_category IN (${subs.map(() => "?").join(",")})`;
+      params.push(...subs);
+    }
+  }
+
+  if (tokens.length) {
+    for (const t of tokens) {
+      sql += `
+        AND (
+          name COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
+          OR display_name_en COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
+        )
+      `;
+      params.push(t, t);
+    }
+  }
+
+  sql += `
+    ORDER BY name ASC, id DESC
+    LIMIT ?
+  `;
+  params.push(limit);
+
+  const [rows] = await db.query(sql, params);
+  return rows || [];
+}
+
 module.exports = {
   // JSON parsing
   safeParseJson,
@@ -481,4 +795,6 @@ module.exports = {
 
   buildItemsBlock,
   buildQuestionsBlock,
+
+  searchVariants,
 };

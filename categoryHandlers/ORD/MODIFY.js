@@ -11,12 +11,11 @@ const {
   fetchAlternatives,
   buildItemsBlock,
   buildQuestionsBlock,
-} = require("../../utilities/products");
+} = require("../../services/products");
 const {
   saveOpenQuestions,
   closeQuestionsByIds,
   deleteQuestionsByIds,
-  buildOpenQuestionsContextForPrompt,
 } = require("../../utilities/openQuestions");
 const { normalizeIncomingQuestions } = require("../../utilities/normalize");
 
@@ -103,9 +102,24 @@ async function applyOrderModifications({
       }
     }
 
-    const afterMap = new Map(
-      modelProducts.map((p) => [p.name, Number(p.amount)])
-    );
+    const cappedWarnings = [];
+
+    const afterMap = new Map();
+    for (const p of modelProducts) {
+      const rawAmount = Number(p.amount) || 0;
+      const capped = rawAmount > maxPerProduct ? maxPerProduct : rawAmount;
+
+      if (rawAmount > maxPerProduct) {
+        const label = subjectForReq(p);
+        cappedWarnings.push({
+          name: label || "",
+          original: rawAmount,
+          capped,
+        });
+      }
+
+      afterMap.set(p.name, capped);
+    }
 
     for (const orig of origItems) {
       const keyHe = orig.name;
@@ -271,7 +285,7 @@ async function applyOrderModifications({
         [Number(row.id), shop_id]
       );
       const stock = Number(lock?.[0]?.stock_amount ?? 0);
-      const need = Number(p.amount);
+      const need = Math.min(Number(p.amount) || 0, maxPerProduct);
 
       if (stock >= need) {
         await conn.query(
@@ -383,6 +397,7 @@ async function applyOrderModifications({
         notFoundAdds,
         insufficientExistingIncreases,
         insufficientNewAdds,
+        cappedWarnings,
       },
     };
   } catch (e) {
@@ -442,8 +457,8 @@ module.exports = {
     activeOrder = null,
     items = [],
     history,
-    openQuestions = [],
-    recentClosed = [],
+    openQsCtx = [],
+    maxPerProduct,
   }) {
     if (!message || !customer_id || !shop_id) {
       throw new Error("modifyOrder: missing message/customer_id/shop_id");
@@ -466,10 +481,7 @@ module.exports = {
       )[0];
 
     const basePrompt = await getPromptFromDB(PROMPT_CAT, PROMPT_SUB);
-    const openQsCtx = buildOpenQuestionsContextForPrompt(
-      openQuestions,
-      recentClosed
-    );
+
     const systemWithInputs = [
       basePrompt,
       "",
@@ -550,15 +562,21 @@ module.exports = {
         questions: combinedQuestions,
       });
 
+      const cappedWarnings = (txRes.meta && txRes.meta.cappedWarnings) || [];
+      let limitWarningsBlock = "";
+
+      if (cappedWarnings.length) {
+        if (isEnglish) {
+          (limitWarningsBlock = `Note: you can order up to ${maxPerProduct} units per product.`),
+            (limitWarningsBlock = `שימו לב: ניתן להזמין עד ${maxPerProduct} יחידות מכל מוצר.`);
+        }
+      }
+
       const hasQuestions = combinedQuestions.length > 0;
 
       let summaryLine;
       let itemsBlock = "";
-      let headerBlock = ""; /*
-      const questionsBlockModify = buildQuestionsBlock({
-        questions: combinedQuestions,
-        isEnglish,
-      });*/
+      let headerBlock = "";
 
       if (!hasItems) {
         //empty order
@@ -698,11 +716,18 @@ module.exports = {
           ].join("\n");
 
       const questionsBlock = buildQuestionsBlock({
-        questions: [techQuestion],
+        questions: combinedQuestions,
         isEnglish,
       });
 
-      return [summaryLine, itemsBlock, "", headerBlock, questionsBlock]
+      return [
+        summaryLine,
+        itemsBlock,
+        " ",
+        headerBlock,
+        limitWarningsBlock,
+        questionsBlock,
+      ]
         .filter(Boolean)
         .join("\n");
     }

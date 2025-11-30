@@ -2,21 +2,20 @@ const { chat } = require("../../config/openai");
 const db = require("../../config/db");
 const { getPromptFromDB } = require("../../repositories/prompt");
 const { createOrderWithStockReserve } = require("../../utilities/orders");
-const {isEnglishSummary} = require("../../utilities/lang")
+const { isEnglishSummary } = require("../../utilities/lang");
 const {
   parseModelAnswer,
   searchProducts,
   buildAlternativeQuestions,
   buildItemsBlock,
   buildQuestionsBlock,
-} = require("../../utilities/products");
+} = require("../../services/products");
 const {
   saveOpenQuestions,
   closeQuestionsByIds,
   deleteQuestionsByIds,
-  buildOpenQuestionsContextForPrompt,
 } = require("../../utilities/openQuestions");
-const {normalizeIncomingQuestions} = require("../../utilities/normalize")
+const { normalizeIncomingQuestions } = require("../../utilities/normalize");
 const PROMPT_CAT = "ORD";
 const PROMPT_SUB = "CREATE";
 
@@ -26,8 +25,8 @@ module.exports = {
     customer_id,
     shop_id,
     history,
-    openQuestions = [],
-    recentClosed = [],
+    openQsCtx = [],
+    maxPerProduct,
   }) {
     if (typeof message !== "string" || !customer_id || !shop_id) {
       throw new Error(
@@ -36,10 +35,7 @@ module.exports = {
     }
 
     const basePrompt = await getPromptFromDB(PROMPT_CAT, PROMPT_SUB);
-    const openQsCtx = buildOpenQuestionsContextForPrompt(
-      openQuestions,
-      recentClosed
-    );
+
     const systemPrompt = [
       basePrompt,
       "",
@@ -48,7 +44,6 @@ module.exports = {
     ].join("\n");
 
     const answer = await chat({ message, history, systemPrompt });
-    console.log("[model answer]", answer);
 
     let parsed;
     try {
@@ -96,7 +91,6 @@ module.exports = {
           : `(הזמנה מספר: #${emptyOrder.order_id})`
         : "";
 
-
       let summaryLine;
       if (isEnglish) {
         if (hasQuestions) {
@@ -136,7 +130,30 @@ module.exports = {
 
     const { found, notFound } = await searchProducts(shop_id, reqProducts);
 
-    const foundIdsSet = new Set(found.map((f) => f.product_id));
+    const cappedWarnings = [];
+    const cappedFound = found.map((f) => {
+      const origAmount = Number(f.requested_amount) || 0;
+      if (origAmount > maxPerProduct) {
+        const nameForWarning = isEnglish
+          ? (f.matched_display_name_en && f.matched_display_name_en.trim()) ||
+            f.matched_name
+          : f.matched_name;
+
+        cappedWarnings.push({
+          name: nameForWarning,
+          original: origAmount,
+          capped: maxPerProduct,
+        });
+
+        return {
+          ...f,
+          requested_amount: maxPerProduct,
+        };
+      }
+      return f;
+    });
+
+    const foundIdsSet = new Set(cappedFound.map((f) => f.product_id));
     const { altQuestions, alternativesMap } = await buildAlternativeQuestions(
       shop_id,
       notFound,
@@ -161,7 +178,7 @@ module.exports = {
       return !nm || !notFoundNameSet.has(nm);
     });
 
-    const orderInputLineItems = found.map((f) => ({
+    const orderInputLineItems = cappedFound.map((f) => ({
       product_id: f.product_id,
       amount: f.requested_amount,
       requested_name: f.requested_name || null,
@@ -328,6 +345,15 @@ module.exports = {
           .filter(Boolean)
           .join("\n");
 
+    let limitWarningsBlock = "";
+    if (cappedWarnings.length) {
+      if (isEnglish) {
+        limitWarningsBlock = `Note: you can order up to ${maxPerProduct} units per product.`;
+      } else {
+        limitWarningsBlock = `שימו לב: ניתן להזמין עד ${maxPerProduct} יחידות מכל מוצר.`;
+      }
+    }
+
     const itemsBlock = buildItemsBlock({
       items: productsForDisplay,
       isEnglish,
@@ -340,6 +366,7 @@ module.exports = {
 
     const finalMessage = [
       summaryLine,
+      limitWarningsBlock,
       itemsBlock,
       " ",
       headerBlock,
