@@ -8,7 +8,6 @@ const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN;
 const ACCESS_TOKEN = process.env.WHATSAPP_TOKEN;
 const PHONE_ID     = process.env.WHATSAPP_PHONE_ID;
 
-// 1) אימות webhook (GET)
 router.get('/webhook/whatsapp', (req, res) => {
   const mode   = req.query['hub.mode'];
   const token  = req.query['hub.verify_token'];
@@ -20,14 +19,13 @@ router.get('/webhook/whatsapp', (req, res) => {
   return res.sendStatus(403);
 });
 
-// 2) קבלת הודעות (POST) והשבת “שלום…”
 router.post('/webhook/whatsapp', async (req, res) => {
   try {
     const change = req.body?.entry?.[0]?.changes?.[0]?.value;
     const msg    = change?.messages?.[0];
 
     if (msg && msg.type === 'text') {
-      const to = msg.from; // מספר השולח בפורמט E.164 (ללא +)
+      const to = msg.from;
       await axios.post(`https://graph.facebook.com/v18.0/${PHONE_ID}/messages`, {
         messaging_product: "whatsapp",
         to,
@@ -41,7 +39,7 @@ router.post('/webhook/whatsapp', async (req, res) => {
       });
       console.log('Replied to', to);
     }
-    // חשוב: להשיב מהר 200 כדי לא להיכשל
+    
     return res.sendStatus(200);
   } catch (e) {
     console.error('Webhook error', e?.response?.data || e.message);

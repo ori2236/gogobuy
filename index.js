@@ -6,6 +6,7 @@ const db = require("./config/db");
 
 const customerInteractionRoutes = require("./routes/customerInteractionRoutes");
 const webhooksRoutes = require("./routes/webhook");
+const deleteLastData = require("./routes/deleteLastData");
 
 const app = express();
 const port = config.port || 3000;
@@ -17,6 +18,9 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use("/api/customer-interaction", customerInteractionRoutes);
 app.use("/", webhooksRoutes);
+
+//temp
+app.use("/api/deleteLastData", deleteLastData);
 
 
 app.get('/health', (req, res) => {

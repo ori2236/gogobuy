@@ -115,10 +115,31 @@ async function checkAvailability({
     return botPayload;
   }
 
+  console.log("[INV.AVAIL] parsed answer:", JSON.stringify(parsed, null, 2));
+
   const productRequests = Array.isArray(parsed.products) ? parsed.products : [];
   const clarifyQuestionsFromModel = Array.isArray(parsed.questions)
     ? parsed.questions
     : [];
+
+  console.log(
+    "[INV.AVAIL] productRequests:",
+    productRequests.map((p, idx) => ({
+      idx,
+      name: p.name,
+      searchTerm: p.searchTerm,
+      outputName: p.outputName,
+      availability_intent: p.availability_intent,
+      category: p.category,
+      subCategory: p["sub-category"] || p.sub_category,
+      requested_amount: p.requested_amount,
+    }))
+  );
+
+  console.log(
+    "[INV.AVAIL] clarifyQuestionsFromModel:",
+    clarifyQuestionsFromModel
+  );
 
   const hasProducts = productRequests.length > 0;
   const hasClarify = clarifyQuestionsFromModel.length > 0;

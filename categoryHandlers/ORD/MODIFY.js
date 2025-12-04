@@ -70,6 +70,18 @@ async function applyOrderModifications({
       [order_id]
     );
 
+    console.log(
+      "[ORD-MODIFY/apply] origItems:",
+      origItems.map((it) => ({
+        id: it.id,
+        product_id: it.product_id,
+        name: it.name,
+        amount: it.amount,
+        price: it.price,
+        stock_amount: it.stock_amount,
+      }))
+    );
+
     const byProdId = new Map(
       origItems.map((it) => [Number(it.product_id), it])
     );
@@ -127,6 +139,17 @@ async function applyOrderModifications({
       const keyEn = (orig.display_name_en || "").trim();
       const inAfter = afterMap.has(keyHe) || (keyEn && afterMap.has(keyEn));
 
+      console.log("[ORD-MODIFY/apply] handle existing item:", {
+        product_id: orig.product_id,
+        name: orig.name,
+        keyHe,
+        keyEn,
+        inAfter,
+        origAmount: Number(orig.amount),
+        mappedAmountHe: afterMap.get(keyHe),
+        mappedAmountEn: keyEn ? afterMap.get(keyEn) : undefined,
+      });
+
       if (!inAfter) {
         await conn.query(
           `UPDATE product SET stock_amount = stock_amount + ? WHERE id = ? AND shop_id = ?`,
@@ -142,10 +165,24 @@ async function applyOrderModifications({
           amount: Number(orig.amount),
           mode: "implicit",
         });
+        console.log("[ORD-MODIFY/apply] implicit removal of existing item:", {
+          product_id: orig.product_id,
+          name: orig.name,
+          amount: orig.amount,
+        });
         continue;
       }
       const newQty = Number(afterMap.get(keyHe) ?? afterMap.get(keyEn));
       const delta = roundTo(newQty - Number(orig.amount), 3);
+
+      console.log("[ORD-MODIFY/apply] qty change:", {
+        product_id: orig.product_id,
+        name: orig.name,
+        newQty,
+        oldQty: Number(orig.amount),
+        delta,
+      });
+
       if (delta === 0) continue;
 
       if (delta > 0) {
@@ -242,7 +279,13 @@ async function applyOrderModifications({
 
     // add new products to the order
     for (const p of modelProducts) {
-      if (existingNames.has(p.name)) continue;
+      if (existingNames.has(p.name)) {
+        console.log(
+          "[ORD-MODIFY/apply] skip add – name already in existingNames:",
+          p.name
+        );
+        continue;
+      }
       const row = await findBestProductForRequest(shop_id, p);
 
       //the product not selling at the shop
@@ -303,6 +346,13 @@ async function applyOrderModifications({
       }
 
       if (stock >= need) {
+        console.log("[ORD-MODIFY/apply] INSERT order_item about to run:", {
+          order_id,
+          product_id: Number(row.id),
+          need,
+          price: Number(lock?.[0]?.price ?? row.price),
+        });
+
         await conn.query(
           `UPDATE product SET stock_amount = stock_amount - ? WHERE id = ? AND shop_id = ?`,
           [need, Number(row.id), shop_id]
@@ -416,6 +466,13 @@ async function applyOrderModifications({
       },
     };
   } catch (e) {
+    console.error("[ORD-MODIFY/apply] TX error:", e);
+    console.error("[ORD-MODIFY/apply] TX context:", {
+      shop_id,
+      order_id,
+      modelProducts,
+      removedProducts,
+    });
     await conn.rollback();
     throw e;
   } finally {
@@ -475,6 +532,16 @@ module.exports = {
     openQsCtx = [],
     maxPerProduct,
   }) {
+    console.log("[ORD-MODIFY] INPUT:", {
+      message,
+      customer_id,
+      shop_id,
+      order_id,
+      hasActiveOrder: !!activeOrder,
+      itemsFromCaller: Array.isArray(items) ? items.length : null,
+      historyLen: Array.isArray(history) ? history.length : null,
+      maxPerProduct,
+    });
     if (!message || !customer_id || !shop_id) {
       throw new Error("modifyOrder: missing message/customer_id/shop_id");
     }
@@ -494,6 +561,18 @@ module.exports = {
           [order.id]
         )
       )[0];
+
+    console.log("[ORD-MODIFY] Loaded order:", order);
+    console.log(
+      "[ORD-MODIFY] Loaded orderItems:",
+      orderItems.map((it) => ({
+        id: it.id,
+        product_id: it.product_id,
+        name: it.name,
+        amount: it.amount,
+        price: it.price,
+      }))
+    );
 
     const basePrompt = await getPromptFromDB(PROMPT_CAT, PROMPT_SUB);
 
@@ -520,6 +599,8 @@ module.exports = {
     } catch (e) {
       return "מצטערים, לא הצלחתי להבין את הבקשה לעריכת ההזמנה. אפשר לנסח שוב בקצרה?";
     }
+
+    console.log("[ORD-MODIFY] parsed answer:", JSON.stringify(parsed, null, 2));
 
     const qUpdates = parsed?.question_updates || {};
     if (Array.isArray(qUpdates.close_ids) && qUpdates.close_ids.length) {
@@ -696,9 +777,14 @@ module.exports = {
         .join("\n");
     } catch (e) {
       console.error("[ORD-MODIFY] Fatal apply error:", e);
-
+      console.error("[ORD-MODIFY] Error context:", {
+        order_id: order && order.id,
+        shop_id,
+        modelProducts,
+        removedProducts,
+      });
       const [curItems] = await db.query(
-        `SELECT oi.product_id, oi.amount, oi.price, p.name, p.display_name_en
+        `SELECT oi.product_id, oi.amount, p.price, p.name, p.display_name_en
      FROM order_item oi
      JOIN product p ON p.id = oi.product_id
     WHERE oi.order_id = ?`,
