@@ -55,7 +55,7 @@ async function classifyIncoming({
   sig,
   openQs,
   closedQs,
-  maxHistoryMsgs = 7,
+  maxHistoryMsgs = 5,
 }) {
   let systemPromptBase = await getPromptFromDB(
     CLASSIFIER_PROMPT_CAT,

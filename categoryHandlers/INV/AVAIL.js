@@ -12,7 +12,6 @@ const { saveOpenQuestions } = require("../../utilities/openQuestions");
 
 const PROMPT_CAT = "INV";
 const PROMPT_SUB = "AVAIL";
-const maxPerProduct = 30;
 
 function joinNames(names, isEnglish) {
   if (!names || !names.length) return "";
@@ -101,7 +100,6 @@ async function checkAvailability({
   const systemPrompt = basePrompt;
 
   const answer = await chat({ message, history, systemPrompt });
-  console.log("[INV.AVAIL] model raw answer:", answer);
 
   let parsed;
   try {
@@ -496,22 +494,31 @@ async function checkAvailability({
         limit: 50,
       });
 
+      const norm = (s) =>
+        String(s || "")
+          .replace(/\s+/g, " ")
+          .trim();
+
       if (!variantsRows || !variantsRows.length) {
         let nameForAlt = rawName || null;
+        const nameN = norm(nameForAlt);
+        const stN = norm(searchTermForText || searchTerm);
 
-        if (searchTerm) {
-          if (nameForAlt) {
+        if (stN) {
+          if (nameN && stN !== nameN) {
             nameForAlt = isEnglish
-              ? `${nameForAlt} by ${searchTermForText}`
-              : `${nameForAlt} של ${searchTermForText}`;
+              ? `${nameN} by ${stN}`
+              : `${nameN} של ${stN}`;
+          } else if (nameN) {
+            nameForAlt = nameN;
           } else {
-            nameForAlt = searchTerm;
+            nameForAlt = stN;
           }
+        } else {
+          nameForAlt = nameN || null;
         }
 
-        if (!nameForAlt) {
-          nameForAlt = heName || null;
-        }
+        if (!nameForAlt) nameForAlt = heName || null;
 
         notFoundForAlternatives.push({
           originalIndex: i,

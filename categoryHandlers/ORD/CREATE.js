@@ -153,6 +153,22 @@ module.exports = {
       return f;
     });
 
+    const unitsByProductId = new Map();
+    const weightFlagByProductId = new Map();
+
+    for (const f of cappedFound) {
+      const pid = Number(f.product_id);
+
+      const u = Number(f.requested_units);
+      if (Number.isFinite(u) && u > 0) {
+        unitsByProductId.set(pid, (unitsByProductId.get(pid) || 0) + u);
+      }
+
+      if (f.sold_by_weight === true) {
+        weightFlagByProductId.set(pid, true);
+      }
+    }
+
     const foundIdsSet = new Set(cappedFound.map((f) => f.product_id));
     const { altQuestions, alternativesMap } = await buildAlternativeQuestions(
       shop_id,
@@ -182,7 +198,13 @@ module.exports = {
       product_id: f.product_id,
       amount: f.requested_amount,
       requested_name: f.requested_name || null,
+      sold_by_weight: f.sold_by_weight === true,
+      requested_units:
+        f.sold_by_weight === true && Number.isFinite(Number(f.requested_units))
+          ? Number(f.requested_units)
+          : null,
     }));
+
 
     const orderRes = await createOrderWithStockReserve({
       shop_id,
@@ -307,22 +329,31 @@ module.exports = {
       `SELECT
      oi.product_id,
      oi.amount,
+     oi.sold_by_weight,
+     oi.requested_units,
      p.price,
      p.name AS name_he,
      p.display_name_en
-   FROM order_item oi
-   JOIN product p ON p.id = oi.product_id
-  WHERE oi.order_id = ?`,
+      FROM order_item oi
+      JOIN product p ON p.id = oi.product_id
+      WHERE oi.order_id = ?`,
       [orderRes.order_id]
     );
 
-    const productsForDisplay = rows.map((r) => ({
-      name: isEnglish
-        ? (r.display_name_en && r.display_name_en.trim()) || r.name_he
-        : r.name_he,
-      amount: Number(r.amount),
-      price: Number(r.price),
-    }));
+    const productsForDisplay = rows.map((r) => {
+      const units = Number(r.requested_units);
+      const hasUnits = Number.isFinite(units) && units > 0;
+
+      return {
+        name: isEnglish
+          ? (r.display_name_en && r.display_name_en.trim()) || r.name_he
+          : r.name_he,
+        amount: Number(r.amount),
+        price: Number(r.price),
+        ...(r.sold_by_weight ? { sold_by_weight: true } : {}),
+        ...(hasUnits ? { units } : {}),
+      };
+    });
 
     const summaryLine =
       typeof parsed?.summary_line === "string" && parsed.summary_line.trim()

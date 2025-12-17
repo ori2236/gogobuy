@@ -4,24 +4,57 @@ const { detectIsEnglish } = require("./lang");
 
 function mergeDuplicateLineItems(lineItems) {
   const byId = new Map();
+
   for (const item of lineItems) {
     const id = Number(item.product_id);
     if (!id) continue;
+
     const amount = Number(item.amount);
     if (!(amount > 0)) continue;
 
+    const soldRaw = item.sold_by_weight;
+    const sold = soldRaw === true || soldRaw === 1 || soldRaw === "1" ? 1 : 0;
+
+    const unitsRaw = item.requested_units ?? item.units;
+    const unitsNum = Number(unitsRaw);
+    const hasUnits = Number.isFinite(unitsNum) && unitsNum > 0;
+
+    const norm = {
+      ...item,
+      product_id: id,
+      amount: addDec(0, amount),
+      sold_by_weight: sold || (hasUnits ? 1 : 0),
+      requested_units: hasUnits ? unitsNum : null,
+    };
+
     const prev = byId.get(id);
     if (!prev) {
-      byId.set(id, { ...item, amount: addDec(0, amount) });
-    } else {
-      byId.set(id, {
-        ...prev,
-        amount: addDec(prev.amount, amount),
-      });
+      byId.set(id, norm);
+      continue;
     }
+
+    const prevSoldRaw = prev.sold_by_weight;
+    const prevSold =
+      prevSoldRaw === true || prevSoldRaw === 1 || prevSoldRaw === "1" ? 1 : 0;
+
+    const prevUnitsNum = Number(prev.requested_units ?? prev.units);
+    const prevHasUnits = Number.isFinite(prevUnitsNum) && prevUnitsNum > 0;
+
+    const mergedUnits =
+      (prevHasUnits ? prevUnitsNum : 0) + (hasUnits ? unitsNum : 0);
+
+    byId.set(id, {
+      ...prev,
+      requested_name: prev.requested_name || item.requested_name || null,
+      amount: addDec(prev.amount, amount),
+      sold_by_weight: prevSold || sold || prevHasUnits || hasUnits ? 1 : 0,
+      requested_units: prevHasUnits || hasUnits ? mergedUnits : null,
+    });
   }
+
   return Array.from(byId.values());
 }
+
 
 async function fetchAlternativesWithStock(
   shop_id,
@@ -171,7 +204,15 @@ async function createOrderWithStockReserve({
           category: p.category,
           sub_category: p.sub_category,
           new_stock: newStock,
+
+          sold_by_weight: li.sold_by_weight === true || li.sold_by_weight === 1,
+          requested_units:
+            Number.isFinite(Number(li.requested_units)) &&
+            Number(li.requested_units) > 0
+              ? Number(li.requested_units)
+              : null,
         });
+
       }
     }
 
@@ -218,14 +259,25 @@ async function createOrderWithStockReserve({
     );
     const order_id = insOrder.insertId;
 
-    const valuesSql = okItems.map(() => `(?, ?, ?, ?, NOW(6))`).join(", ");
+    const valuesSql = okItems
+      .map(() => `(?, ?, ?, ?, ?, ?, NOW(6))`)
+      .join(", ");
     const params = [];
     for (const it of okItems) {
-      params.push(order_id, it.product_id, it.amount, it.price);
+      params.push(
+        order_id,
+        it.product_id,
+        it.amount,
+        it.sold_by_weight ? 1 : 0,
+        it.requested_units ?? null,
+        0
+      );
     }
+
     await conn.query(
-      `INSERT INTO order_item (order_id, product_id, amount, price, created_at)
-         VALUES ${valuesSql}`,
+      `INSERT INTO order_item
+     (order_id, product_id, amount, sold_by_weight, requested_units, price, created_at)
+   VALUES ${valuesSql}`,
       params
     );
 
@@ -435,7 +487,6 @@ async function checkIfToCancelOrder({
 
   return botText;
 }
-
 
 module.exports = {
   createOrderWithStockReserve,

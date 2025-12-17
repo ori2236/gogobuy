@@ -1,7 +1,10 @@
 const { chat } = require("../../config/openai");
 const db = require("../../config/db");
 const { getPromptFromDB } = require("../../repositories/prompt");
-const { getOrder } = require("../../utilities/orders");
+const {
+  getOrder,
+  mapOrderItemRowToDisplay,
+} = require("../../utilities/orders");
 const { addMoney, mulMoney, roundTo } = require("../../utilities/decimal");
 const { isEnglishSummary } = require("../../utilities/lang");
 const {
@@ -57,29 +60,28 @@ async function applyOrderModifications({
   const insufficientExistingIncreases = []; // [{name,requested_delta,available,alternatives:[...]}]
   const insufficientNewAdds = []; // [{name,requested,available,alternatives:[...]}]
 
+  const unitsByProductId = new Map();
+  const weightFlagByProductId = new Map();
+
   try {
     await conn.beginTransaction();
 
     const [origItems] = await conn.query(
-      `SELECT oi.id, oi.product_id, oi.amount, oi.price,
-          p.name, p.display_name_en, p.stock_amount, p.category, p.sub_category
-     FROM order_item oi
-     JOIN product p ON p.id = oi.product_id
-    WHERE oi.order_id = ?
-    FOR UPDATE`,
+      `SELECT
+     oi.id,
+     oi.product_id,
+     oi.amount,
+     oi.price,
+     oi.sold_by_weight,
+     oi.requested_units,
+     p.name,
+     p.display_name_en,
+     p.stock_amount
+      FROM order_item oi
+      JOIN product p ON p.id = oi.product_id
+      WHERE oi.order_id = ?
+      FOR UPDATE`,
       [order_id]
-    );
-
-    console.log(
-      "[ORD-MODIFY/apply] origItems:",
-      origItems.map((it) => ({
-        id: it.id,
-        product_id: it.product_id,
-        name: it.name,
-        amount: it.amount,
-        price: it.price,
-        stock_amount: it.stock_amount,
-      }))
     );
 
     const byProdId = new Map(
@@ -134,21 +136,62 @@ async function applyOrderModifications({
       afterMap.set(p.name, capped);
     }
 
+    const metaByName = new Map();
+
+    for (const p of modelProducts) {
+      if (p && typeof p.name === "string" && p.name.trim()) {
+        metaByName.set(p.name.trim(), p);
+      }
+      if (p && typeof p.outputName === "string" && p.outputName.trim()) {
+        metaByName.set(p.outputName.trim(), p);
+      }
+    }
+
+    const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
+
+    const updateOrderItemAmountAndMaybeMeta = async (
+      orderItemId,
+      newQty,
+      modelP
+    ) => {
+      const setParts = [`amount = ?`];
+      const params = [newQty];
+
+      if (modelP && hasOwn(modelP, "sold_by_weight")) {
+        const sbw = !!modelP.sold_by_weight;
+        setParts.push(`sold_by_weight = ?`);
+        params.push(sbw ? 1 : 0);
+
+        if (!sbw) {
+          setParts.push(`requested_units = NULL`);
+        } else {
+          if (hasOwn(modelP, "units")) {
+            const u = Number(modelP.units);
+            const uInt = Number.isFinite(u) ? Math.trunc(u) : NaN;
+            if (Number.isFinite(uInt) && uInt > 0) {
+              setParts.push(`requested_units = ?`);
+              params.push(uInt);
+            } else {
+              setParts.push(`requested_units = NULL`);
+            }
+          } else {
+            setParts.push(`requested_units = NULL`);
+          }
+        }
+      }
+
+      params.push(Number(orderItemId));
+
+      await conn.query(
+        `UPDATE order_item SET ${setParts.join(", ")} WHERE id = ?`,
+        params
+      );
+    };
+
     for (const orig of origItems) {
       const keyHe = orig.name;
       const keyEn = (orig.display_name_en || "").trim();
       const inAfter = afterMap.has(keyHe) || (keyEn && afterMap.has(keyEn));
-
-      console.log("[ORD-MODIFY/apply] handle existing item:", {
-        product_id: orig.product_id,
-        name: orig.name,
-        keyHe,
-        keyEn,
-        inAfter,
-        origAmount: Number(orig.amount),
-        mappedAmountHe: afterMap.get(keyHe),
-        mappedAmountEn: keyEn ? afterMap.get(keyEn) : undefined,
-      });
 
       if (!inAfter) {
         await conn.query(
@@ -165,23 +208,10 @@ async function applyOrderModifications({
           amount: Number(orig.amount),
           mode: "implicit",
         });
-        console.log("[ORD-MODIFY/apply] implicit removal of existing item:", {
-          product_id: orig.product_id,
-          name: orig.name,
-          amount: orig.amount,
-        });
         continue;
       }
       const newQty = Number(afterMap.get(keyHe) ?? afterMap.get(keyEn));
       const delta = roundTo(newQty - Number(orig.amount), 3);
-
-      console.log("[ORD-MODIFY/apply] qty change:", {
-        product_id: orig.product_id,
-        name: orig.name,
-        newQty,
-        oldQty: Number(orig.amount),
-        delta,
-      });
 
       if (delta === 0) continue;
 
@@ -196,10 +226,15 @@ async function applyOrderModifications({
             `UPDATE product SET stock_amount = stock_amount - ? WHERE id = ? AND shop_id = ?`,
             [delta, Number(orig.product_id), shop_id]
           );
-          await conn.query(`UPDATE order_item SET amount = ? WHERE id = ?`, [
-            newQty,
+          const modelP =
+            metaByName.get(keyHe) || (keyEn ? metaByName.get(keyEn) : null);
+
+          await updateOrderItemAmountAndMaybeMeta(
             Number(orig.id),
-          ]);
+            newQty,
+            modelP
+          );
+
           qtyIncreased.push({
             product_id: Number(orig.product_id),
             name: isEnglish
@@ -261,10 +296,15 @@ async function applyOrderModifications({
           `UPDATE product SET stock_amount = stock_amount + ? WHERE id = ? AND shop_id = ?`,
           [Math.abs(delta), Number(orig.product_id), shop_id]
         );
-        await conn.query(`UPDATE order_item SET amount = ? WHERE id = ?`, [
-          newQty,
+        const modelP =
+          metaByName.get(keyHe) || (keyEn ? metaByName.get(keyEn) : null);
+
+        await updateOrderItemAmountAndMaybeMeta(
           Number(orig.id),
-        ]);
+          newQty,
+          modelP
+        );
+
         qtyDecreased.push({
           product_id: Number(orig.product_id),
           name: isEnglish
@@ -346,24 +386,33 @@ async function applyOrderModifications({
       }
 
       if (stock >= need) {
-        console.log("[ORD-MODIFY/apply] INSERT order_item about to run:", {
-          order_id,
-          product_id: Number(row.id),
-          need,
-          price: Number(lock?.[0]?.price ?? row.price),
-        });
+        const unitsFromReq = Number(p.units);
+        const pid = Number(row.id);
+
+        if (Number.isFinite(unitsFromReq) && unitsFromReq > 0) {
+          unitsByProductId.set(
+            pid,
+            (unitsByProductId.get(pid) || 0) + unitsFromReq
+          );
+        }
+
+        if (p.sold_by_weight === true) {
+          weightFlagByProductId.set(pid, true);
+        }
 
         await conn.query(
           `UPDATE product SET stock_amount = stock_amount - ? WHERE id = ? AND shop_id = ?`,
           [need, Number(row.id), shop_id]
         );
         await conn.query(
-          `INSERT INTO order_item (order_id, product_id, amount, price, created_at)
-         VALUES (?, ?, ?, ?, NOW(6))`,
+          `INSERT INTO order_item (order_id, product_id, amount, sold_by_weight, requested_units, price, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, NOW(6))`,
           [
             order_id,
             Number(row.id),
             need,
+            p.sold_by_weight ? 1 : 0,
+            p.sold_by_weight && typeof p.units === "number" ? p.units : null,
             Number(lock?.[0]?.price ?? row.price),
           ]
         );
@@ -424,10 +473,17 @@ async function applyOrderModifications({
     }
 
     const [curItems] = await conn.query(
-      `SELECT oi.product_id, oi.amount, p.price, p.name, p.display_name_en
-     FROM order_item oi
-     JOIN product p ON p.id = oi.product_id
-    WHERE oi.order_id = ?`,
+      `SELECT
+     oi.product_id,
+     oi.amount,
+     oi.sold_by_weight,
+     oi.requested_units,
+     p.price,
+     p.name,
+     p.display_name_en
+      FROM order_item oi
+      JOIN product p ON p.id = oi.product_id
+      WHERE oi.order_id = ?`,
       [order_id]
     );
 
@@ -445,15 +501,26 @@ async function applyOrderModifications({
     return {
       ok: true,
       total,
-      items: curItems.map((it) => ({
-        name: isEnglish
-          ? (it.display_name_en && it.display_name_en.trim()) || it.name
-          : it.name,
-        amount: Number(it.amount),
-        price: Number(it.price),
-      })),
-      questions: stockQuestions,
+      items: curItems.map((it) => {
+        const heName = it.name;
+        const enName =
+          (it.display_name_en && it.display_name_en.trim()) || it.name;
 
+        const displayName = isEnglish ? enName : heName;
+
+        const units = Number(it.requested_units);
+        const hasUnits = Number.isFinite(units) && units > 0;
+
+        return {
+          name: displayName,
+          amount: Number(it.amount),
+          price: Number(it.price),
+          ...(it.sold_by_weight ? { sold_by_weight: true } : {}),
+          ...(hasUnits ? { units } : {}),
+        };
+      }),
+
+      questions: stockQuestions,
       meta: {
         removedApplied,
         qtyIncreased,
@@ -532,16 +599,6 @@ module.exports = {
     openQsCtx = [],
     maxPerProduct,
   }) {
-    console.log("[ORD-MODIFY] INPUT:", {
-      message,
-      customer_id,
-      shop_id,
-      order_id,
-      hasActiveOrder: !!activeOrder,
-      itemsFromCaller: Array.isArray(items) ? items.length : null,
-      historyLen: Array.isArray(history) ? history.length : null,
-      maxPerProduct,
-    });
     if (!message || !customer_id || !shop_id) {
       throw new Error("modifyOrder: missing message/customer_id/shop_id");
     }
@@ -562,18 +619,6 @@ module.exports = {
         )
       )[0];
 
-    console.log("[ORD-MODIFY] Loaded order:", order);
-    console.log(
-      "[ORD-MODIFY] Loaded orderItems:",
-      orderItems.map((it) => ({
-        id: it.id,
-        product_id: it.product_id,
-        name: it.name,
-        amount: it.amount,
-        price: it.price,
-      }))
-    );
-
     const basePrompt = await getPromptFromDB(PROMPT_CAT, PROMPT_SUB);
 
     const systemWithInputs = [
@@ -591,7 +636,6 @@ module.exports = {
       history,
       systemPrompt: systemWithInputs,
     });
-    console.log("[model answer]", answer);
 
     let parsed;
     try {
@@ -785,9 +829,9 @@ module.exports = {
       });
       const [curItems] = await db.query(
         `SELECT oi.product_id, oi.amount, p.price, p.name, p.display_name_en
-     FROM order_item oi
-     JOIN product p ON p.id = oi.product_id
-    WHERE oi.order_id = ?`,
+          FROM order_item oi
+          JOIN product p ON p.id = oi.product_id
+          WHERE oi.order_id = ?`,
         [order.id]
       );
 

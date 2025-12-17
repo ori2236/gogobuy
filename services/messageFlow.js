@@ -19,7 +19,7 @@ const {
 } = require("../utilities/orders");
 const { detectIsEnglish } = require("../utilities/lang");
 
-const maxPerProduct = 30;
+const maxPerProduct = 10;
 
 async function processMessage(message, phone_number, shop_id) {
   const customer_id = await ensureCustomer(shop_id, phone_number);

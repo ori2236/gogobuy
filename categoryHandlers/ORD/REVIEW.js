@@ -60,15 +60,48 @@ async function orderReview(order, items, isEnglish, customer_id, shop_id) {
       ? (item.display_name_en && item.display_name_en.trim()) || item.name
       : item.name;
 
-    lines.push(
-      isEnglish
-        ? `* ${displayName} × ${qty} - ₪${formatMoney(
-            lineTotal
-          )} (₪${formatMoney(unitPrice)} each)`
-        : `* ${displayName} × ${qty} - ₪${formatMoney(
-            lineTotal
-          )} (₪${formatMoney(unitPrice)} ליח')`
-    );
+    const isWeight = item.sold_by_weight === 1 || item.sold_by_weight === true;
+
+    const unitsRaw = Number(item.requested_units);
+    const units = Number.isFinite(unitsRaw) && unitsRaw > 0 ? unitsRaw : null;
+
+    if (!isWeight) {
+      lines.push(
+        isEnglish
+          ? `* ${displayName} × ${qty} - ₪${formatMoney(
+              lineTotal
+            )} (₪${formatMoney(unitPrice)} each)`
+          : `* ${displayName} × ${qty} - ₪${formatMoney(
+              lineTotal
+            )} (₪${formatMoney(unitPrice)} ליח')`
+      );
+    } else {
+      if (units) {
+        lines.push(
+          isEnglish
+            ? `* ${displayName} × ${qty} - ₪${formatMoney(
+                lineTotal
+              )} (₪${formatMoney(
+                unitPrice
+              )} per kg, approx price for ${units} units)`
+            : `* ${displayName} × ${qty} - ₪${formatMoney(
+                lineTotal
+              )} (₪${formatMoney(
+                unitPrice
+              )} לק"ג, מחיר משוערך ל${units} יחידות)`
+        );
+      } else {
+        lines.push(
+          isEnglish
+            ? `* ${displayName} × ${qty} - ₪${formatMoney(
+                lineTotal
+              )} (₪${formatMoney(unitPrice)} per kg)`
+            : `* ${displayName} × ${qty} - ₪${formatMoney(
+                lineTotal
+              )} (₪${formatMoney(unitPrice)} לק"ג)`
+        );
+      }
+    }
   }
 
   lines.push("");

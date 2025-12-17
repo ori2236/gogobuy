@@ -37,6 +37,9 @@ const SUBCATEGORY_GROUPS = {
   "Ground/Minced": ["Ground/Minced", "Beef"],
 
   "Cold Cuts": ["Cold Cuts", "Turkey", "Chicken"],
+  Turkey: ["Turkey", "Cold Cuts"],
+  Chicken: ["Chicken", "Cold Cuts"],
+
   Sausages: ["Sausages", "Mixed & Other Meats"],
   "Mixed & Other Meats": ["Mixed & Other Meats", "Sausages"],
 
@@ -69,11 +72,13 @@ const SUBCATEGORY_GROUPS = {
   "Asian Pantry": ["Asian Pantry", "Sauces & Condiments"],
   "Mediterranean Pantry": ["Mediterranean Pantry", "Sauces & Condiments"],
   "Mexican Pantry": ["Mexican Pantry", "Sauces & Condiments"],
+  "Canned Tomatoes": ["Canned Tomatoes", "Sauces & Condiments"],
   "Sauces & Condiments": [
     "Sauces & Condiments",
     "Asian Pantry",
     "Mediterranean Pantry",
     "Mexican Pantry",
+    "Canned Tomatoes",
   ],
 
   // ===== Snacks =====
@@ -96,14 +101,56 @@ function getSubCategoryCandidates(sub) {
   return [s];
 }
 
+const HEBREW_NOISE_TOKENS = new Set([
+  "רגיל",
+  "רגילה",
+  "רגילים",
+  "רגילות",
+  "קטן",
+  "קטנה",
+  "קטנים",
+  "קטנות",
+  "גדול",
+  "גדולה",
+  "גדולים",
+  "גדולות",
+]);
+
+const ENGLISH_NOISE_TOKENS = new Set([
+  "regular",
+  "normal",
+  "plain",
+  "classic",
+  "small",
+  "large",
+  "big",
+]);
+
+function isNoiseToken(t) {
+  return HEBREW_NOISE_TOKENS.has(t) || ENGLISH_NOISE_TOKENS.has(t);
+}
+
 function tokenizeName(str) {
   if (!str) return [];
-  return String(str)
+
+  const baseTokens = String(str)
     .toLowerCase()
     .replace(/[^\w\u0590-\u05FF]+/g, " ")
     .split(/\s+/)
     .map((t) => t.trim())
     .filter(Boolean);
+
+  if (baseTokens.length <= 1) {
+    return baseTokens;
+  }
+
+  const filtered = baseTokens.filter((t) => !isNoiseToken(t));
+
+  if (filtered.length === 0) {
+    return baseTokens;
+  }
+
+  return filtered;
 }
 
 function safeParseJson(txt) {
@@ -414,6 +461,8 @@ async function searchProducts(shop_id, products) {
     const row = await findBestProductForRequest(shop_id, req);
     if (row) {
       const n = Number(req?.amount);
+      const u = Number(req?.units);
+      const weightFlag = req?.sold_by_weight === true;
       found.push({
         originalIndex: i,
         product_id: row.id,
@@ -424,6 +473,8 @@ async function searchProducts(shop_id, products) {
         sub_category: row.sub_category,
         requested_name: req?.name || null,
         requested_amount: Number.isFinite(n) ? n : 1,
+        requested_units: Number.isFinite(u) && u > 0 ? u : null,
+        sold_by_weight: weightFlag === true,
         matched_display_name_en: row.display_name_en,
       });
     } else {
@@ -690,6 +741,7 @@ async function buildAlternativeQuestions(
 
 function buildItemsBlock({ items, isEnglish, mode }) {
   if (!Array.isArray(items) || !items.length) return "";
+
   const lines = [];
   lines.push(
     isEnglish
@@ -700,24 +752,74 @@ function buildItemsBlock({ items, isEnglish, mode }) {
       ? "המוצרים שהוספתי להזמנה:"
       : "המוצרים שכעת בהזמנה:"
   );
-  for (const it of items) {
-    const qty = Number(it.amount);
-    const unit = Number(it.price);
-    const name = it.name;
-    if (!name) continue;
 
-    if (qty === 1) {
-      lines.push(`• ${name} - ₪${unit.toFixed(2)}`);
+  for (const it of items) {
+    if (!it || !it.name) continue;
+
+    const name = it.name;
+    const qty = Number(it.amount);
+    const unitPrice = Number(it.price);
+
+    if (!Number.isFinite(qty) || !Number.isFinite(unitPrice)) continue;
+
+    const soldByWeightRaw = it.sold_by_weight;
+    const isWeight =
+      soldByWeightRaw === true ||
+      soldByWeightRaw === 1 ||
+      soldByWeightRaw === "1";
+
+    const unitsRaw = it.units ?? it.requested_units ?? it.requestedUnits;
+    const unitsNum = Number(unitsRaw);
+    const units =
+      isWeight && Number.isFinite(unitsNum) && unitsNum > 0 ? unitsNum : null;
+
+    const lineTotal = Number((qty * unitPrice).toFixed(2));
+
+    if (!isWeight) {
+      if (qty === 1) {
+        lines.push(`• ${name} - ₪${unitPrice.toFixed(2)}`);
+      } else {
+        const eachSuffix = isEnglish ? "each" : "ליח'";
+        lines.push(
+          `• ${name} × ${qty} - ₪${lineTotal.toFixed(2)} (₪${unitPrice.toFixed(
+            2
+          )} ${eachSuffix})`
+        );
+      }
+      continue;
+    }
+
+    if (units) {
+      if (isEnglish) {
+        lines.push(
+          `• ${name} × ${qty} - ₪${lineTotal.toFixed(2)} (₪${unitPrice.toFixed(
+            2
+          )} per kg, approx price for ${units} units)`
+        );
+      } else {
+        lines.push(
+          `• ${name} × ${qty} - ₪${lineTotal.toFixed(2)} (₪${unitPrice.toFixed(
+            2
+          )} לק"ג, מחיר משוערך ל${units} יחידות)`
+        );
+      }
     } else {
-      const lineTotal = Number((qty * unit).toFixed(2));
-      const eachSuffix = isEnglish ? "each" : "ליח'";
-      lines.push(
-        `• ${name} × ${qty} - ₪${lineTotal.toFixed(2)} (₪${unit.toFixed(
-          2
-        )} ${eachSuffix})`
-      );
+      if (isEnglish) {
+        lines.push(
+          `• ${name} × ${qty} - ₪${lineTotal.toFixed(2)} (₪${unitPrice.toFixed(
+            2
+          )} per kg)`
+        );
+      } else {
+        lines.push(
+          `• ${name} × ${qty} - ₪${lineTotal.toFixed(2)} (₪${unitPrice.toFixed(
+            2
+          )} לק"ג)`
+        );
+      }
     }
   }
+
   return lines.join("\n");
 }
 
@@ -751,7 +853,7 @@ async function searchVariants(
   }
 
   if (subCategory) {
-    const subs = getSubCategoryCandidates(subCategory); // מחזיר את הקבוצה
+    const subs = getSubCategoryCandidates(subCategory);
     if (subs.length) {
       sql += ` AND sub_category IN (${subs.map(() => "?").join(",")})`;
       params.push(...subs);
