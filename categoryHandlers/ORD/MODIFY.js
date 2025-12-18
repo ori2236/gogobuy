@@ -1,10 +1,7 @@
 const { chat } = require("../../config/openai");
 const db = require("../../config/db");
 const { getPromptFromDB } = require("../../repositories/prompt");
-const {
-  getOrder,
-  mapOrderItemRowToDisplay,
-} = require("../../utilities/orders");
+const { getOrder } = require("../../utilities/orders");
 const { addMoney, mulMoney, roundTo } = require("../../utilities/decimal");
 const { isEnglishSummary } = require("../../utilities/lang");
 const {
@@ -14,6 +11,7 @@ const {
   fetchAlternatives,
   buildItemsBlock,
   buildQuestionsBlock,
+  getExcludeTokensFromReq,
 } = require("../../services/products");
 const {
   saveOpenQuestions,
@@ -59,9 +57,6 @@ async function applyOrderModifications({
   const notFoundAdds = []; // [{requested:{name,amount,category,sub_category}, alternatives:[...]}]
   const insufficientExistingIncreases = []; // [{name,requested_delta,available,alternatives:[...]}]
   const insufficientNewAdds = []; // [{name,requested,available,alternatives:[...]}]
-
-  const unitsByProductId = new Map();
-  const weightFlagByProductId = new Map();
 
   try {
     await conn.beginTransaction();
@@ -189,6 +184,9 @@ async function applyOrderModifications({
     };
 
     for (const orig of origItems) {
+      if (!byProdId.has(Number(orig.product_id))) {
+        continue;
+      }
       const keyHe = orig.name;
       const keyEn = (orig.display_name_en || "").trim();
       const inAfter = afterMap.has(keyHe) || (keyEn && afterMap.has(keyEn));
@@ -221,13 +219,16 @@ async function applyOrderModifications({
           [Number(orig.product_id), shop_id]
         );
         const stock = Number(prod?.stock_amount ?? 0);
+
+        const modelP =
+          metaByName.get(keyHe) || (keyEn ? metaByName.get(keyEn) : null);
+        const excludeTokens = modelP ? getExcludeTokensFromReq(modelP) : [];
+
         if (stock >= delta) {
           await conn.query(
             `UPDATE product SET stock_amount = stock_amount - ? WHERE id = ? AND shop_id = ?`,
             [delta, Number(orig.product_id), shop_id]
           );
-          const modelP =
-            metaByName.get(keyHe) || (keyEn ? metaByName.get(keyEn) : null);
 
           await updateOrderItemAmountAndMaybeMeta(
             Number(orig.id),
@@ -257,7 +258,8 @@ async function applyOrderModifications({
             orig.sub_category || prod?.sub_category || null,
             [Number(orig.product_id)],
             3,
-            mainName
+            mainName,
+            excludeTokens
           );
 
           const altNames = alts.map((a) =>
@@ -333,7 +335,16 @@ async function applyOrderModifications({
         const cat = (p.category || "").trim() || null;
         const sub = (p["sub-category"] || p.sub_category || "").trim() || null;
 
-        const alts = await fetchAlternatives(shop_id, cat, sub, [], 3, p.name);
+        const excludeTokens = getExcludeTokensFromReq(p);
+        const alts = await fetchAlternatives(
+          shop_id,
+          cat,
+          sub,
+          [],
+          3,
+          p.name,
+          excludeTokens
+        );
 
         notFoundAdds.push({
           requested: {
@@ -364,9 +375,10 @@ async function applyOrderModifications({
       }
 
       //checking stock
+      const pid = Number(row.id);
       const [lock] = await conn.query(
         `SELECT stock_amount, price, category, sub_category FROM product WHERE id = ? AND shop_id = ? FOR UPDATE`,
-        [Number(row.id), shop_id]
+        [pid, shop_id]
       );
       const stock = Number(lock?.[0]?.stock_amount ?? 0);
       const rawAmount = Number(p.amount) || 0;
@@ -386,46 +398,64 @@ async function applyOrderModifications({
       }
 
       if (stock >= need) {
-        const unitsFromReq = Number(p.units);
-        const pid = Number(row.id);
-
-        if (Number.isFinite(unitsFromReq) && unitsFromReq > 0) {
-          unitsByProductId.set(
-            pid,
-            (unitsByProductId.get(pid) || 0) + unitsFromReq
-          );
-        }
-
-        if (p.sold_by_weight === true) {
-          weightFlagByProductId.set(pid, true);
-        }
-
         await conn.query(
           `UPDATE product SET stock_amount = stock_amount - ? WHERE id = ? AND shop_id = ?`,
-          [need, Number(row.id), shop_id]
+          [need, pid, shop_id]
         );
-        await conn.query(
-          `INSERT INTO order_item (order_id, product_id, amount, sold_by_weight, requested_units, price, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, NOW(6))`,
-          [
-            order_id,
-            Number(row.id),
-            need,
-            p.sold_by_weight ? 1 : 0,
-            p.sold_by_weight && typeof p.units === "number" ? p.units : null,
-            Number(lock?.[0]?.price ?? row.price),
-          ]
+        const [[existingOrderItem]] = await conn.query(
+          `SELECT id, amount
+           FROM order_item
+           WHERE order_id = ? AND product_id = ?
+           FOR UPDATE`,
+          [order_id, pid]
         );
-        addedApplied.push({
-          product_id: Number(row.id),
-          name: row.name,
-          amount: need,
-          price: Number(lock?.[0]?.price ?? row.price),
-        });
+
+        if (existingOrderItem) {
+          const prevAmount = Number(existingOrderItem.amount) || 0;
+          const newAmount = roundTo(prevAmount + need, 3);
+
+          await updateOrderItemAmountAndMaybeMeta(
+            Number(existingOrderItem.id),
+            newAmount,
+            p
+          );
+
+          qtyIncreased.push({
+            product_id: pid,
+            name: isEnglish
+              ? (row.display_name_en && row.display_name_en.trim()) || row.name
+              : row.name,
+            before: prevAmount,
+            after: newAmount,
+            delta: roundTo(newAmount - prevAmount, 3),
+          });
+        } else {
+          await conn.query(
+            `INSERT INTO order_item (order_id, product_id, amount, sold_by_weight, requested_units, price, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, NOW(6))`,
+            [
+              order_id,
+              pid,
+              need,
+              p.sold_by_weight ? 1 : 0,
+              p.sold_by_weight && typeof p.units === "number" ? p.units : null,
+              Number(lock?.[0]?.price ?? row.price),
+            ]
+          );
+
+          addedApplied.push({
+            product_id: pid,
+            name: row.name,
+            amount: need,
+            price: Number(lock?.[0]?.price ?? row.price),
+          });
+        }
       } else {
         const mainName = isEnglish
           ? (row.display_name_en && row.display_name_en.trim()) || row.name
           : row.name;
+
+        const excludeTokens = getExcludeTokensFromReq(p);
 
         const alts = await fetchAlternatives(
           shop_id,
@@ -433,7 +463,8 @@ async function applyOrderModifications({
           lock?.[0]?.sub_category || row.sub_category || null,
           [Number(row.id)],
           3,
-          mainName
+          mainName,
+          excludeTokens
         );
 
         insufficientNewAdds.push({

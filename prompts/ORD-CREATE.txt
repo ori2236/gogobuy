@@ -61,7 +61,9 @@ TASK
    - name (Hebrew):
       * MUST be a short generic product-type name in Hebrew, as it would appear in a supermarket DB (no full sentence fragments).
       * Strip descriptive/context words like "לסלט", "לא גדולים", "טעים", "פשוט", "לילדים", "במבצע", "כמו תמיד" and similar.
-      * Do NOT invent or guess a brand, manufacturer, flavor, or size if the user did not clearly mention it.
+      * Do NOT invent or guess a brand, manufacturer, flavor, size, package, weight, or volume if the user did not clearly mention it.
+      * Never invent numeric package size / volume / weight (e.g. "1 ליטר", "2 ליטר", "330 מ\"ל", "500 גרם") if the user did not explicitly write it.
+        If the user just says "בקבוק קולה" or "פסטה" without a number, keep the name generic without any numeric volume.
       * If the user didn’t specify a brand/size, use a generic name like "מיץ אפרסק", "אפרסק", "חלב 3%", etc.
       * Never turn a generic request like "מיץ אפרסק" into a specific branded SKU like "פריגת מיץ אפרסק 1 ליטר" unless the user explicitly wrote that brand and size.
       * The "name" should not include context words like "for salad" or "not too big", only the core product type.
@@ -84,6 +86,11 @@ TASK
       • If you are uncertain whether a product is priced by weight or by unit, default sold_by_weight = false.
    - category (English): MUST be one of the allowed categories.
    - sub-category (English): MUST be one of the allowed sub-categories for that category.
+   - exclude_tokens (optional array of strings):
+      • Use this only when the user clearly excludes specific words or attributes (for example: "לא חריף", "בלי סוכר", "בלי גלוטן").
+      • Each element MUST be a simple string, taken directly from the user’s text (single word or short phrase).
+      • All tokens in exclude_tokens are negative filters: the backend must not match products whose canonical name contains any of them.
+      • If the user did not exclude anything, you may omit this field or return an empty array.
    - Optional outputName: include ONLY if LAST_USER_MESSAGE_LANGUAGE ≠ Hebrew (see LANGUAGE HANDLING).
     IMPORTANT — DO NOT ASK ABOUT BRAND/SIZE IF NOT SPECIFIED
     - If the user did NOT explicitly specify a brand/company/manufacturer, volume, weight, or package size, do NOT ask a clarification question about these.
@@ -136,6 +143,9 @@ Notes:
 - If you could not extract any products, you may still return only "questions" and "question_updates".
 - Prefer Hebrew for user-facing strings.
 - Always include "question_updates" with both arrays present (even if empty).
+- The rule about not guessing package volume/weight refers only to labeled package sizes in the product name
+  (e.g. "1 ליטר", "500 גרם"). For loose produce sold by weight you MUST still estimate kilograms in the "amount"
+  field when the customer orders by pieces, as described above.
 
 
 OUTPUT — RETURN EXACTLY ONE JSON OBJECT (no extra text)
@@ -149,7 +159,8 @@ OUTPUT — RETURN EXACTLY ONE JSON OBJECT (no extra text)
       "units": <number> (optional, only for weight-based products requested in pieces),
       "sold_by_weight": <boolean> (optional, true if this product is naturally priced per kg, otherwise false or omit),
       "category": "<English>",
-      "sub-category": "<English>"
+      "sub-category": "<English>",
+      "exclude_tokens": ["<string>", ...] (optional array of strings; if none, you may omit this field or use [])
     }
     ...
   ],

@@ -126,6 +126,32 @@ const ENGLISH_NOISE_TOKENS = new Set([
   "big",
 ]);
 
+function getExcludeTokensFromReq(req) {
+  const raw = req && req.exclude_tokens;
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((x) =>
+      typeof x === "string"
+        ? x.trim().toLowerCase()
+        : String(x || "")
+            .trim()
+            .toLowerCase()
+    )
+    .filter(Boolean);
+}
+
+function filterRowsByExcludeTokens(rows, excludeTokens) {
+  if (!rows || !rows.length || !excludeTokens.length) return rows || [];
+
+  return rows.filter((r) => {
+    const name = (r.name || "").toLowerCase();
+    const en = (r.display_name_en || "").toLowerCase();
+    return !excludeTokens.some(
+      (t) => (t && name.includes(t)) || (t && en.includes(t))
+    );
+  });
+}
+
 function isNoiseToken(t) {
   return HEBREW_NOISE_TOKENS.has(t) || ENGLISH_NOISE_TOKENS.has(t);
 }
@@ -218,36 +244,62 @@ async function findBestProductForRequest(shop_id, req) {
     : [];
 
   const reqTokens = tokenizeName(nameRaw);
+  const excludeTokens = getExcludeTokensFromReq(req);
 
   if (!reqTokens.length) {
     if (category && primarySub) {
-      let [rows] = await db.query(
-        `
+      const params = [shop_id, category, primarySub];
+      let sql = `
+      SELECT id, name, display_name_en, price, stock_amount, category, sub_category
+      FROM product
+      WHERE shop_id = ?
+        AND category = ?
+        AND sub_category = ?`;
+
+      for (const t of excludeTokens) {
+        sql += `
+        AND (
+          name COLLATE utf8mb4_general_ci NOT LIKE CONCAT('%', ?, '%')
+          AND display_name_en COLLATE utf8mb4_general_ci NOT LIKE CONCAT('%', ?, '%')
+        )
+      `;
+        params.push(t, t);
+      }
+
+      sql += `
+      ORDER BY updated_at DESC, id DESC
+      LIMIT 1`;
+
+      let [rows] = await db.query(sql, params);
+      if (rows && rows.length) return rows[0];
+
+      if (otherSubs.length) {
+        const params2 = [shop_id, category, ...otherSubs];
+        let sql2 = `
         SELECT id, name, display_name_en, price, stock_amount, category, sub_category
         FROM product
         WHERE shop_id = ?
           AND category = ?
-          AND sub_category = ?
+          AND sub_category IN (${otherSubs.map(() => "?").join(",")})
+      `;
+
+        for (const t of excludeTokens) {
+          sql2 += `
+          AND (
+            name COLLATE utf8mb4_general_ci NOT LIKE CONCAT('%', ?, '%')
+            AND display_name_en COLLATE utf8mb4_general_ci NOT LIKE CONCAT('%', ?, '%')
+          )
+        `;
+          params2.push(t, t);
+        }
+
+        sql2 += `
         ORDER BY updated_at DESC, id DESC
         LIMIT 1
-        `,
-        [shop_id, category, primarySub]
-      );
-      if (rows && rows.length) return rows[0];
+      `;
 
-      if (otherSubs.length) {
-        const params = [shop_id, category, ...otherSubs];
-        let sql = `
-          SELECT id, name, display_name_en, price, stock_amount, category, sub_category
-          FROM product
-          WHERE shop_id = ?
-            AND category = ?
-            AND sub_category IN (${otherSubs.map(() => "?").join(",")})
-          ORDER BY updated_at DESC, id DESC
-          LIMIT 1
-        `;
-        [rows] = await db.query(sql, params);
-        if (rows && rows.length) return rows[0];
+        let [rows2] = await db.query(sql2, params2);
+        if (rows2 && rows2.length) return rows2[0];
       }
     }
 
@@ -258,6 +310,7 @@ async function findBestProductForRequest(shop_id, req) {
     const reqSet = new Set(reqTokens);
 
     function pickBest(rows) {
+      rows = filterRowsByExcludeTokens(rows, excludeTokens);
       if (!rows || !rows.length) return null;
       let best = null;
       for (const r of rows) {
@@ -320,7 +373,7 @@ async function findBestProductForRequest(shop_id, req) {
 
     {
       const params = [shop_id, category, primarySub];
-      const [rows] = await db.query(
+      const [rowsAllTokens] = await db.query(
         `
         SELECT id, name, display_name_en, price, stock_amount, category, sub_category
         FROM product
@@ -330,6 +383,8 @@ async function findBestProductForRequest(shop_id, req) {
       `,
         params
       );
+
+      const rows = filterRowsByExcludeTokens(rowsAllTokens, excludeTokens);
 
       if (rows && rows.length) {
         const scored = [];
@@ -368,7 +423,7 @@ async function findBestProductForRequest(shop_id, req) {
 
     if (otherSubs.length) {
       const params = [shop_id, category, ...otherSubs];
-      const [rows] = await db.query(
+      const [rowsAllTokens] = await db.query(
         `
         SELECT id, name, display_name_en, price, stock_amount, category, sub_category
         FROM product
@@ -378,6 +433,8 @@ async function findBestProductForRequest(shop_id, req) {
       `,
         params
       );
+
+      const rows = filterRowsByExcludeTokens(rowsAllTokens, excludeTokens);
 
       if (rows && rows.length) {
         const scored = [];
@@ -429,7 +486,9 @@ async function findBestProductForRequest(shop_id, req) {
       params.push(t, t);
     }
 
-    const [rows] = await db.query(sql, params);
+    const [rowsAll] = await db.query(sql, params);
+    const rows = filterRowsByExcludeTokens(rowsAll, excludeTokens);
+
     if (rows && rows.length) {
       let best = null;
       for (const r of rows) {
@@ -479,6 +538,7 @@ async function searchProducts(shop_id, products) {
       });
     } else {
       const n = Number(req?.amount);
+      const excludeTokens = getExcludeTokensFromReq(req);
       notFound.push({
         originalIndex: i,
         requested_name: req?.name || null,
@@ -486,6 +546,7 @@ async function searchProducts(shop_id, products) {
         requested_amount: Number.isFinite(n) ? n : 1,
         category: req?.category || null,
         sub_category: req?.["sub-category"] || req?.sub_category || null,
+        exclude_tokens: excludeTokens,
       });
     }
   }
@@ -499,7 +560,8 @@ async function fetchAlternatives(
   subCategory,
   excludeIds = [],
   limit = 3,
-  requestedName = null
+  requestedName = null,
+  excludeTokens = []
 ) {
   if (!category && !subCategory) return [];
 
@@ -540,10 +602,13 @@ async function fetchAlternatives(
     const [rows] = await db.query(sql, params);
     if (!rows || !rows.length) return [];
 
+    const filteredRows = filterRowsByExcludeTokens(rows, excludeTokens);
+    if (!filteredRows.length) return [];
+
     // all tokens
     if (reqTokens.length) {
       const reqSet = new Set(reqTokens);
-      const scored = rows.map((r) => {
+      const scored = filteredRows.map((r) => {
         const candTokens = tokenizeName(
           (r.name || "") + " " + (r.display_name_en || "")
         );
@@ -575,7 +640,7 @@ async function fetchAlternatives(
       return [...positive, ...zero].slice(0, limit);
     }
 
-    return rows.slice(0, limit);
+    return filteredRows.slice(0, limit);
   }
 
   let rows = [];
@@ -689,13 +754,19 @@ async function buildAlternativeQuestions(
     const exclude = Array.from(usedIds);
     const mainName = nf.requested_name || nf.requested_output_name || null;
 
+    const excludeTokens =
+      Array.isArray(nf.exclude_tokens) && nf.exclude_tokens.length
+        ? nf.exclude_tokens
+        : [];
+
     const alts = await fetchAlternatives(
       shop_id,
       cat,
       sub,
       exclude,
       3,
-      mainName
+      mainName,
+      excludeTokens
     );
 
     if (!alts || !alts.length) continue;
@@ -899,4 +970,6 @@ module.exports = {
   buildQuestionsBlock,
 
   searchVariants,
+
+  getExcludeTokensFromReq,
 };

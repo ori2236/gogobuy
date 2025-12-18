@@ -86,7 +86,6 @@ DEFAULT_ALLOWED_SUBCATEGORIES_MAP (English)
    - add to `removed_products` → with `{ "order_item.id", "product_id" }` of the removed item
    - add the new product to `added_products` with its `name`, `amount`, `category`, `sub-category` (+ `outputName` if needed)
    - reflect the final state in `products`.
-
    If the user didn’t specify quantity for the replacement target → **use the source item’s quantity**.
 
 5) Removals of non-existent items: If user asks to remove something that isn’t in the order, **ignore** it (no `removed_products` entry). If it seems like a misunderstanding, you **may** add a clarifying question.
@@ -100,14 +99,36 @@ DEFAULT_ALLOWED_SUBCATEGORIES_MAP (English)
    - "name" (both in "products" and "added_products") must be a short generic Hebrew product name,
      as it would appear in the supermarket DB, not a full sentence.
    - Do NOT add context words like "לסלט", "לא גדולים", "לילדים", "במבצע", "כמו תמיד" etc.
-   - Do NOT invent or guess brand, manufacturer, flavor, pack size, or sub-variant if the user did not clearly mention it.
+   - Do NOT invent or guess brand, manufacturer, flavor, pack size, weight, volume, or sub-variant if the user did not clearly mention it.
      Treat brand/size as unspecified, not as “any brand”.
+   - Never invent numeric package size / volume / weight (e.g. "1 ליטר", "2 ליטר", "330 מ\"ל", "500 גרם") in the name if the user did not explicitly write it.
+     If the user just says "בקבוק קולה" or "פסטה" without a number, keep the name generic without any numeric volume.
    - Examples:
        * User: "אני רוצה מיץ אפרסק" → name = "מיץ אפרסק"
        * User: "פיוז טי אפרסק 1.5 ליטר" → name = "פיוז טי אפרסק 1.5 ליטר"
        * User: "תוסיף גם ארבעה מלפפונים לסלט, לא גדולים" → name = "מלפפונים"
    - Do NOT ask clarification questions only to choose brand or size.
-     Clarification questions are only for unclear quantity or unclear reference (“כאלה”, “זה שם” וכו').
+     Clarification questions are only for unclear quantity or unclear reference (“כאלה”, “זה שם” וכו).
+7b) Negative modifiers and `exclude_tokens`:
+  - When the user explicitly asks to avoid some attribute or variant of a product
+    (for example: "לא חריף", "בלי סוכר", "לא של תנובה", "לא כמו זה שיש עכשיו"),
+    you MUST:
+    - Keep the product `name` as a short, generic Hebrew product name (without the negative phrase),
+      e.g. "רוטב עגבניות" and NOT "רוטב עגבניות לא חריף".
+    - Add each forbidden keyword as a lowercase string in `exclude_tokens`
+
+  - Examples of mapping user phrases to `exclude_tokens`:
+    * "רוטב עגבניות לא חריף" → name = "רוטב עגבניות", exclude_tokens = ["חריף"]
+    * "קולה בלי סוכר" → name = "קולה", exclude_tokens = ["סוכר", "sugar"]
+    * "לא של תנובה" → exclude_tokens = ["תנובה", "tnuva"]
+
+  - When the user refers to an item that already exists in the order and says things like:
+    "תוסיף אחד אחר", "תשים במקום משהו לא חריף", "לא כזה חריף, תחליף למשהו רגיל":
+    - Treat this as a different product of the same general type.
+    - Do NOT reuse exactly the same `name` if it contains the attribute they want to avoid\
+    - Instead, use a generic base type (e.g. "רוטב עגבניות") and set `exclude_tokens`
+      with the disallowed attribute (e.g. ["חריף"]) so that the backend will pick a similar
+      product that is not spicy.
 
 8) Quantities, units and price basis:
   - "amount" may be a decimal (e.g. 0.5).
@@ -126,6 +147,9 @@ DEFAULT_ALLOWED_SUBCATEGORIES_MAP (English)
     • Pre-packed items like "bag of frozen peas 800g", "pack of 4 schnitzels", "tray of 6 apples" are NOT weight-based: for them you MUST set sold_by_weight = false and you MUST NOT use the "units" field.
     • If you are uncertain whether a product is priced by weight or by unit, default sold_by_weight = false.
       - If quantity is unclear → default to amount = 1 and add a clarification question.
+  - The rule about not guessing package volume/weight refers only to labeled package sizes in the product name.
+    For loose produce sold by weight you MUST still estimate kilograms in the "amount" field when the customer
+    speaks in pieces, as described above.
 
 8b) Handling weight-based products and units:
     1) If a product is sold by weight and the customer asks to change the quantity in kilograms/grams only
@@ -206,6 +230,7 @@ Rules:
 
 18) Use delete_ids only for explicit, unambiguous picks (e.g., user names one concrete option or quantity); otherwise prefer close_ids.
 
+19) If you include "exclude_tokens", it MUST be a JSON array of strings only (no numbers, objects, or nulls).
 
 # REQUIRED OUTPUT SCHEMA
 Return EXACTLY this structure (keys MUST exist even if arrays are empty):
@@ -220,7 +245,8 @@ Return EXACTLY this structure (keys MUST exist even if arrays are empty):
       "units": <number> (optional, only for weight-based products requested in pieces),
       "sold_by_weight": <boolean> (optional, true if priced per kg, otherwise false),
       "category": "<English>",
-      "sub-category": "<English>"
+      "sub-category": "<English>",
+      "exclude_tokens": ["<string>", ...] (optional array of strings; if none, you may omit this field or use [])
     }
     ...
   ],
@@ -232,7 +258,8 @@ Return EXACTLY this structure (keys MUST exist even if arrays are empty):
       "units": <number> (optional, only for weight-based products requested in pieces),
       "sold_by_weight": <boolean> (optional, true if priced per kg, otherwise false),
       "category": "<English>",
-      "sub-category": "<English>"
+      "sub-category": "<English>",
+      "exclude_tokens": ["<string>", ...] (optional array of strings; if none, you may omit this field or use [])
     }
     ...
   ],
@@ -251,11 +278,11 @@ Return EXACTLY this structure (keys MUST exist even if arrays are empty):
 # EXAMPLES
 
 ## Example A — Add quantity to an existing product (Hebrew)
-**Context**: Order contains
+Context: Order contains
 - "יוטבתה חלב 3% 2 ליטר" × 1 (Dairy & Eggs → Milk)
 User says: "תוסיף עוד 2 חלב כאלה"
 
-**Expected (no `added_products` because it’s a merge):**
+Expected (no `added_products` because it’s a merge):
 
 {
   "summary_line": "יופי, זאת ההזמנה שהבנתי ממך:",
@@ -272,11 +299,11 @@ User says: "תוסיף עוד 2 חלב כאלה"
 
 
 ## Example B — Replace item (remove old + add new, amount kept) (Hebrew)
-**Context**: Order contains
+Context: Order contains
 - "רביולי במילוי גבינה 500 גרם" × 1 (Pantry → Pasta)
 User says: "תבטל את הרביולי ותוסיף במקומו ברילה ספגטי 2 יחידות"
 
-**Expected:**
+Expected:
 
 {
   "summary_line": "יופי, זאת ההזמנה שהבנתי ממך:",
@@ -297,12 +324,12 @@ User says: "תבטל את הרביולי ותוסיף במקומו ברילה ס
 
 
 ## Example C — Broad change across matching items; partial ambiguity (Hebrew)
-**Context**: Order contains two cereals:
+Context: Order contains two cereals:
 - "קורנפלקס תלמה 750 גרם" × 4 (Pantry → Breakfast Cereal)
 - "קורנפלקס קלוגס 500 גרם" × 2 (Pantry → Breakfast Cereal)
 User says: "תוריד 1 מכל הקורנפלקסים"
 
-**Expected (apply to both):**
+Expected (apply to both):
 
 {
   "summary_line": "יופי, זאת ההזמנה שהבנתי ממך:",
@@ -334,10 +361,10 @@ If the phrase “קורנפלקסים” could match other items (e.g., granola)
 
 
 ## Example D — English last message; add a new product with category selection
-**Context**: Order contains milk and hummus.
+Context: Order contains milk and hummus.
 User says: "Please add two bottles of Coca Cola and one bag of pasta (any brand)."
 
-**Expected (English UI + outputName fields):**
+Expected (English UI + outputName fields):
 
 {
   "summary_line": "Great, here’s the order I understood from you:",
@@ -357,7 +384,7 @@ User says: "Please add two bottles of Coca Cola and one bag of pasta (any brand)
 
 
 ## Example E — Ambiguous reference requires a question (Hebrew)
-**Context**: Order contains:
+Context: Order contains:
 - "חומוס אחלה 400 גרם" × 3 (Deli & Ready Meals → Salads & Spreads)
 User says: "תשנה את החומוס ל-6"
 
@@ -375,12 +402,12 @@ If multiple hummus variants exist in the order and it’s unclear which to chang
 }
 
 ## Example F — Weight-based vegetables requested in pieces (Hebrew)
-**Context**: Order currently contains:
+Context: Order currently contains:
 - "חלב ללא לקטוז 1 ליטר" × 2 (Dairy & Eggs → Milk)
 
 User says: "אני צריך 4 מלפפונים"
 
-**Expected:**
+Expected:
 
 {
   "summary_line": "יופי, זאת ההזמנה שהבנתי ממך:",
@@ -411,6 +438,41 @@ User says: "אני צריך 4 מלפפונים"
     }
   ],
   "removed_products": [],
+  "questions": [],
+  "question_updates": { "close_ids": [], "delete_ids": [] }
+}
+
+## Example G — Replace spicy tomato sauce with a non-spicy one using exclude_tokens (Hebrew)
+Context: Order contains:
+- "רוטב עגבניות חריף 540 גרם" × 2 (Pantry → Canned Tomatoes)
+
+User says: "במקום הרוטב עגבניות שיש עכשיו תוסיף רוטב עגבניות שהוא לא חריף"
+
+Expected:
+
+{
+  "summary_line": "יופי, זאת ההזמנה שהבנתי ממך:",
+  "products": [
+    {
+      "name": "רוטב עגבניות",
+      "amount": 2,
+      "category": "Pantry",
+      "sub-category": "Canned Tomatoes",
+      "exclude_tokens": ["חריף"]
+    }
+  ],
+  "added_products": [
+    {
+      "name": "רוטב עגבניות",
+      "amount": 2,
+      "category": "Pantry",
+      "sub-category": "Canned Tomatoes",
+      "exclude_tokens": ["חריף"]
+    }
+  ],
+  "removed_products": [
+    { "order_item.id": 268, "product_id": 1023 }
+  ],
   "questions": [],
   "question_updates": { "close_ids": [], "delete_ids": [] }
 }
