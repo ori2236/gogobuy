@@ -12,20 +12,17 @@ const client = new OpenAI({
   defaultQuery: { "api-version": apiVersion },
 });
 
-async function chat({
-  message,
-  history = [],
-  systemPrompt,
-}) {
+async function chat({ message, history = [], systemPrompt, response_format }) {
   const messages = [
     { role: "system", content: systemPrompt },
     ...history,
     { role: "user", content: message },
   ];
-  
+
   const r = await client.chat.completions.create({
     model: deployment,
     messages,
+    ...(response_format ? { response_format } : {}),
   });
   return r.choices?.[0]?.message?.content?.trim() || "לא התקבלה תשובה מהמודל.";
 }

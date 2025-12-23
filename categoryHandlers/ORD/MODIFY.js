@@ -3,7 +3,7 @@ const db = require("../../config/db");
 const { getPromptFromDB } = require("../../repositories/prompt");
 const { getOrder } = require("../../utilities/orders");
 const { addMoney, mulMoney, roundTo } = require("../../utilities/decimal");
-const { isEnglishSummary } = require("../../utilities/lang");
+const { isEnglishMessage } = require("../../utilities/lang");
 const {
   parseModelAnswer,
   pickAltTemplate,
@@ -689,7 +689,7 @@ module.exports = {
     const removedProducts = Array.isArray(parsed.removed_products)
       ? parsed.removed_products
       : [];
-    let isEnglish = isEnglishSummary(parsed?.summary_line);
+    let isEnglish = isEnglishMessage(message);
     const modelQuestions = normalizeIncomingQuestions(parsed?.questions, {
       preserveOptions: true,
     });

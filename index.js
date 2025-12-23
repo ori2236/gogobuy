@@ -7,6 +7,7 @@ const db = require("./config/db");
 const customerInteractionRoutes = require("./routes/customerInteractionRoutes");
 const webhooksRoutes = require("./routes/webhook");
 const deleteLastData = require("./routes/deleteLastData");
+const { rebuildTokenWeightsForShop } = require("./services/products");
 
 const app = express();
 const port = config.port || 3000;
@@ -22,11 +23,9 @@ app.use("/", webhooksRoutes);
 //temp
 app.use("/api/deleteLastData", deleteLastData);
 
-
-app.get('/health', (req, res) => {
+app.get("/health", (req, res) => {
   res.json({ ok: true, time: new Date().toISOString() });
 });
-
 
 // START SERVER
 app.listen(port, () => {
@@ -38,10 +37,8 @@ db.getConnection()
     console.log("Database connected");
     connection.release(); // Release the connection back to the pool
   })
+  .then(() => rebuildTokenWeightsForShop(1)) // shop_id
   .catch((err) => {
     console.error("Failed to connect to the database:", err);
     process.exit(1);
   });
-
-
-
