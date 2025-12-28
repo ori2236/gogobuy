@@ -156,7 +156,7 @@ function isNoiseToken(t) {
 function normalizeToken(t) {
   return String(t || "")
     .normalize("NFKC")
-    .replace(/[\u05F3\u05F4'’"״]/g, "")
+    .replace(/['’"]/g, "")
     .trim();
 }
 

@@ -19,21 +19,29 @@ const {
   deleteQuestionsByIds,
 } = require("../../utilities/openQuestions");
 const { normalizeIncomingQuestions } = require("../../utilities/normalize");
-
+const { MODIFY_ORDER_SCHEMA } = require("./schemas/modify.schema");
 const PROMPT_CAT = "ORD";
 const PROMPT_SUB = "MODIFY";
 
-async function applyOrderModifications({
+async function applyOrderPatch({
   shop_id,
   order_id,
-  modelProducts,
-  removedProducts,
+  ops,
   isEnglish,
   maxPerProduct,
 }) {
   const conn = await db.getConnection();
   const stockQuestions = [];
   let altTemplateIdx = 0;
+
+  const removedApplied = [];
+  const qtyIncreased = [];
+  const qtyDecreased = [];
+  const addedApplied = [];
+  const notFoundAdds = [];
+  const insufficientExistingIncreases = [];
+  const insufficientNewAdds = [];
+  const cappedWarnings = [];
 
   const display = (rowOrName) => {
     if (!rowOrName) return "";
@@ -50,228 +58,227 @@ async function applyOrderModifications({
         ""
       : (p && typeof p.name === "string" && p.name.trim()) || "";
 
-  const removedApplied = []; // [{product_id,name,amount,mode:'explicit'|'implicit'}]
-  const qtyIncreased = []; // [{product_id,name,before,after,delta}]
-  const qtyDecreased = []; // [{product_id,name,before,after,delta}]
-  const addedApplied = []; // [{product_id,name,amount,price}]
-  const notFoundAdds = []; // [{requested:{name,amount,category,sub_category}, alternatives:[...]}]
-  const insufficientExistingIncreases = []; // [{name,requested_delta,available,alternatives:[...]}]
-  const insufficientNewAdds = []; // [{name,requested,available,alternatives:[...]}]
+  const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
+
+  const stockToNumber = (raw) => {
+    if (raw === null || raw === undefined) return Infinity; // unlimited stock
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const decStock = async (pid, delta) => {
+    await conn.query(
+      `UPDATE product
+         SET stock_amount = CASE
+           WHEN stock_amount IS NULL THEN NULL
+           ELSE stock_amount - ?
+         END
+       WHERE id = ? AND shop_id = ?`,
+      [Number(delta), Number(pid), Number(shop_id)]
+    );
+  };
+
+  const incStock = async (pid, delta) => {
+    await conn.query(
+      `UPDATE product
+         SET stock_amount = CASE
+           WHEN stock_amount IS NULL THEN NULL
+           ELSE stock_amount + ?
+         END
+       WHERE id = ? AND shop_id = ?`,
+      [Number(delta), Number(pid), Number(shop_id)]
+    );
+  };
+
+  const updateOrderItemAmountAndMaybeMeta = async (
+    orderItemId,
+    newQty,
+    modelP
+  ) => {
+    const setParts = [`amount = ?`];
+    const params = [Number(newQty)];
+
+    if (modelP && hasOwn(modelP, "sold_by_weight")) {
+      const sbw = !!modelP.sold_by_weight;
+      setParts.push(`sold_by_weight = ?`);
+      params.push(sbw ? 1 : 0);
+
+      if (!sbw) {
+        setParts.push(`requested_units = NULL`);
+      } else {
+        if (hasOwn(modelP, "units")) {
+          const u = Number(modelP.units);
+          const uInt = Number.isFinite(u) ? Math.trunc(u) : NaN;
+          if (Number.isFinite(uInt) && uInt > 0) {
+            setParts.push(`requested_units = ?`);
+            params.push(uInt);
+          } else {
+            setParts.push(`requested_units = NULL`);
+          }
+        } else {
+          setParts.push(`requested_units = NULL`);
+        }
+      }
+    }
+
+    await conn.query(
+      `UPDATE order_item oi
+        JOIN product p ON p.id = oi.product_id
+        SET ${setParts.join(", ")},
+       oi.price = ROUND(p.price * oi.amount, 2)
+        WHERE oi.id = ? AND oi.order_id = ?`,
+      [...params, Number(orderItemId), Number(order_id)]
+    );
+  };
+
+  const getOrderItemIdFromOp = (x) => {
+    const v = x?.["order_item.id"];
+    return typeof v === "number" && Number.isFinite(v) ? Number(v) : null;
+  };
 
   try {
     await conn.beginTransaction();
 
     const [origItems] = await conn.query(
       `SELECT
-     oi.id,
-     oi.product_id,
-     oi.amount,
-     oi.price,
-     oi.sold_by_weight,
-     oi.requested_units,
-     p.name,
-     p.display_name_en,
-     p.stock_amount
-      FROM order_item oi
-      JOIN product p ON p.id = oi.product_id
-      WHERE oi.order_id = ?
-      FOR UPDATE`,
-      [order_id]
+         oi.id,
+         oi.product_id,
+         oi.amount,
+         oi.price,
+         oi.sold_by_weight,
+         oi.requested_units,
+         p.name,
+         p.display_name_en,
+         p.stock_amount,
+         p.category,
+         p.sub_category
+       FROM order_item oi
+       JOIN product p ON p.id = oi.product_id
+       WHERE oi.order_id = ?
+       FOR UPDATE`,
+      [Number(order_id)]
     );
 
+    const byOrderItemId = new Map(origItems.map((it) => [Number(it.id), it]));
     const byProdId = new Map(
       origItems.map((it) => [Number(it.product_id), it])
     );
 
-    for (const rem of removedProducts || []) {
-      const row = byProdId.get(Number(rem.product_id));
+    //REMOVE
+    for (const rem of ops.remove || []) {
+      const orderItemId = getOrderItemIdFromOp(rem);
+      if (!orderItemId) continue;
+
+      const row = byOrderItemId.get(orderItemId);
       if (!row) continue;
-      await conn.query(
-        `UPDATE product SET stock_amount = stock_amount + ? WHERE id = ? AND shop_id = ?`,
-        [Number(row.amount), Number(row.product_id), shop_id]
-      );
+
+      await incStock(Number(row.product_id), Number(row.amount));
+
       await conn.query(
         `DELETE FROM order_item WHERE id = ? AND order_id = ? LIMIT 1`,
-        [Number(row.id || rem["order_item.id"] || row.id), order_id]
+        [Number(orderItemId), Number(order_id)]
       );
+
       removedApplied.push({
+        order_item_id: Number(orderItemId),
         product_id: Number(row.product_id),
         name: row.name,
         amount: Number(row.amount),
         mode: "explicit",
       });
 
+      byOrderItemId.delete(Number(orderItemId));
       byProdId.delete(Number(row.product_id));
     }
 
-    const existingNames = new Set();
-    for (const it of origItems) {
-      existingNames.add(it.name);
-      if (it.display_name_en && it.display_name_en.trim()) {
-        existingNames.add(it.display_name_en.trim());
-      }
-    }
+    //SET (update existing)
+    for (const s of ops.set || []) {
+      const orderItemId = getOrderItemIdFromOp(s);
+      if (!orderItemId) continue;
 
-    const cappedWarnings = [];
+      const row = byOrderItemId.get(orderItemId);
+      if (!row) continue;
 
-    const afterMap = new Map();
-    for (const p of modelProducts) {
-      const rawAmount = Number(p.amount) || 0;
-      const capped = rawAmount > maxPerProduct ? maxPerProduct : rawAmount;
+      const prevQty = Number(row.amount);
+      let newQty = Number(s.amount);
 
-      if (rawAmount > maxPerProduct) {
-        const label = subjectForReq(p);
-        cappedWarnings.push({
-          name: label || "",
-          original: rawAmount,
-          capped,
-        });
-      }
+      if (!Number.isFinite(newQty) || newQty <= 0) continue;
 
-      afterMap.set(p.name, capped);
-    }
+      const sbw = hasOwn(s, "sold_by_weight")
+        ? !!s.sold_by_weight
+        : !!row.sold_by_weight;
 
-    const metaByName = new Map();
-
-    for (const p of modelProducts) {
-      if (p && typeof p.name === "string" && p.name.trim()) {
-        metaByName.set(p.name.trim(), p);
-      }
-      if (p && typeof p.outputName === "string" && p.outputName.trim()) {
-        metaByName.set(p.outputName.trim(), p);
-      }
-    }
-
-    const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
-
-    const updateOrderItemAmountAndMaybeMeta = async (
-      orderItemId,
-      newQty,
-      modelP
-    ) => {
-      const setParts = [`amount = ?`];
-      const params = [newQty];
-
-      if (modelP && hasOwn(modelP, "sold_by_weight")) {
-        const sbw = !!modelP.sold_by_weight;
-        setParts.push(`sold_by_weight = ?`);
-        params.push(sbw ? 1 : 0);
-
-        if (!sbw) {
-          setParts.push(`requested_units = NULL`);
-        } else {
-          if (hasOwn(modelP, "units")) {
-            const u = Number(modelP.units);
-            const uInt = Number.isFinite(u) ? Math.trunc(u) : NaN;
-            if (Number.isFinite(uInt) && uInt > 0) {
-              setParts.push(`requested_units = ?`);
-              params.push(uInt);
-            } else {
-              setParts.push(`requested_units = NULL`);
-            }
-          } else {
-            setParts.push(`requested_units = NULL`);
-          }
+      //new quantity
+      if (!sbw) {
+        if (newQty > maxPerProduct) {
+          cappedWarnings.push({
+            name: subjectForReq(s) || display(row),
+            original: newQty,
+            capped: maxPerProduct,
+          });
+          newQty = maxPerProduct;
         }
+        newQty = Math.trunc(newQty);
+        if (newQty <= 0) continue;
+      } else {
+        newQty = roundTo(newQty, 3);
+        if (newQty <= 0) continue;
       }
 
-      params.push(Number(orderItemId));
+      const delta = roundTo(newQty - prevQty, 3);
 
-      await conn.query(
-        `UPDATE order_item SET ${setParts.join(", ")} WHERE id = ?`,
-        params
-      );
-    };
-
-    for (const orig of origItems) {
-      if (!byProdId.has(Number(orig.product_id))) {
+      if (delta === 0) {
+        // might still need to update meta (sold_by_weight / units)
+        await updateOrderItemAmountAndMaybeMeta(orderItemId, prevQty, s);
         continue;
       }
-      const keyHe = orig.name;
-      const keyEn = (orig.display_name_en || "").trim();
-      const inAfter = afterMap.has(keyHe) || (keyEn && afterMap.has(keyEn));
-
-      if (!inAfter) {
-        await conn.query(
-          `UPDATE product SET stock_amount = stock_amount + ? WHERE id = ? AND shop_id = ?`,
-          [Number(orig.amount), Number(orig.product_id), shop_id]
-        );
-        await conn.query(
-          `DELETE FROM order_item WHERE id = ? AND order_id = ? LIMIT 1`,
-          [Number(orig.id), order_id]
-        );
-        removedApplied.push({
-          product_id: Number(orig.product_id),
-          name: orig.name,
-          amount: Number(orig.amount),
-          mode: "implicit",
-        });
-        continue;
-      }
-      const newQty = Number(afterMap.get(keyHe) ?? afterMap.get(keyEn));
-      const delta = roundTo(newQty - Number(orig.amount), 3);
-
-      if (delta === 0) continue;
 
       if (delta > 0) {
         const [[prod]] = await conn.query(
-          `SELECT stock_amount, price, category, sub_category FROM product WHERE id = ? AND shop_id = ? FOR UPDATE`,
-          [Number(orig.product_id), shop_id]
+          `SELECT stock_amount, category, sub_category
+             FROM product
+             WHERE id = ? AND shop_id = ?
+            FOR UPDATE`,
+          [Number(row.product_id), Number(shop_id)]
         );
-        const stock = Number(prod?.stock_amount ?? 0);
 
-        const modelP =
-          metaByName.get(keyHe) || (keyEn ? metaByName.get(keyEn) : null);
-        const excludeTokens = modelP ? getExcludeTokensFromReq(modelP) : [];
+        const stock = stockToNumber(prod?.stock_amount);
 
         if (stock >= delta) {
-          await conn.query(
-            `UPDATE product SET stock_amount = stock_amount - ? WHERE id = ? AND shop_id = ?`,
-            [delta, Number(orig.product_id), shop_id]
-          );
-
-          await updateOrderItemAmountAndMaybeMeta(
-            Number(orig.id),
-            newQty,
-            modelP
-          );
+          await decStock(Number(row.product_id), delta);
+          await updateOrderItemAmountAndMaybeMeta(orderItemId, newQty, s);
 
           qtyIncreased.push({
-            product_id: Number(orig.product_id),
-            name: isEnglish
-              ? (orig.display_name_en && orig.display_name_en.trim()) ||
-                orig.name
-              : orig.name,
-            before: Number(orig.amount),
+            product_id: Number(row.product_id),
+            name: display(row),
+            before: prevQty,
             after: newQty,
             delta,
           });
+          row.amount = newQty;
+          row.sold_by_weight = sbw ? 1 : 0;
         } else {
           const tpl = pickAltTemplate(isEnglish, altTemplateIdx++);
-          const mainName = isEnglish
-            ? (orig.display_name_en && orig.display_name_en.trim()) || orig.name
-            : orig.name;
+          const mainName = display(row);
+
+          const excludeTokens = getExcludeTokensFromReq(s);
 
           const alts = await fetchAlternatives(
             shop_id,
-            orig.category || prod?.category || null,
-            orig.sub_category || prod?.sub_category || null,
-            [Number(orig.product_id)],
+            row.category || prod?.category || null,
+            row.sub_category || prod?.sub_category || null,
+            [Number(row.product_id)],
             3,
             mainName,
             excludeTokens
           );
 
-          const altNames = alts.map((a) =>
-            isEnglish
-              ? (a.display_name_en && a.display_name_en.trim()) || a.name
-              : a.name
-          );
+          const altNames = alts.map((a) => display(a));
 
           insufficientExistingIncreases.push({
             name: mainName,
             requested_delta: delta,
-            available: stock,
+            available: stock === Infinity ? null : stock,
             alternatives: alts,
           });
 
@@ -279,58 +286,66 @@ async function applyOrderModifications({
             name: mainName,
             question: altNames.length
               ? isEnglish
-                ? `${mainName} is short on stock for the requested increase (requested +${delta}, available ${stock}). ${tpl(
-                    mainName,
-                    altNames
-                  )}`
-                : `${mainName} חסר במלאי להגדלה שביקשת (תוספת ${delta}, זמינות ${stock}). ${tpl(
-                    mainName,
-                    altNames
-                  )}`
+                ? `${mainName} is short on stock for the requested increase (requested +${delta}, available ${
+                    stock === Infinity ? "unlimited" : stock
+                  }). ${tpl(mainName, altNames)}`
+                : `${mainName} חסר במלאי להגדלה שביקשת (תוספת ${delta}, זמינות ${
+                    stock === Infinity ? "לא מוגבל" : stock
+                  }). ${tpl(mainName, altNames)}`
               : isEnglish
-              ? `${mainName} is short on stock for the requested increase (requested +${delta}, available ${stock}). Would you like a replacement or should I keep the current quantity?`
-              : `${mainName} חסר במלאי להגדלה שביקשת (תוספת ${delta}, זמינות ${stock}). להציע חלופה או להשאיר את הכמות הנוכחית?`,
-            options: altNames.length ? altNames : undefined,
+              ? `${mainName} is short on stock for the requested increase (requested +${delta}, available ${
+                  stock === Infinity ? "unlimited" : stock
+                }). Would you like a replacement or should I keep the current quantity?`
+              : `${mainName} חסר במלאי להגדלה שביקשת (תוספת ${delta}, זמינות ${
+                  stock === Infinity ? "לא מוגבל" : stock
+                }). להציע חלופה או להשאיר את הכמות הנוכחית?`,
+            options: altNames,
           });
         }
       } else {
-        await conn.query(
-          `UPDATE product SET stock_amount = stock_amount + ? WHERE id = ? AND shop_id = ?`,
-          [Math.abs(delta), Number(orig.product_id), shop_id]
-        );
-        const modelP =
-          metaByName.get(keyHe) || (keyEn ? metaByName.get(keyEn) : null);
-
-        await updateOrderItemAmountAndMaybeMeta(
-          Number(orig.id),
-          newQty,
-          modelP
-        );
+        // delta < 0 (decrease) -> return stock
+        await incStock(Number(row.product_id), Math.abs(delta));
+        await updateOrderItemAmountAndMaybeMeta(orderItemId, newQty, s);
 
         qtyDecreased.push({
-          product_id: Number(orig.product_id),
-          name: isEnglish
-            ? (orig.display_name_en && orig.display_name_en.trim()) || orig.name
-            : orig.name,
-          before: Number(orig.amount),
+          product_id: Number(row.product_id),
+          name: display(row),
+          before: prevQty,
           after: newQty,
           delta,
         });
+
+        row.amount = newQty;
+        row.sold_by_weight = sbw ? 1 : 0;
       }
     }
 
-    // add new products to the order
-    for (const p of modelProducts) {
-      if (existingNames.has(p.name)) {
-        console.log(
-          "[ORD-MODIFY/apply] skip add – name already in existingNames:",
-          p.name
-        );
-        continue;
+    //ADD
+    for (const p of ops.add || []) {
+      const rawAmount = Number(p.amount) || 0;
+      if (!(rawAmount > 0)) continue;
+
+      const sbw = p.sold_by_weight === true;
+
+      let desiredAdd = sbw ? roundTo(rawAmount, 3) : Math.trunc(rawAmount);
+      if (!(desiredAdd > 0)) continue;
+
+      if (
+        !sbw &&
+        Number.isFinite(Number(maxPerProduct)) &&
+        desiredAdd > maxPerProduct
+      ) {
+        cappedWarnings.push({
+          name: subjectForReq(p) || p.name || "",
+          original: desiredAdd,
+          capped: maxPerProduct,
+        });
+        desiredAdd = maxPerProduct;
       }
+
       const row = await findBestProductForRequest(shop_id, p);
 
-      //the product not selling at the shop
+      // product not found in shop -> ask alternatives
       if (!row) {
         const cat = (p.category || "").trim() || null;
         const sub = (p["sub-category"] || p.sub_category || "").trim() || null;
@@ -349,7 +364,7 @@ async function applyOrderModifications({
         notFoundAdds.push({
           requested: {
             name: p.name,
-            amount: Number(p.amount),
+            amount: desiredAdd,
             category: cat,
             sub_category: sub,
           },
@@ -358,7 +373,6 @@ async function applyOrderModifications({
 
         const altNames = alts.map((a) => display(a));
         const tpl = pickAltTemplate(isEnglish, altTemplateIdx++);
-
         const subject = subjectForReq(p);
 
         stockQuestions.push({
@@ -368,56 +382,117 @@ async function applyOrderModifications({
             : isEnglish
             ? `Couldn't find "${subject}". Would you like a replacement or should I skip it?`
             : `לא מצאתי "${p.name}". להציע חלופה או לדלג?`,
-          options: altNames.length ? altNames : undefined,
+          options: altNames,
         });
 
         continue;
       }
 
-      //checking stock
       const pid = Number(row.id);
-      const [lock] = await conn.query(
-        `SELECT stock_amount, price, category, sub_category FROM product WHERE id = ? AND shop_id = ? FOR UPDATE`,
-        [pid, shop_id]
-      );
-      const stock = Number(lock?.[0]?.stock_amount ?? 0);
-      const rawAmount = Number(p.amount) || 0;
-      const need = rawAmount > maxPerProduct ? maxPerProduct : rawAmount;
 
-      if (rawAmount > maxPerProduct) {
-        const label =
-          subjectForReq(p) ||
-          (isEnglish
-            ? (row.display_name_en && row.display_name_en.trim()) || row.name
-            : row.name);
-        cappedWarnings.push({
-          name: label || "",
-          original: rawAmount,
-          capped: need,
-        });
+      // lock product row
+      const [[prod]] = await conn.query(
+        `SELECT stock_amount, price, category, sub_category
+           FROM product
+          WHERE id = ? AND shop_id = ?
+          FOR UPDATE`,
+        [pid, Number(shop_id)]
+      );
+
+      const stock = stockToNumber(prod?.stock_amount);
+
+      // lock existing order item for this product (if any)
+      const [[existingOrderItem]] = await conn.query(
+        `SELECT id, amount, sold_by_weight
+           FROM order_item
+          WHERE order_id = ? AND product_id = ?
+          FOR UPDATE`,
+        [Number(order_id), pid]
+      );
+
+      const prevAmount = existingOrderItem
+        ? Number(existingOrderItem.amount) || 0
+        : 0;
+
+      // compute finalQty + actualDelta BEFORE touching stock
+      let finalQty = prevAmount;
+      let actualDelta = 0;
+
+      const existingIsWeight =
+        !!existingOrderItem &&
+        (existingOrderItem.sold_by_weight === 1 ||
+          existingOrderItem.sold_by_weight === true);
+
+      if (existingOrderItem) {
+        desiredAdd = existingIsWeight
+          ? roundTo(rawAmount, 3)
+          : Math.trunc(rawAmount);
+        if (!(desiredAdd > 0)) continue;
+        const mergeAsWeight = existingIsWeight;
+
+        if (mergeAsWeight) {
+          finalQty = roundTo(prevAmount + desiredAdd, 3);
+          actualDelta = roundTo(finalQty - prevAmount, 3);
+        } else {
+          const wanted = prevAmount + desiredAdd;
+          if (
+            Number.isFinite(Number(maxPerProduct)) &&
+            wanted > maxPerProduct
+          ) {
+            cappedWarnings.push({
+              name: subjectForReq(p) || display(row),
+              original: wanted,
+              capped: maxPerProduct,
+            });
+            finalQty = maxPerProduct;
+          } else {
+            finalQty = wanted;
+          }
+          finalQty = Math.trunc(finalQty);
+          actualDelta = finalQty - prevAmount;
+        }
+      } else {
+        finalQty = sbw ? roundTo(desiredAdd, 3) : Math.trunc(desiredAdd);
+        actualDelta = sbw ? roundTo(finalQty, 3) : finalQty;
+
+        if (
+          !sbw &&
+          Number.isFinite(Number(maxPerProduct)) &&
+          finalQty > maxPerProduct
+        ) {
+          cappedWarnings.push({
+            name: subjectForReq(p) || display(row),
+            original: finalQty,
+            capped: maxPerProduct,
+          });
+          finalQty = maxPerProduct;
+          actualDelta = finalQty; // prev is 0
+        }
       }
 
-      if (stock >= need) {
-        await conn.query(
-          `UPDATE product SET stock_amount = stock_amount - ? WHERE id = ? AND shop_id = ?`,
-          [need, pid, shop_id]
-        );
-        const [[existingOrderItem]] = await conn.query(
-          `SELECT id, amount
-           FROM order_item
-           WHERE order_id = ? AND product_id = ?
-           FOR UPDATE`,
-          [order_id, pid]
-        );
+      if (!(actualDelta > 0)) {
+        // nothing to add (already at cap etc.)
+        continue;
+      }
+
+      if (stock >= actualDelta) {
+        await decStock(pid, actualDelta);
 
         if (existingOrderItem) {
-          const prevAmount = Number(existingOrderItem.amount) || 0;
-          const newAmount = roundTo(prevAmount + need, 3);
+          const metaForExisting = {
+            ...p,
+            sold_by_weight: existingIsWeight,
+            units: existingIsWeight
+              ? typeof p.units === "number"
+                ? p.units
+                : null
+              : null,
+          };
 
           await updateOrderItemAmountAndMaybeMeta(
             Number(existingOrderItem.id),
-            newAmount,
-            p
+            finalQty,
+            metaForExisting
           );
 
           qtyIncreased.push({
@@ -426,28 +501,32 @@ async function applyOrderModifications({
               ? (row.display_name_en && row.display_name_en.trim()) || row.name
               : row.name,
             before: prevAmount,
-            after: newAmount,
-            delta: roundTo(newAmount - prevAmount, 3),
+            after: finalQty,
+            delta: roundTo(finalQty - prevAmount, 3),
           });
         } else {
+          const unitPrice = Number(prod?.price ?? row.price);
+          const linePrice = roundTo(unitPrice * finalQty, 2);
+
           await conn.query(
-            `INSERT INTO order_item (order_id, product_id, amount, sold_by_weight, requested_units, price, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, NOW(6))`,
+            `INSERT INTO order_item
+              (order_id, product_id, amount, sold_by_weight, requested_units, price, created_at)
+              VALUES (?, ?, ?, ?, ?, ?, NOW(6))`,
             [
-              order_id,
+              Number(order_id),
               pid,
-              need,
-              p.sold_by_weight ? 1 : 0,
-              p.sold_by_weight && typeof p.units === "number" ? p.units : null,
-              Number(lock?.[0]?.price ?? row.price),
+              finalQty,
+              sbw ? 1 : 0,
+              sbw && typeof p.units === "number" ? p.units : null,
+              linePrice,
             ]
           );
 
           addedApplied.push({
             product_id: pid,
             name: row.name,
-            amount: need,
-            price: Number(lock?.[0]?.price ?? row.price),
+            amount: finalQty,
+            price: Number(prod?.price ?? row.price),
           });
         }
       } else {
@@ -459,9 +538,9 @@ async function applyOrderModifications({
 
         const alts = await fetchAlternatives(
           shop_id,
-          lock?.[0]?.category || row.category || null,
-          lock?.[0]?.sub_category || row.sub_category || null,
-          [Number(row.id)],
+          prod?.category || row.category || null,
+          prod?.sub_category || row.sub_category || null,
+          [pid],
           3,
           mainName,
           excludeTokens
@@ -469,62 +548,62 @@ async function applyOrderModifications({
 
         insufficientNewAdds.push({
           name: row.name,
-          requested: need,
-          available: stock,
+          requested: actualDelta,
+          available: stock === Infinity ? null : stock,
           alternatives: alts,
         });
 
-        const altNames = alts.map((a) =>
-          isEnglish
-            ? (a.display_name_en && a.display_name_en.trim()) || a.name
-            : a.name
-        );
+        const altNames = alts.map((a) => display(a));
         const tpl = pickAltTemplate(isEnglish, altTemplateIdx++);
-
         const subject = subjectForReq(p);
 
         stockQuestions.push({
           name: p.name,
           question: altNames.length
             ? isEnglish
-              ? `${mainName} is short on stock (requested ${need}, available ${stock}). ${tpl(
-                  subject,
-                  altNames
-                )}`
-              : `${mainName} חסר במלאי (התבקשה כמות ${need}, זמינות ${stock}). ${tpl(
-                  p.name,
-                  altNames
-                )}`
+              ? `${mainName} is short on stock (requested ${actualDelta}, available ${
+                  stock === Infinity ? "unlimited" : stock
+                }). ${tpl(subject, altNames)}`
+              : `${mainName} חסר במלאי (התבקשה כמות ${actualDelta}, זמינות ${
+                  stock === Infinity ? "לא מוגבל" : stock
+                }). ${tpl(p.name, altNames)}`
             : isEnglish
-            ? `${mainName} is short on stock (requested ${need}, available ${stock}). Would you like a replacement or should I skip it?`
-            : `${mainName} חסר במלאי (התבקשה כמות ${need}, זמינות ${stock}). להציע חלופה או לדלג?`,
-          options: altNames.length ? altNames : undefined,
+            ? `${mainName} is short on stock (requested ${actualDelta}, available ${
+                stock === Infinity ? "unlimited" : stock
+              }). Would you like a replacement or should I skip it?`
+            : `${mainName} חסר במלאי (התבקשה כמות ${actualDelta}, זמינות ${
+                stock === Infinity ? "לא מוגבל" : stock
+              }). להציע חלופה או לדלג?`,
+          options: altNames,
         });
       }
     }
 
+    //Recompute total
     const [curItems] = await conn.query(
       `SELECT
-     oi.product_id,
-     oi.amount,
-     oi.sold_by_weight,
-     oi.requested_units,
-     p.price,
-     p.name,
-     p.display_name_en
+        oi.product_id,
+        oi.amount,
+        oi.sold_by_weight,
+        oi.requested_units,
+        oi.price AS line_price, 
+        p.price  AS unit_price,
+        p.name,
+        p.display_name_en
       FROM order_item oi
       JOIN product p ON p.id = oi.product_id
       WHERE oi.order_id = ?`,
-      [order_id]
+      [Number(order_id)]
     );
 
     let total = 0;
     for (const it of curItems) {
-      total = addMoney(total, mulMoney(Number(it.amount), Number(it.price)));
+      total = addMoney(total, Number(it.line_price));
     }
+
     await conn.query(
       `UPDATE orders SET price = ?, updated_at = NOW(6) WHERE id = ?`,
-      [total, order_id]
+      [total, Number(order_id)]
     );
 
     await conn.commit();
@@ -536,7 +615,6 @@ async function applyOrderModifications({
         const heName = it.name;
         const enName =
           (it.display_name_en && it.display_name_en.trim()) || it.name;
-
         const displayName = isEnglish ? enName : heName;
 
         const units = Number(it.requested_units);
@@ -545,12 +623,11 @@ async function applyOrderModifications({
         return {
           name: displayName,
           amount: Number(it.amount),
-          price: Number(it.price),
+          price: Number(it.unit_price),
           ...(it.sold_by_weight ? { sold_by_weight: true } : {}),
           ...(hasUnits ? { units } : {}),
         };
       }),
-
       questions: stockQuestions,
       meta: {
         removedApplied,
@@ -564,12 +641,11 @@ async function applyOrderModifications({
       },
     };
   } catch (e) {
-    console.error("[ORD-MODIFY/apply] TX error:", e);
-    console.error("[ORD-MODIFY/apply] TX context:", {
+    console.error("[ORD-MODIFY/applyPatch] TX error:", e);
+    console.error("[ORD-MODIFY/applyPatch] TX context:", {
       shop_id,
       order_id,
-      modelProducts,
-      removedProducts,
+      ops,
     });
     await conn.rollback();
     throw e;
@@ -579,42 +655,71 @@ async function applyOrderModifications({
 }
 
 function validateModelOutput(obj) {
-  const must = [
-    "summary_line",
-    "products",
-    "added_products",
-    "removed_products",
-    "questions",
-  ];
-  for (const k of must) if (!(k in obj)) throw new Error(`Missing key: ${k}`);
-  if (
-    !Array.isArray(obj.products) ||
-    !Array.isArray(obj.added_products) ||
-    !Array.isArray(obj.removed_products) ||
-    !Array.isArray(obj.questions)
-  ) {
-    throw new Error("Bad array types");
+  if (!obj || typeof obj !== "object")
+    throw new Error("Bad output: not object");
+
+  if (!obj.ops || typeof obj.ops !== "object")
+    throw new Error("Missing key: ops");
+  if (!Array.isArray(obj.ops.set)) throw new Error("ops.set must be array");
+  if (!Array.isArray(obj.ops.remove))
+    throw new Error("ops.remove must be array");
+  if (!Array.isArray(obj.ops.add)) throw new Error("ops.add must be array");
+
+  if (!Array.isArray(obj.questions)) throw new Error("questions must be array");
+
+  if (!obj.question_updates || typeof obj.question_updates !== "object") {
+    throw new Error("question_updates must be object");
+  }
+  if (!Array.isArray(obj.question_updates.close_ids)) {
+    throw new Error("question_updates.close_ids must be array");
+  }
+  if (!Array.isArray(obj.question_updates.delete_ids)) {
+    throw new Error("question_updates.delete_ids must be array");
   }
 
-  for (const p of obj.products) {
-    if (!p || typeof p.name !== "string") throw new Error("Bad product.name");
-    if (typeof p.amount !== "number") throw new Error("Bad product.amount");
-    if (
-      typeof p.category !== "string" ||
-      typeof p["sub-category"] !== "string"
-    ) {
-      throw new Error("Bad product category/sub-category");
-    }
+  for (const x of obj.ops.set) {
+    const oid = x?.["order_item.id"];
+    if (typeof oid !== "number")
+      throw new Error("ops.set missing order_item.id");
+    if (typeof x?.amount !== "number")
+      throw new Error("ops.set missing amount");
+    if (typeof x?.sold_by_weight !== "boolean")
+      throw new Error("ops.set missing sold_by_weight");
+    if (!("units" in x)) throw new Error("ops.set missing units");
   }
 
-  for (const r of obj.removed_products) {
-    if (
-      typeof r?.["order_item.id"] !== "number" ||
-      typeof r?.product_id !== "number"
-    ) {
-      throw new Error("Bad removed_products entry");
-    }
+  for (const x of obj.ops.remove) {
+    const oid = x?.["order_item.id"];
+    if (typeof oid !== "number")
+      throw new Error("ops.remove missing order_item.id");
   }
+
+  for (const x of obj.ops.add) {
+    if (!x || typeof x.name !== "string")
+      throw new Error("ops.add missing name");
+    if (!("outputName" in x)) throw new Error("ops.add missing outputName");
+    if (typeof x.amount !== "number") throw new Error("ops.add missing amount");
+    if (typeof x.sold_by_weight !== "boolean")
+      throw new Error("ops.add missing sold_by_weight");
+    if (!("units" in x)) throw new Error("ops.add missing units");
+    if (!Array.isArray(x.exclude_tokens))
+      throw new Error("ops.add missing exclude_tokens");
+    if (typeof x.category !== "string")
+      throw new Error("ops.add missing category");
+    const sub = x["sub-category"] ?? x.sub_category;
+    if (typeof sub !== "string")
+      throw new Error("ops.add missing sub-category");
+  }
+
+  for (const q of obj.questions) {
+    if (!q || typeof q !== "object") throw new Error("Bad question");
+    if (!("name" in q)) throw new Error("Question missing name");
+    if (typeof q.question !== "string" || !q.question.trim())
+      throw new Error("Question missing text");
+    if (!Array.isArray(q.options))
+      throw new Error("Question missing options array");
+  }
+
   return true;
 }
 
@@ -639,16 +744,17 @@ module.exports = {
     }
 
     const orderItems =
-      items ||
-      (
-        await db.query(
-          `SELECT oi.*, p.name, p.display_name_en, p.category, p.sub_category AS 'sub-category'
-          FROM order_item oi
-          LEFT JOIN product p ON p.id = oi.product_id
-          WHERE oi.order_id = ?`,
-          [order.id]
-        )
-      )[0];
+      Array.isArray(items) && items.length
+        ? items
+        : (
+            await db.query(
+              `SELECT oi.*, p.name, p.display_name_en, p.category, p.sub_category AS 'sub-category'
+           FROM order_item oi
+           LEFT JOIN product p ON p.id = oi.product_id
+           WHERE oi.order_id = ?`,
+              [order.id]
+            )
+          )[0];
 
     const basePrompt = await getPromptFromDB(PROMPT_CAT, PROMPT_SUB);
 
@@ -656,8 +762,7 @@ module.exports = {
       basePrompt,
       "",
       "=== STRUCTURED CONTEXT ===",
-      openQsCtx,
-      "",
+      `- OPEN_QUESTIONS: ${JSON.stringify(openQsCtx)}`,
       `- ORDER: ${JSON.stringify(order)}`,
       `- ORDER_ITEMS: ${JSON.stringify(orderItems)}`,
     ].join("\n");
@@ -666,30 +771,30 @@ module.exports = {
       message,
       history,
       systemPrompt: systemWithInputs,
+      response_format: {
+        type: "json_schema",
+        json_schema: MODIFY_ORDER_SCHEMA,
+      },
     });
+
+    let isEnglish = isEnglishMessage(message);
 
     let parsed;
     try {
+      parsed = JSON.parse(answer);
+    } catch (e1) {}
+
+    try {
       parsed = parseModelAnswer(answer);
-    } catch (e) {
-      return "מצטערים, לא הצלחתי להבין את הבקשה לעריכת ההזמנה. אפשר לנסח שוב בקצרה?";
+    } catch (e2) {
+      console.error("Failed to parse model JSON:", e2?.message, answer);
+      return isEnglish
+        ? "Sorry, I had a problem applying the changes. Please rephrase briefly."
+        : "מצטערים, הייתה תקלה בעיבוד הבקשה. אפשר לנסח שוב בקצרה מה תרצה לשנות בהזמנה?";
     }
 
     console.log("[ORD-MODIFY] parsed answer:", JSON.stringify(parsed, null, 2));
 
-    const qUpdates = parsed?.question_updates || {};
-    if (Array.isArray(qUpdates.close_ids) && qUpdates.close_ids.length) {
-      await closeQuestionsByIds(qUpdates.close_ids);
-    }
-    if (Array.isArray(qUpdates.delete_ids) && qUpdates.delete_ids.length) {
-      await deleteQuestionsByIds(qUpdates.delete_ids);
-    }
-
-    const modelProducts = Array.isArray(parsed.products) ? parsed.products : [];
-    const removedProducts = Array.isArray(parsed.removed_products)
-      ? parsed.removed_products
-      : [];
-    let isEnglish = isEnglishMessage(message);
     const modelQuestions = normalizeIncomingQuestions(parsed?.questions, {
       preserveOptions: true,
     });
@@ -700,34 +805,45 @@ module.exports = {
       const summaryLine = isEnglish
         ? "To complete your order, I need a few clarifications:"
         : "כדי להשלים את ההזמנה חסרות כמה הבהרות:";
-      const itemsBlock = "";
-      const headerBlock = "";
       const questionsBlock = buildQuestionsBlock({
         questions: modelQuestions,
         isEnglish,
       });
-      return [summaryLine, itemsBlock, headerBlock, questionsBlock]
-        .filter(Boolean)
-        .join("\n");
+      return [summaryLine, questionsBlock].filter(Boolean).join("\n");
     }
+
+    const qUpdates = parsed?.question_updates || {};
+    if (Array.isArray(qUpdates.close_ids) && qUpdates.close_ids.length) {
+      await closeQuestionsByIds(qUpdates.close_ids);
+    }
+    if (Array.isArray(qUpdates.delete_ids) && qUpdates.delete_ids.length) {
+      await deleteQuestionsByIds(qUpdates.delete_ids);
+    }
+
+    const ops = parsed?.ops || {};
+    const patchOps = {
+      set: Array.isArray(ops.set) ? ops.set : [],
+      remove: Array.isArray(ops.remove) ? ops.remove : [],
+      add: Array.isArray(ops.add) ? ops.add : [],
+    };
 
     let combinedQuestions = [];
     let limitWarningsBlock = "";
+
     try {
-      const txRes = await applyOrderModifications({
+      const txRes = await applyOrderPatch({
         shop_id,
-        order_id,
-        modelProducts,
-        removedProducts,
+        order_id: order.id,
+        ops: patchOps,
         isEnglish,
         maxPerProduct,
       });
 
       const hasItems = Array.isArray(txRes.items) && txRes.items.length > 0;
-      combinedQuestions = [
-        ...modelQuestions,
-        ...(Array.isArray(txRes.questions) ? txRes.questions : []),
-      ];
+      combinedQuestions = normalizeIncomingQuestions(
+        [...modelQuestions, ...(txRes.questions || [])],
+        { preserveOptions: true }
+      );
 
       await saveOpenQuestions({
         customer_id,
@@ -737,43 +853,28 @@ module.exports = {
       });
 
       const cappedWarnings = (txRes.meta && txRes.meta.cappedWarnings) || [];
-
       if (cappedWarnings.length) {
-        if (isEnglish) {
-          limitWarningsBlock = `Note: you can order up to ${maxPerProduct} units per product.`;
-        } else {
-          limitWarningsBlock = `שימו לב: ניתן להזמין עד ${maxPerProduct} יחידות מכל מוצר.`;
-        }
+        limitWarningsBlock = isEnglish
+          ? `Note: you can order up to ${maxPerProduct} units per product.`
+          : `שימו לב: ניתן להזמין עד ${maxPerProduct} יחידות מכל מוצר.`;
       }
 
       const hasQuestions = combinedQuestions.length > 0;
 
-      let summaryLine;
-      let itemsBlock = "";
-      let headerBlock = "";
-
       if (!hasItems) {
-        //empty order
         const orderIdPart = isEnglish
           ? `(Order: #${order.id})`
           : `(הזמנה מספר: #${order.id})`;
 
+        let summaryLine;
         if (isEnglish) {
-          if (hasQuestions) {
-            summaryLine =
-              `Your order is currently empty ${orderIdPart}.` +
-              `\nTo build an order that fits what you want, I need your answers to a few questions:`;
-          } else {
-            summaryLine = `Your order is currently empty ${orderIdPart}.`;
-          }
+          summaryLine = hasQuestions
+            ? `Your order is currently empty ${orderIdPart}.\nTo build an order that fits what you want, I need your answers to a few questions:`
+            : `Your order is currently empty ${orderIdPart}.`;
         } else {
-          if (hasQuestions) {
-            summaryLine =
-              `ההזמנה שלך כרגע ריקה ${orderIdPart}.` +
-              `\nכדי שאוכל לבנות עבורך הזמנה שמתאימה לך, אני צריך תשובה לכמה שאלות:`;
-          } else {
-            summaryLine = `ההזמנה שלך כרגע ריקה ${orderIdPart}.`;
-          }
+          summaryLine = hasQuestions
+            ? `ההזמנה שלך כרגע ריקה ${orderIdPart}.\nכדי שאוכל לבנות עבורך הזמנה שמתאימה לך, אני צריך תשובה לכמה שאלות:`
+            : `ההזמנה שלך כרגע ריקה ${orderIdPart}.`;
         }
 
         const questionsLines = (combinedQuestions || [])
@@ -784,15 +885,15 @@ module.exports = {
       }
 
       //there is items in the order
-      itemsBlock = buildItemsBlock({ items: txRes.items, isEnglish });
-      summaryLine =
+      const itemsBlock = buildItemsBlock({ items: txRes.items, isEnglish });
+      const summaryLine =
         typeof parsed?.summary_line === "string" && parsed.summary_line.trim()
           ? parsed.summary_line.trim()
           : isEnglish
           ? "Here is your updated order:"
           : "זוהי ההזמנה המעודכנת שלך:";
 
-      headerBlock = isEnglish
+      const headerBlock = isEnglish
         ? [
             `Order: #${order.id}`,
             `Subtotal: *₪${Number(txRes.total || 0).toFixed(2)}*`,
@@ -855,14 +956,23 @@ module.exports = {
       console.error("[ORD-MODIFY] Error context:", {
         order_id: order && order.id,
         shop_id,
-        modelProducts,
-        removedProducts,
+        patchOps,
       });
+
+      // fallback: show current order state + technical question
       const [curItems] = await db.query(
-        `SELECT oi.product_id, oi.amount, p.price, p.name, p.display_name_en
-          FROM order_item oi
-          JOIN product p ON p.id = oi.product_id
-          WHERE oi.order_id = ?`,
+        `SELECT
+          oi.product_id,
+          oi.amount,
+          oi.sold_by_weight,
+          oi.requested_units,
+          oi.price AS line_price,
+          p.price  AS unit_price,
+          p.name,
+          p.display_name_en
+        FROM order_item oi
+        JOIN product p ON p.id = oi.product_id
+        WHERE oi.order_id = ?`,
         [order.id]
       );
 
@@ -871,7 +981,12 @@ module.exports = {
           ? (it.display_name_en && it.display_name_en.trim()) || it.name
           : it.name,
         amount: Number(it.amount),
-        price: Number(it.price),
+        price: Number(it.unit_price),
+        ...(it.sold_by_weight ? { sold_by_weight: true } : {}),
+        ...(Number.isFinite(Number(it.requested_units)) &&
+        Number(it.requested_units) > 0
+          ? { units: Number(it.requested_units) }
+          : {}),
       }));
 
       const summaryLine = isEnglish
@@ -883,12 +998,14 @@ module.exports = {
         question: isEnglish
           ? "We hit a technical issue applying all changes. Would you like me to try again or specify the change in a short message?"
           : "נתקלנו בתקלה טכנית ביישום כל השינויים. לנסות שוב או לפרט בקצרה את השינוי המבוקש?",
+        options: [],
       };
 
       const itemsBlock = buildItemsBlock({ items: itemsForView, isEnglish });
+
       let total = 0;
-      for (const it of curItems) {
-        total = addMoney(total, mulMoney(Number(it.amount), Number(it.price)));
+      for (const it of curItems || []) {
+        total = addMoney(total, Number(it.line_price));
       }
 
       const headerBlock = isEnglish

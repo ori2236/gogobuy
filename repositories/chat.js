@@ -29,7 +29,7 @@ async function wasSentBefore(customer_id, shop_id, message) {
   return false;
 }
 
-async function getHistory(customer_id, shop_id, maxMsgs = 7) {
+async function getHistory(customer_id, shop_id, maxMsgs = 5) {
   const [rows] = await db.query(
     `SELECT sender, status, message, created_at
        FROM chat
@@ -37,8 +37,8 @@ async function getHistory(customer_id, shop_id, maxMsgs = 7) {
         AND shop_id = ?
         AND created_at >= (NOW() - INTERVAL 48 HOUR)
       ORDER BY created_at DESC, id DESC
-      LIMIT 50`,
-    [customer_id, shop_id]
+      LIMIT ?`,
+    [customer_id, shop_id, maxMsgs]
   );
 
   const pickedDesc = [];

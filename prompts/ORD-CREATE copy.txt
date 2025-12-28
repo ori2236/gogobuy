@@ -7,17 +7,13 @@ Determine LAST_USER_MESSAGE_LANGUAGE by detecting the language of the last user-
 
 INPUTS
 - You receive prior chat turns via the chat history (role=user/assistant). The current user message is the one you must act on.
-You may receive a "=== STRUCTURED CONTEXT ===" block that includes:
-- OPEN QUESTIONS CONTEXT:
-  * OPEN_QUESTIONS: JSON of questions with fields {id, product_name, question_text, option_set}.
-  * CLOSED_QUESTIONS_RECENT: recent closed questions for extra context.
 
-Semantics:
+OPEN QUESTIONS CONTEXT Semantics:
 - status "open" (לא נענה): the question is waiting for an answer.
 - status "close" (כנראה נענה): likely answered; keep as context only.
 
 WORKFLOW (DO THIS IN ORDER)
-1) Resolve LAST_USER_MESSAGE_LANGUAGE.
+1) Detect LAST_USER_MESSAGE_LANGUAGE from the last user-authored message.
 2) Extract requested items and quantities from the entire conversation (latest instruction wins).
 3) Normalize quantities:
    - Packaged items: amount = unit count.

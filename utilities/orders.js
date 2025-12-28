@@ -55,7 +55,6 @@ function mergeDuplicateLineItems(lineItems) {
   return Array.from(byId.values());
 }
 
-
 async function fetchAlternativesWithStock(
   shop_id,
   category,
