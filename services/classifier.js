@@ -12,41 +12,43 @@ const CLASSIFIER_PROMPT_SUB = "initial-classification";
 function parseModelMessage(raw) {
   if (!raw || typeof raw !== "string") return { type: "raw", text: "" };
 
-  const parts = raw
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const line = raw.trim();
 
   // 0, <question>
-  if (parts[0] === "0") {
-    const rest = raw.slice(raw.indexOf(",") + 1).trim();
+  if (line.startsWith("0")) {
+    const idx = line.indexOf(",");
+    const rest = idx >= 0 ? line.slice(idx + 1).trim() : "";
     return { type: "clarify", text: rest };
   }
 
-  if (parts[0] === "1") {
+  // 1, <LABEL>
+  if (line.startsWith("1")) {
+    const parts = line
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
     let category = "";
     let subcategory = "";
 
-    if (parts.length >= 3) {
-      category = (parts[1] || "").toUpperCase().trim();
-      const subRaw = (parts[2] || "").trim();
-      subcategory = subRaw.split(".").pop().toUpperCase().trim();
-    } else if (parts.length === 2) {
-      const m = parts[1].match(/^([A-Za-z]+)\s*[\.\-\/]\s*([A-Za-z_.]+)$/);
+    if (parts.length === 2) {
+      const label = parts[1].toUpperCase().trim(); // e.g. ORD.CREATE
+      const m = label.match(/^([A-Z]+)\.([A-Z_]+)$/);
       if (m) {
-        category = m[1].toUpperCase().trim();
-        subcategory = m[2].toUpperCase().split(".").pop().trim();
-      } else {
-        category = parts[1].toUpperCase().trim();
-        subcategory = "";
+        category = m[1];
+        subcategory = m[2];
+        return { type: "classified", category, subcategory };
       }
-    }
 
-    return { type: "classified", category, subcategory };
+      category = label.replace(/[^A-Z]/g, "");
+      return { type: "classified", category, subcategory: "" };
+    }
+    return { type: "raw", text: line };
   }
 
-  return { type: "raw", text: raw };
+  return { type: "raw", text: line };
 }
+
 
 async function classifyIncoming({
   message,
@@ -57,21 +59,30 @@ async function classifyIncoming({
   closedQs,
   maxHistoryMsgs = 5,
 }) {
+  const contextHeader = buildClassifierContextHeader({ sig });
+  const openQuestionsCtx = buildOpenQuestionsContext({ openQs, closedQs });
+
   let systemPromptBase = await getPromptFromDB(
     CLASSIFIER_PROMPT_CAT,
     CLASSIFIER_PROMPT_SUB
   );
-  const contextHeader = buildClassifierContextHeader({ sig });
-  const openQuestionsCtx = buildOpenQuestionsContext({ openQs, closedQs });
-  const systemPrompt = [
-    systemPromptBase,
-    "",
-    "=== STRUCTURED CONTEXT ===",
-    contextHeader,
-    openQuestionsCtx,
-  ].join("\n");
+  
+  const hasContext =
+    (sig && sig.ACTIVE_ORDER_EXISTS) ||
+    (openQs && openQs.length) ||
+    (closedQs && closedQs.length);
 
-  let history = await getHistory(customer_id, shop_id, 7);
+  const systemPrompt = hasContext
+    ? [
+        systemPromptBase,
+        "",
+        "=== STRUCTURED CONTEXT ===",
+        contextHeader,
+        openQuestionsCtx,
+      ].join("\n")
+    : systemPromptBase;
+
+  let history = await getHistory(customer_id, shop_id);
   console.log("history:", history);
   const answer = await chat({ message, history, systemPrompt });
   const replyText =

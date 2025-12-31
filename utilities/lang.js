@@ -1,4 +1,4 @@
-function isEnglishSummary(summaryLine) {
+function isEnglishMessage(summaryLine) {
   if (typeof summaryLine !== "string") return false;
   const hasLatin = /[A-Za-z]/.test(summaryLine);
   const hasHeb = /[\u0590-\u05FF]/.test(summaryLine);
@@ -28,6 +28,6 @@ function detectIsEnglish(text) {
 }
 
 module.exports = {
-  isEnglishSummary,
+  isEnglishMessage,
   detectIsEnglish,
 };

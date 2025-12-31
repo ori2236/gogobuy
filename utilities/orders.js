@@ -55,7 +55,6 @@ function mergeDuplicateLineItems(lineItems) {
   return Array.from(byId.values());
 }
 
-
 async function fetchAlternativesWithStock(
   shop_id,
   category,
@@ -339,21 +338,17 @@ async function getOrderItems(order_id) {
 
 function buildActiveOrderSignals(order, items) {
   if (!order) {
-    return {
-      ACTIVE_ORDER_EXISTS: false,
-      ACTIVE_ORDER_SUMMARY: "none",
-    };
+    return { ACTIVE_ORDER_EXISTS: false };
   }
   const examples = (items || [])
-    .slice(0, 3)
-    .map((i) => `${i.name} ×${(+i.amount).toString().replace(/\.0+$/, "")}`);
+    .slice(0, 2)
+    .map((i) => `${i.name}×${String(+i.amount).replace(/\.0+$/, "")}`);
   return {
     ACTIVE_ORDER_EXISTS: true,
-    ACTIVE_ORDER_SUMMARY: `order_id=${order.id}; items=${
-      items.length
-    }; examples=[${examples.join(", ")}]`,
+    ACTIVE_ORDER_EXAMPLES: examples,
   };
 }
+
 
 async function cancelOrderAndRestoreStock(order_id, shop_id) {
   const conn = await db.getConnection();

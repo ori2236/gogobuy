@@ -2,7 +2,7 @@ const { chat } = require("../../config/openai");
 const db = require("../../config/db");
 const { getPromptFromDB } = require("../../repositories/prompt");
 const { createOrderWithStockReserve } = require("../../utilities/orders");
-const { isEnglishSummary } = require("../../utilities/lang");
+const { isEnglishMessage } = require("../../utilities/lang");
 const {
   parseModelAnswer,
   searchProducts,
@@ -16,6 +16,8 @@ const {
   deleteQuestionsByIds,
 } = require("../../utilities/openQuestions");
 const { normalizeIncomingQuestions } = require("../../utilities/normalize");
+
+const { CREATE_ORDER_SCHEMA } = require("./schemas/create.schema");
 const PROMPT_CAT = "ORD";
 const PROMPT_SUB = "CREATE";
 
@@ -36,27 +38,36 @@ module.exports = {
 
     const basePrompt = await getPromptFromDB(PROMPT_CAT, PROMPT_SUB);
 
-    const systemPrompt = [
-      basePrompt,
-      "",
-      "=== STRUCTURED CONTEXT ===",
-      openQsCtx,
-    ].join("\n");
+    const openQsCtxToPrompt = openQsCtx.length ? openQsCtx : "";
 
-    const answer = await chat({ message, history, systemPrompt });
+    const systemPrompt = [basePrompt, "", openQsCtxToPrompt].join("\n");
+
+    const answer = await chat({
+      message,
+      history,
+      systemPrompt,
+      response_format: {
+        type: "json_schema",
+        json_schema: CREATE_ORDER_SCHEMA,
+      },
+    });
 
     let parsed;
     try {
+      parsed = JSON.parse(answer);
+    } catch (e1) {}
+
+    try {
       parsed = parseModelAnswer(answer);
-    } catch (e) {
-      console.error("Failed to parse model JSON:", e?.message, answer);
+    } catch (e2) {
+      console.error("Failed to parse model JSON:", e2?.message, answer);
       return {
         reply:
           "מצטערים, הייתה תקלה בעיבוד ההזמנה. אפשר לנסח שוב בקצרה מה תרצה להזמין?",
         raw: answer,
       };
     }
-
+    
     const qUpdates = parsed?.question_updates || {};
     if (Array.isArray(qUpdates.close_ids) && qUpdates.close_ids.length) {
       await closeQuestionsByIds(qUpdates.close_ids);
@@ -66,7 +77,7 @@ module.exports = {
     }
 
     const reqProducts = Array.isArray(parsed?.products) ? parsed.products : [];
-    const isEnglish = isEnglishSummary(parsed?.summary_line);
+    const isEnglish = isEnglishMessage(message);
 
     if (!reqProducts.length) {
       const normalizedQs = normalizeIncomingQuestions(parsed?.questions, {
@@ -153,22 +164,6 @@ module.exports = {
       return f;
     });
 
-    const unitsByProductId = new Map();
-    const weightFlagByProductId = new Map();
-
-    for (const f of cappedFound) {
-      const pid = Number(f.product_id);
-
-      const u = Number(f.requested_units);
-      if (Number.isFinite(u) && u > 0) {
-        unitsByProductId.set(pid, (unitsByProductId.get(pid) || 0) + u);
-      }
-
-      if (f.sold_by_weight === true) {
-        weightFlagByProductId.set(pid, true);
-      }
-    }
-
     const foundIdsSet = new Set(cappedFound.map((f) => f.product_id));
     const { altQuestions, alternativesMap } = await buildAlternativeQuestions(
       shop_id,
@@ -204,7 +199,6 @@ module.exports = {
           ? Number(f.requested_units)
           : null,
     }));
-
 
     const orderRes = await createOrderWithStockReserve({
       shop_id,
@@ -355,12 +349,16 @@ module.exports = {
       };
     });
 
-    const summaryLine =
-      typeof parsed?.summary_line === "string" && parsed.summary_line.trim()
-        ? parsed.summary_line.trim()
-        : isEnglish
-        ? "Great, here’s the order I understood from you:"
-        : "יופי, זאת ההזמנה שהבנתי ממך:";
+    const hasQuestions =
+      Array.isArray(combinedQuestions) && combinedQuestions.length > 0;
+
+    const summaryLine = hasQuestions
+      ? isEnglish
+        ? "To complete your order, I need a few clarifications:"
+        : "כדי להשלים את ההזמנה חסרות כמה הבהרות:"
+      : isEnglish
+      ? "Great, here’s the order I understood from you:"
+      : "יופי, זאת ההזמנה שהבנתי ממך:";
 
     const headerBlock = isEnglish
       ? [

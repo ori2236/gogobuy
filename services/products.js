@@ -1,8 +1,6 @@
 const db = require("../config/db");
 const { normalizeIncomingQuestions } = require("../utilities/normalize");
 
-const MIN_PARTIAL_COVERAGE = 0.65;
-
 const SUBCATEGORY_GROUPS = {
   // ===== Dairy & Eggs =====
   Cheese: ["Cheese", "Spreads & Cream Cheese"],
@@ -130,30 +128,46 @@ function getExcludeTokensFromReq(req) {
   const raw = req && req.exclude_tokens;
   if (!Array.isArray(raw)) return [];
   return raw
-    .map((x) =>
-      typeof x === "string"
-        ? x.trim().toLowerCase()
-        : String(x || "")
-            .trim()
-            .toLowerCase()
-    )
+    .map((x) => normalizeToken(typeof x === "string" ? x : String(x || "")))
+    .map((x) => x.toLowerCase())
     .filter(Boolean);
+}
+
+function normForContains(s) {
+  return normalizeToken(String(s || "").toLowerCase());
 }
 
 function filterRowsByExcludeTokens(rows, excludeTokens) {
   if (!rows || !rows.length || !excludeTokens.length) return rows || [];
 
+  const ex = excludeTokens.map(normForContains).filter(Boolean);
+
   return rows.filter((r) => {
-    const name = (r.name || "").toLowerCase();
-    const en = (r.display_name_en || "").toLowerCase();
-    return !excludeTokens.some(
-      (t) => (t && name.includes(t)) || (t && en.includes(t))
-    );
+    const name = normForContains(r.name || "");
+    const en = normForContains(r.display_name_en || "");
+    return !ex.some((t) => (t && name.includes(t)) || (t && en.includes(t)));
   });
 }
 
 function isNoiseToken(t) {
   return HEBREW_NOISE_TOKENS.has(t) || ENGLISH_NOISE_TOKENS.has(t);
+}
+
+function normalizeToken(t) {
+  return String(t || "")
+    .normalize("NFKC")
+    .replace(/['’"]/g, "")
+    .trim();
+}
+
+function tokenImportance(token) {
+  const t = String(token || "").toLowerCase();
+
+  if (/^\d+(\.\d+)?$/.test(t)) return 0.5;
+
+  if (/\d/.test(t)) return 0.7;
+
+  return 1;
 }
 
 function tokenizeName(str) {
@@ -163,20 +177,13 @@ function tokenizeName(str) {
     .toLowerCase()
     .replace(/[^\w\u0590-\u05FF]+/g, " ")
     .split(/\s+/)
-    .map((t) => t.trim())
+    .map((t) => normalizeToken(t))
     .filter(Boolean);
 
-  if (baseTokens.length <= 1) {
-    return baseTokens;
-  }
+  if (baseTokens.length <= 1) return baseTokens;
 
   const filtered = baseTokens.filter((t) => !isNoiseToken(t));
-
-  if (filtered.length === 0) {
-    return baseTokens;
-  }
-
-  return filtered;
+  return filtered.length ? filtered : baseTokens;
 }
 
 function safeParseJson(txt) {
@@ -227,6 +234,65 @@ function parseModelAnswer(answer) {
   return safeParseJson(content);
 }
 
+async function pickBestWeighted({ shop_id, rows, reqTokens, excludeTokens }) {
+  rows = filterRowsByExcludeTokens(rows, excludeTokens);
+  if (!rows || !rows.length) return null;
+
+  const reqSet = new Set(reqTokens);
+
+  const allExtra = [];
+  const meta = [];
+
+  for (const r of rows) {
+    const candTokens = tokenizeName(r.name || "");
+    const extra = Array.from(new Set(candTokens.filter((t) => !reqSet.has(t))));
+    meta.push({ r, candTokens, extra });
+    allExtra.push(...extra);
+  }
+
+  const invDfMap = await fetchInvDfMap(shop_id, allExtra);
+
+  const scored = [];
+
+  for (const m of meta) {
+    const wordCount = m.candTokens.length || 9999;
+
+    const price = Number(m.r.price);
+    const priceScore = Number.isFinite(price) ? price : 999999;
+
+    let extraScore = 0;
+
+    for (const t of m.extra) {
+      const wRaw = invDfMap.has(t) ? invDfMap.get(t) : 1; // fallback
+      const inv = Number(wRaw) || 1;
+
+      const imp = tokenImportance(t);// *0.5 for numbers
+      const add = inv * imp;
+
+      extraScore += add;
+    }
+
+    scored.push({
+      row: m.r,
+      extraScore,
+      priceScore,
+      wordCount,
+      extraCount: m.extra.length,
+    });
+  }
+
+  scored.sort(
+    (a, b) =>
+      a.extraScore - b.extraScore ||
+      a.priceScore - b.priceScore ||
+      a.wordCount - b.wordCount ||
+      b.row.id - a.row.id
+  );
+
+  const best = scored[0];
+  return best.row;
+}
+
 async function findBestProductForRequest(shop_id, req) {
   const category = (req?.category || "").trim();
   const subCategoryRaw = (
@@ -238,7 +304,6 @@ async function findBestProductForRequest(shop_id, req) {
 
   const primarySub = subCategoryRaw || null;
   const subCandidates = primarySub ? getSubCategoryCandidates(primarySub) : [];
-
   const otherSubs = primarySub
     ? subCandidates.filter((s) => s !== primarySub)
     : [];
@@ -250,56 +315,62 @@ async function findBestProductForRequest(shop_id, req) {
     if (category && primarySub) {
       const params = [shop_id, category, primarySub];
       let sql = `
-      SELECT id, name, display_name_en, price, stock_amount, category, sub_category
-      FROM product
-      WHERE shop_id = ?
-        AND category = ?
-        AND sub_category = ?`;
-
-      for (const t of excludeTokens) {
-        sql += `
-        AND (
-          name COLLATE utf8mb4_general_ci NOT LIKE CONCAT('%', ?, '%')
-          AND display_name_en COLLATE utf8mb4_general_ci NOT LIKE CONCAT('%', ?, '%')
-        )
-      `;
-        params.push(t, t);
-      }
-
-      sql += `
-      ORDER BY updated_at DESC, id DESC
-      LIMIT 1`;
-
-      let [rows] = await db.query(sql, params);
-      if (rows && rows.length) return rows[0];
-
-      if (otherSubs.length) {
-        const params2 = [shop_id, category, ...otherSubs];
-        let sql2 = `
         SELECT id, name, display_name_en, price, stock_amount, category, sub_category
         FROM product
         WHERE shop_id = ?
           AND category = ?
-          AND sub_category IN (${otherSubs.map(() => "?").join(",")})
+          AND sub_category = ?
       `;
 
-        for (const t of excludeTokens) {
-          sql2 += `
+      for (const t of excludeTokens) {
+        sql += `
           AND (
             name COLLATE utf8mb4_general_ci NOT LIKE CONCAT('%', ?, '%')
             AND display_name_en COLLATE utf8mb4_general_ci NOT LIKE CONCAT('%', ?, '%')
           )
         `;
-          params2.push(t, t);
-        }
+        params.push(t, t);
+      }
 
-        sql2 += `
+      sql += `
         ORDER BY updated_at DESC, id DESC
         LIMIT 1
       `;
 
-        let [rows2] = await db.query(sql2, params2);
-        if (rows2 && rows2.length) return rows2[0];
+      const [rows] = await db.query(sql, params);
+      if (rows && rows.length) {
+        return rows[0];
+      }
+
+      if (otherSubs.length) {
+        const params2 = [shop_id, category, ...otherSubs];
+        let sql2 = `
+          SELECT id, name, display_name_en, price, stock_amount, category, sub_category
+          FROM product
+          WHERE shop_id = ?
+            AND category = ?
+            AND sub_category IN (${otherSubs.map(() => "?").join(",")})
+        `;
+
+        for (const t of excludeTokens) {
+          sql2 += `
+            AND (
+              name COLLATE utf8mb4_general_ci NOT LIKE CONCAT('%', ?, '%')
+              AND display_name_en COLLATE utf8mb4_general_ci NOT LIKE CONCAT('%', ?, '%')
+            )
+          `;
+          params2.push(t, t);
+        }
+
+        sql2 += `
+          ORDER BY updated_at DESC, id DESC
+          LIMIT 1
+        `;
+
+        const [rows2] = await db.query(sql2, params2);
+        if (rows2 && rows2.length) {
+          return rows2[0];
+        }
       }
     }
 
@@ -307,28 +378,7 @@ async function findBestProductForRequest(shop_id, req) {
   }
 
   if (category && primarySub) {
-    const reqSet = new Set(reqTokens);
-
-    function pickBest(rows) {
-      rows = filterRowsByExcludeTokens(rows, excludeTokens);
-      if (!rows || !rows.length) return null;
-      let best = null;
-      for (const r of rows) {
-        const candTokens = tokenizeName(
-          (r.name || "") + " " + (r.display_name_en || "")
-        );
-        const wordCount = candTokens.length || 9999;
-        if (
-          !best ||
-          wordCount < best.wordCount ||
-          (wordCount === best.wordCount && r.id > best.row.id)
-        ) {
-          best = { row: r, wordCount };
-        }
-      }
-      return best ? best.row : null;
-    }
-
+    // 1) exact sub + token-filter -> pickBestWeighted
     {
       let sql = `
         SELECT id, name, display_name_en, price, stock_amount, category, sub_category
@@ -340,16 +390,29 @@ async function findBestProductForRequest(shop_id, req) {
       const params = [shop_id, category, primarySub];
 
       for (const t of reqTokens) {
-        sql += ` AND (name COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
-                 OR display_name_en COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%'))`;
+        sql += `
+          AND (
+            name COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
+            OR display_name_en COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
+          )
+        `;
         params.push(t, t);
       }
 
       const [rows] = await db.query(sql, params);
-      const best = pickBest(rows);
-      if (best) return best;
+
+      const best = await pickBestWeighted({
+        shop_id,
+        rows,
+        reqTokens,
+        excludeTokens,
+      });
+      if (best) {
+        return best;
+      }
     }
 
+    // 2) other subs + token-filter -> pickBestWeighted
     if (otherSubs.length) {
       let sql = `
         SELECT id, name, display_name_en, price, stock_amount, category, sub_category
@@ -361,117 +424,28 @@ async function findBestProductForRequest(shop_id, req) {
       const params = [shop_id, category, ...otherSubs];
 
       for (const t of reqTokens) {
-        sql += ` AND (name COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
-                 OR display_name_en COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%'))`;
+        sql += `
+          AND (
+            name COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
+            OR display_name_en COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
+          )
+        `;
         params.push(t, t);
       }
 
       const [rows] = await db.query(sql, params);
-      const best = pickBest(rows);
-      if (best) return best;
-    }
 
-    {
-      const params = [shop_id, category, primarySub];
-      const [rowsAllTokens] = await db.query(
-        `
-        SELECT id, name, display_name_en, price, stock_amount, category, sub_category
-        FROM product
-        WHERE shop_id = ?
-          AND category = ?
-          AND sub_category = ?
-      `,
-        params
-      );
-
-      const rows = filterRowsByExcludeTokens(rowsAllTokens, excludeTokens);
-
-      if (rows && rows.length) {
-        const scored = [];
-        for (const r of rows) {
-          const candTokens = tokenizeName(
-            (r.name || "") + " " + (r.display_name_en || "")
-          );
-          if (!candTokens.length) continue;
-
-          let common = 0;
-          for (const t of reqSet) {
-            if (candTokens.includes(t)) common++;
-          }
-          const coverage = common / reqTokens.length;
-
-          if (coverage >= MIN_PARTIAL_COVERAGE) {
-            scored.push({
-              row: r,
-              coverage,
-              wordCount: candTokens.length,
-            });
-          }
-        }
-
-        if (scored.length) {
-          scored.sort(
-            (a, b) =>
-              b.coverage - a.coverage ||
-              a.wordCount - b.wordCount ||
-              b.row.id - a.row.id
-          );
-          return scored[0].row;
-        }
-      }
-    }
-
-    if (otherSubs.length) {
-      const params = [shop_id, category, ...otherSubs];
-      const [rowsAllTokens] = await db.query(
-        `
-        SELECT id, name, display_name_en, price, stock_amount, category, sub_category
-        FROM product
-        WHERE shop_id = ?
-          AND category = ?
-          AND sub_category IN (${otherSubs.map(() => "?").join(",")})
-      `,
-        params
-      );
-
-      const rows = filterRowsByExcludeTokens(rowsAllTokens, excludeTokens);
-
-      if (rows && rows.length) {
-        const scored = [];
-        for (const r of rows) {
-          const candTokens = tokenizeName(
-            (r.name || "") + " " + (r.display_name_en || "")
-          );
-          if (!candTokens.length) continue;
-
-          let common = 0;
-          for (const t of reqSet) {
-            if (candTokens.includes(t)) common++;
-          }
-          const coverage = common / reqTokens.length;
-
-          if (coverage >= MIN_PARTIAL_COVERAGE) {
-            scored.push({
-              row: r,
-              coverage,
-              wordCount: candTokens.length,
-            });
-          }
-        }
-
-        if (scored.length) {
-          scored.sort(
-            (a, b) =>
-              b.coverage - a.coverage ||
-              a.wordCount - b.wordCount ||
-              b.row.id - a.row.id
-          );
-          return scored[0].row;
-        }
+      const best = await pickBestWeighted({
+        shop_id,
+        rows,
+        reqTokens,
+        excludeTokens,
+      });
+      if (best) {
+        return best;
       }
     }
   }
-
   {
     let sql = `
       SELECT id, name, display_name_en, price, stock_amount, category, sub_category
@@ -481,34 +455,114 @@ async function findBestProductForRequest(shop_id, req) {
     const params = [shop_id];
 
     for (const t of reqTokens) {
-      sql += ` AND (name COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
-               OR display_name_en COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%'))`;
+      sql += `
+        AND (
+          name COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
+          OR display_name_en COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
+        )
+      `;
       params.push(t, t);
     }
 
     const [rowsAll] = await db.query(sql, params);
+
     const rows = filterRowsByExcludeTokens(rowsAll, excludeTokens);
 
     if (rows && rows.length) {
-      let best = null;
-      for (const r of rows) {
-        const candTokens = tokenizeName(
-          (r.name || "") + " " + (r.display_name_en || "")
-        );
-        const wordCount = candTokens.length || 9999;
-        if (
-          !best ||
-          wordCount < best.wordCount ||
-          (wordCount === best.wordCount && r.id > best.row.id)
-        ) {
-          best = { row: r, wordCount };
-        }
+      const best = await pickBestWeighted({
+        shop_id,
+        rows,
+        reqTokens,
+        excludeTokens,
+      });
+      if (best) {
+        return best;
       }
-      if (best) return best.row;
+    }
+  }
+  return null;
+}
+
+async function rebuildTokenWeightsForShop(shop_id) {
+  const [rows] = await db.query(
+    `
+    SELECT id, name, display_name_en
+    FROM product
+    WHERE shop_id = ?
+    `,
+    [shop_id]
+  );
+
+  const df = new Map();
+
+  for (const r of rows) {
+    const tokens = new Set(tokenizeName(r.name || ""));
+    for (const t of tokens) {
+      df.set(t, (df.get(t) || 0) + 1);
     }
   }
 
-  return null;
+  const conn = await db.getConnection();
+  try {
+    await conn.beginTransaction();
+
+    await conn.query(`DELETE FROM product_token_weight WHERE shop_id = ?`, [
+      shop_id,
+    ]);
+
+    const chunkSize = 500;
+    const entries = Array.from(df.entries()); // [token, docFreq]
+
+    for (let i = 0; i < entries.length; i += chunkSize) {
+      const chunk = entries.slice(i, i + chunkSize);
+
+      const values = [];
+      const params = [];
+
+      for (const [token, docFreq] of chunk) {
+        values.push("(?, ?, ?, ?)");
+        params.push(shop_id, token, docFreq, docFreq > 0 ? 1 / docFreq : 1);
+      }
+
+      await conn.query(
+        `
+        INSERT INTO product_token_weight (shop_id, token, doc_freq, inv_df)
+        VALUES ${values.join(",")}
+        `,
+        params
+      );
+    }
+
+    await conn.commit();
+  } catch (e) {
+    await conn.rollback();
+    throw e;
+  } finally {
+    conn.release();
+  }
+}
+
+async function fetchInvDfMap(shop_id, tokens) {
+  const uniq = Array.from(new Set(tokens)).filter(Boolean);
+
+  if (!uniq.length) return new Map();
+
+  const placeholders = uniq.map(() => "?").join(",");
+  const [rows] = await db.query(
+    `
+    SELECT token, inv_df
+    FROM product_token_weight
+    WHERE shop_id = ?
+      AND token IN (${placeholders})
+    `,
+    [shop_id, ...uniq]
+  );
+
+  const map = new Map();
+  for (const r of rows || []) {
+    map.set(String(r.token), Number(r.inv_df));
+  }
+  return map;
 }
 
 async function searchProducts(shop_id, products) {
@@ -607,19 +661,24 @@ async function fetchAlternatives(
 
     // all tokens
     if (reqTokens.length) {
-      const reqSet = new Set(reqTokens);
       const scored = filteredRows.map((r) => {
-        const candTokens = tokenizeName(
-          (r.name || "") + " " + (r.display_name_en || "")
-        );
-        let common = 0;
-        for (const t of reqSet) {
-          if (candTokens.includes(t)) common++;
+        const candTokens = tokenizeName(r.name || "");
+        let hitW = 0;
+        let totalW = 0;
+
+        for (const t of reqTokens) {
+          const w = tokenImportance(t);
+          totalW += w;
+          if (candTokens.includes(t)) hitW += w;
         }
-        const score = reqTokens.length > 0 ? common / reqTokens.length : 0;
+
+        const score = totalW > 0 ? hitW / totalW : 0;
+
+        const isPrimary = sub && String(r.sub_category) === String(sub);
         return {
           row: r,
           score,
+          isPrimary,
           wordCount: candTokens.length || 9999,
         };
       });
@@ -629,9 +688,11 @@ async function fetchAlternatives(
         .sort(
           (a, b) =>
             b.score - a.score ||
+            (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0) ||
             a.wordCount - b.wordCount ||
-            b.row.id - a.row.id
+            a.row.id - b.row.id
         )
+
         .map((s) => s.row);
 
       if (positive.length >= limit) return positive.slice(0, limit);
@@ -647,12 +708,7 @@ async function fetchAlternatives(
 
   //category + subCategory
   if (category && subCategory) {
-    rows = await fetchByCatSub(category, subCategory, false);
-
-    if (!rows || !rows.length) {
-      rows = await fetchByCatSub(category, subCategory, true);
-    }
-
+    rows = await fetchByCatSub(category, subCategory, true);
     if (rows && rows.length) return rows;
   }
 
@@ -731,6 +787,7 @@ const ALT_TEMPLATES_EN = [
   (req, names) =>
     `Couldn’t find ${req}. Maybe ${names.map((n) => `${n}?`).join(" ")}`,
 ];
+
 const pickAltTemplate = (isEnglish, idx) =>
   (isEnglish ? ALT_TEMPLATES_EN : ALT_TEMPLATES_HE)[idx % 4];
 
@@ -972,4 +1029,6 @@ module.exports = {
   searchVariants,
 
   getExcludeTokensFromReq,
+
+  rebuildTokenWeightsForShop,
 };
