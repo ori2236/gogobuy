@@ -1,4 +1,6 @@
-const { buildCategorySubcategoryItemSchemas } = require("./productCategories");
+const {
+  buildCategorySubcategoryItemSchemas,
+} = require("../../productCategories");
 
 const ADD_PRODUCT_PROPS = {
   name: { type: "string", minLength: 1 },

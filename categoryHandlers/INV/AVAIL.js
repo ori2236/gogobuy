@@ -2,13 +2,14 @@ const { chat } = require("../../config/openai");
 const { getPromptFromDB } = require("../../repositories/prompt");
 const {
   parseModelAnswer,
-  searchProducts,
   buildAlternativeQuestions,
   buildQuestionsBlock,
   searchVariants,
 } = require("../../services/products");
+const { searchProductsAvailability } = require("../../services/productsAvailability");
 const db = require("../../config/db");
 const { saveOpenQuestions } = require("../../utilities/openQuestions");
+const { INV_AVAIL_SCHEMA } = require("./schemas/inv.schema");
 
 const PROMPT_CAT = "INV";
 const PROMPT_SUB = "AVAIL";
@@ -99,13 +100,25 @@ async function checkAvailability({
   const basePrompt = await getPromptFromDB(PROMPT_CAT, PROMPT_SUB);
   const systemPrompt = basePrompt;
 
-  const answer = await chat({ message, history, systemPrompt });
+  const answer = await chat({
+    message,
+    history,
+    systemPrompt,
+    response_format: {
+      type: "json_schema",
+      json_schema: INV_AVAIL_SCHEMA,
+    },
+  });
 
   let parsed;
   try {
+    parsed = JSON.parse(answer);
+  } catch (e1) {}
+
+  try {
     parsed = parseModelAnswer(answer);
-  } catch (err) {
-    console.error("[INV.AVAIL] parseModelAnswer failed:", err);
+  } catch (e2) {
+    console.error("[INV.AVAIL] parseModelAnswer failed:", e2);
     const botPayload = isEnglish
       ? "Sorry, I couldn’t understand which products you want me to check. Can you please write again which product you’re asking about?"
       : "מצטערים, לא הבנו על איזה מוצר אתה שואל. תוכל לכתוב שוב בקצרה על איזה מוצר לבדוק מלאי?";
@@ -163,7 +176,8 @@ async function checkAvailability({
       return { ...p, amount };
     });
 
-    const res = await searchProducts(shop_id, searchRequests);
+    const res = await searchProductsAvailability(shop_id, searchRequests);
+    
     found = res.found || [];
     notFound = res.notFound || [];
     console.log("[INV.AVAIL] found:", found);
@@ -239,18 +253,20 @@ async function checkAvailability({
     let displayLabel;
 
     if (isEnglish) {
+      const st = (outputSearchTerm || searchTerm || "").trim();
       if (rawName && searchTerm && searchTerm !== rawName) {
-        displayLabel = enNameCandidate || `${rawName} by ${searchTerm}`;
+        const base = (req.outputName || enNameCandidate || rawName).trim();
+        displayLabel = st ? `${base} by ${st}` : base;
       } else if (req.outputName && req.outputName.trim()) {
         displayLabel = req.outputName.trim();
       } else if (enNameCandidate) {
         displayLabel = enNameCandidate;
-      } else if (searchTerm) {
-        displayLabel = searchTerm;
+      } else if (st) {
+        displayLabel = st;
       } else if (rawName) {
         displayLabel = rawName;
       } else {
-        displayLabel = displayName; // fallback
+        displayLabel = displayName;
       }
     } else {
       if (rawName && searchTerm && searchTerm !== rawName) {
@@ -278,8 +294,8 @@ async function checkAvailability({
       if (!f) {
         availabilityLines.push(
           isEnglish
-            ? `${displayName} is currently out of stock.`
-            : `${displayName} כרגע חסר במלאי.`
+            ? `${displayLabel} is currently out of stock.`
+            : `${displayLabel} כרגע חסר במלאי.`
         );
         continue;
       }
@@ -289,21 +305,21 @@ async function checkAvailability({
         : null;
 
       if (stock === null) {
-        quantityNames.push(displayName);
+        quantityNames.push(displayLabel);
       } else if (stock <= 0) {
         availabilityLines.push(
           isEnglish
-            ? `Right now we don’t have any ${displayName} in stock.`
-            : `כרגע אין לנו במלאי בכלל ${displayName}.`
+            ? `Right now we don’t have any ${displayLabel} in stock.`
+            : `כרגע אין לנו במלאי בכלל ${displayLabel}.`
         );
       } else if (stock < maxPerProduct) {
         availabilityLines.push(
           isEnglish
-            ? `Right now we have ${stock} units of ${displayName} in stock.`
-            : `כרגע יש לנו במלאי ${stock} יחידות של ${displayName}.`
+            ? `Right now we have ${stock} units of ${displayLabel} in stock.`
+            : `כרגע יש לנו במלאי ${stock} יחידות של ${displayLabel}.`
         );
       } else {
-        quantityNames.push(displayName);
+        quantityNames.push(displayLabel);
       }
 
       continue;
@@ -325,8 +341,8 @@ async function checkAvailability({
       if (stock <= 0) {
         availabilityLines.push(
           isEnglish
-            ? `${displayName} is currently out of stock.`
-            : `${displayName} כרגע חסר במלאי.`
+            ? `${displayLabel} is currently out of stock.`
+            : `${displayLabel} כרגע חסר במלאי.`
         );
 
         notFoundForAlternatives.push({
@@ -349,31 +365,31 @@ async function checkAvailability({
 
         const productNameForUser = isEnglish
           ? (f.matched_display_name_en && f.matched_display_name_en.trim()) ||
-            displayName
-          : (f.matched_name && f.matched_name.trim()) || displayName;
+            displayLabel
+          : (f.matched_name && f.matched_name.trim()) || displayLabel;
 
         if (isEnglish) {
           if (price !== null) {
             availabilityLines.push(
-              `Yes, we currently have ${displayName} in stock. The product is: ${productNameForUser}, and it costs ₪${price.toFixed(
+              `Yes, we currently have ${displayLabel} in stock. The product is: ${productNameForUser}, and it costs ₪${price.toFixed(
                 2
               )}.`
             );
           } else {
             availabilityLines.push(
-              `Yes, we currently have ${displayName} in stock. The product is: ${productNameForUser}.`
+              `Yes, we currently have ${displayLabel} in stock. The product is: ${productNameForUser}.`
             );
           }
         } else {
           if (price !== null) {
             availabilityLines.push(
-              `כן, יש לנו במלאי ${displayName}. המוצר הוא: ${productNameForUser}, והוא עולה ₪${price.toFixed(
+              `כן, יש לנו במלאי ${displayLabel}. המוצר הוא: ${productNameForUser}, והוא עולה ₪${price.toFixed(
                 2
               )}.`
             );
           } else {
             availabilityLines.push(
-              `כן, יש לנו במלאי ${displayName}. המוצר הוא: ${productNameForUser}.`
+              `כן, יש לנו במלאי ${displayLabel}. המוצר הוא: ${productNameForUser}.`
             );
           }
         }
@@ -381,22 +397,22 @@ async function checkAvailability({
         if (stock < maxPerProduct) {
           availabilityLines.push(
             isEnglish
-              ? `Right now we have ${stock} units of ${displayName} in stock, which is enough for the quantity you asked for.`
-              : `כרגע יש לנו במלאי ${stock} יחידות של ${displayName}, ויש מספיק לכמות שביקשת.`
+              ? `Right now we have ${stock} units of ${displayLabel} in stock, which is enough for the quantity you asked for.`
+              : `כרגע יש לנו במלאי ${stock} יחידות של ${displayLabel}, ויש מספיק לכמות שביקשת.`
           );
         } else {
           availabilityLines.push(
             isEnglish
-              ? `Yes, we have enough ${displayName} in stock for the quantity you asked for.`
-              : `כן, יש לנו מספיק ${displayName} במלאי לכמות שביקשת.`
+              ? `Yes, we have enough ${displayLabel} in stock for the quantity you asked for.`
+              : `כן, יש לנו מספיק ${displayLabel} במלאי לכמות שביקשת.`
           );
         }
       } else {
         // Partial availability
         availabilityLines.push(
           isEnglish
-            ? `Right now we only have ${stock} units of ${displayName} in stock, which is less than you asked for.`
-            : `כרגע יש לנו במלאי רק ${stock} יחידות של ${displayName}, פחות מהכמות שביקשת.`
+            ? `Right now we only have ${stock} units of ${displayLabel} in stock, which is less than you asked for.`
+            : `כרגע יש לנו במלאי רק ${stock} יחידות של ${displayLabel}, פחות מהכמות שביקשת.`
         );
 
         notFoundForAlternatives.push({
@@ -475,8 +491,8 @@ async function checkAvailability({
       if (!cat && !subCategory) {
         availabilityLines.push(
           isEnglish
-            ? `I’m not sure which type of product you mean for "${displayName}". Can you clarify?`
-            : `לא ברור לי בדיוק לאיזה סוג מוצר אתה מתכוון לגבי "${displayName}". תוכל לחדד?`
+            ? `I’m not sure which type of product you mean for "${displayLabel}". Can you clarify?`
+            : `לא ברור לי בדיוק לאיזה סוג מוצר אתה מתכוון לגבי "${displayLabel}". תוכל לחדד?`
         );
         continue;
       }
@@ -486,7 +502,6 @@ async function checkAvailability({
           ? `${rawName} ${searchTerm}`
           : rawName || searchTerm || enNameCandidate || null;
 
-      console.log({ effectiveSearchTerm });
       const variantsRows = await searchVariants(shop_id, {
         category: cat || null,
         subCategory: subCategory || null,
