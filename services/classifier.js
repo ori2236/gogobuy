@@ -49,7 +49,6 @@ function parseModelMessage(raw) {
   return { type: "raw", text: line };
 }
 
-
 async function classifyIncoming({
   message,
   customer_id,
@@ -66,21 +65,14 @@ async function classifyIncoming({
     CLASSIFIER_PROMPT_CAT,
     CLASSIFIER_PROMPT_SUB
   );
-  
-  const hasContext =
-    (sig && sig.ACTIVE_ORDER_EXISTS) ||
-    (openQs && openQs.length) ||
-    (closedQs && closedQs.length);
 
-  const systemPrompt = hasContext
-    ? [
-        systemPromptBase,
-        "",
-        "=== STRUCTURED CONTEXT ===",
-        contextHeader,
-        openQuestionsCtx,
-      ].join("\n")
-    : systemPromptBase;
+  const systemPrompt = [
+    systemPromptBase,
+    "",
+    "=== STRUCTURED CONTEXT ===",
+    contextHeader,
+    openQuestionsCtx,
+  ].join("\n");
 
   let history = await getHistory(customer_id, shop_id);
   console.log("history:", history);

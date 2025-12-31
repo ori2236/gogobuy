@@ -12,13 +12,6 @@ async function getPromptFromDB(category, subCategory) {
   return rows?.[0]?.prompt || null;
 }
 
-function oneLine(str) {
-  return String(str || "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 800);
-}
-
 function buildClassifierContextHeader({ sig }) {
   const lines = [];
   lines.push(`ACTIVE_ORDER_EXISTS=${sig.ACTIVE_ORDER_EXISTS ? 1 : 0}`);

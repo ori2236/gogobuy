@@ -56,6 +56,7 @@ HINTS
 - If unclear between MODIFY/CREATE, prefer MODIFY when ACTIVE_ORDER_EXISTS=true.
 - If ACTIVE_ORDER_EXISTS = true and the users message is short or references any product/option from OPEN_QUESTIONS then strongly bias classification to: 1, ORD.MODIFY
 - If the message asks what is in the cart → 1, ORD.REVIEW.
+- If ACTIVE_ORDER_EXISTS=false, ORD.MODIFY is NOT allowed.
 
 EXAMPLES
 - "אני רוצה להזמין חלב 3% של תנובה" -> 1, ORD.CREATE
