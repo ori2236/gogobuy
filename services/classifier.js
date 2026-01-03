@@ -75,7 +75,7 @@ async function classifyIncoming({
   ].join("\n");
 
   let history = await getHistory(customer_id, shop_id);
-  console.log("history:", history);
+
   const answer = await chat({ message, history, systemPrompt });
   const replyText =
     typeof answer === "string"

@@ -15,10 +15,9 @@ const {
   getActiveOrder,
   getOrderItems,
   buildActiveOrderSignals,
-  checkIfToCancelOrder,
 } = require("../utilities/orders");
 const { detectIsEnglish } = require("../utilities/lang");
-
+const { checkIfToCancelOrder } = require("../categoryHandlers/ORD/CANCEL")
 const maxPerProduct = 10;
 
 async function processMessage(message, phone_number, shop_id) {

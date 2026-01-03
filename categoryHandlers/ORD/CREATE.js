@@ -67,7 +67,7 @@ module.exports = {
         raw: answer,
       };
     }
-    
+    console.log(parsed)
     const qUpdates = parsed?.question_updates || {};
     if (Array.isArray(qUpdates.close_ids) && qUpdates.close_ids.length) {
       await closeQuestionsByIds(qUpdates.close_ids);

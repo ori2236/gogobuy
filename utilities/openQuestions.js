@@ -162,6 +162,16 @@ function buildOpenQuestionsContextForPrompt(
   ].join("\n");
 }
 
+async function deleteOpenQuestionsByOrderId(order_id, shop_id) {
+  if (!order_id) return 0;
+  const [res] = await db.query(
+    `DELETE FROM chat_open_question
+      WHERE order_id = ? AND shop_id = ? AND status = 'open'`,
+    [order_id, shop_id]
+  );
+  return res?.affectedRows || 0;
+}
+
 module.exports = {
   saveOpenQuestions,
   getOpenQuestions,
@@ -170,4 +180,5 @@ module.exports = {
   closeQuestionsByIds,
   deleteQuestionsByIds,
   buildOpenQuestionsContextForPrompt,
+  deleteOpenQuestionsByOrderId,
 };

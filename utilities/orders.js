@@ -1,6 +1,5 @@
 const db = require("../config/db");
 const { addDec, addMoney, mulMoney } = require("./decimal");
-const { detectIsEnglish } = require("./lang");
 
 function mergeDuplicateLineItems(lineItems) {
   const byId = new Map();
@@ -317,7 +316,7 @@ async function getActiveOrder(customer_id, shop_id) {
   const [rows] = await db.query(
     `SELECT *
        FROM orders
-      WHERE customer_id = ? AND shop_id = ?
+      WHERE customer_id=? AND shop_id=? AND status IN ('pending','cancel_pending')
       ORDER BY updated_at DESC, id DESC
       LIMIT 1`,
     [customer_id, shop_id]
@@ -349,145 +348,10 @@ function buildActiveOrderSignals(order, items) {
   };
 }
 
-
-async function cancelOrderAndRestoreStock(order_id, shop_id) {
-  const conn = await db.getConnection();
-  try {
-    await conn.beginTransaction();
-
-    const [[ord]] = await conn.query(
-      `SELECT id, shop_id, status
-         FROM orders
-        WHERE id = ? FOR UPDATE`,
-      [order_id]
-    );
-
-    if (!ord) {
-      await conn.rollback();
-      return { ok: false, reason: "not_found" };
-    }
-
-    const orderShopId = Number(ord.shop_id);
-    if (shop_id && Number(shop_id) !== orderShopId) {
-      await conn.rollback();
-      return { ok: false, reason: "shop_mismatch" };
-    }
-
-    if (ord.status !== "pending" && ord.status !== "canceled") {
-      await conn.rollback();
-      return { ok: false, reason: "invalid_status" };
-    }
-
-    const [items] = await conn.query(
-      `SELECT product_id, amount
-         FROM order_item
-        WHERE order_id = ?
-        FOR UPDATE`,
-      [order_id]
-    );
-
-    if (items.length) {
-      const ids = items.map((i) => Number(i.product_id));
-      const placeholders = ids.map(() => "?").join(",");
-
-      await conn.query(
-        `SELECT id
-           FROM product
-          WHERE id IN (${placeholders}) AND shop_id = ?
-          FOR UPDATE`,
-        [...ids, orderShopId]
-      );
-
-      for (const it of items) {
-        await conn.query(
-          `UPDATE product
-              SET stock_amount = COALESCE(stock_amount,0) + ?
-            WHERE id = ? AND shop_id = ?`,
-          [Number(it.amount), Number(it.product_id), orderShopId]
-        );
-      }
-    }
-
-    await conn.query(`DELETE FROM order_item WHERE order_id = ?`, [order_id]);
-    await conn.query(`DELETE FROM orders WHERE id = ?`, [order_id]);
-
-    await conn.commit();
-    return { ok: true };
-  } catch (e) {
-    await conn.rollback();
-    throw e;
-  } finally {
-    conn.release();
-  }
-}
-
-async function checkIfToCancelOrder({
-  activeOrder,
-  message,
-  customer_id,
-  shop_id,
-  saveChat,
-}) {
-  if (!activeOrder || activeOrder.status !== "canceled") {
-    return null;
-  }
-
-  const normalized = (message || "").trim().toLowerCase();
-  const isCancelWord = normalized === "cancel" || normalized === "ביטול";
-  const isEnglish = detectIsEnglish(message);
-
-  await saveChat({
-    customer_id,
-    shop_id,
-    sender: "customer",
-    status: "classified",
-    message,
-  });
-
-  let botText;
-
-  if (isCancelWord) {
-    const result = await cancelOrderAndRestoreStock(activeOrder.id, shop_id);
-
-    if (!result.ok) {
-      botText = isEnglish
-        ? "There was a problem cancelling your order. Please try again or contact the shop."
-        : "הייתה בעיה בביטול ההזמנה. אפשר לנסות שוב או ליצור קשר עם החנות.";
-    } else {
-      botText = isEnglish
-        ? `Your order (#${activeOrder.id}) has been cancelled.`
-        : `ההזמנה שלך (#${activeOrder.id}) בוטלה.`;
-    }
-  } else {
-    //not canceling
-    await db.query(
-      `UPDATE orders
-         SET status = 'pending', updated_at = NOW()
-       WHERE id = ? AND status = 'canceled'`,
-      [activeOrder.id]
-    );
-
-    botText = isEnglish
-      ? `Your order (#${activeOrder.id}) was not cancelled. Anything else you'd like to do?`
-      : `ההזמנה שלך (#${activeOrder.id}) לא בוטלה. יש דבר נוסף שתרצה לעשות?`;
-  }
-
-  await saveChat({
-    customer_id,
-    shop_id,
-    sender: "bot",
-    status: "classified",
-    message: botText,
-  });
-
-  return botText;
-}
-
 module.exports = {
   createOrderWithStockReserve,
   getOrder,
   getActiveOrder,
   getOrderItems,
   buildActiveOrderSignals,
-  checkIfToCancelOrder,
 };
