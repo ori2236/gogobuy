@@ -100,8 +100,8 @@ Example 1 - Simple availability (Hebrew, default quantity)
 {
   "products": [
     {
-      "name": "חלב תנובה 3% 1 ליטר",
-      "searchTerm": null,
+      "name": "חלב 3% 1 ליטר",
+      "searchTerm": "תנובה",
       "outputName": null,
       "outputSearchTerm": null,
       "category": "Dairy & Eggs",

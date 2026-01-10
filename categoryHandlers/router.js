@@ -3,6 +3,7 @@ const { modifyOrder } = require("./ORD/MODIFY");
 const { orderReview } = require("./ORD/REVIEW");
 const { askToCancelOrder } = require("./ORD/CANCEL");
 const { checkAvailability } = require("./INV/AVAIL");
+const { answerPriceAndSales } = require("./INV/PRICE_AND_SALES");
 
 const CATEGORY_HANDLERS = {
   ORD: {
@@ -60,6 +61,15 @@ const CATEGORY_HANDLERS = {
         history: ctx.history,
         isEnglish: ctx.isEnglish,
         maxPerProduct: ctx.maxPerProduct,
+      }),
+
+    PRICE_AND_SALES: async (ctx) =>
+      answerPriceAndSales({
+        message: ctx.message,
+        customer_id: ctx.customer_id,
+        shop_id: ctx.shop_id,
+        history: ctx.history,
+        isEnglish: ctx.isEnglish,
       }),
   },
 };

@@ -19,12 +19,9 @@ HRS.UNUSUAL - holiday / special days hours
 
 INV - Inventory & products:
 INV.AVAIL - questions about current inventory: whether the store has certain product(s) in stock, which variants/brands/flavours of them are available, or how many units are available
-INV.PRICE_AND_SALES - price or promotion of specific product(s)
+INV.PRICE_AND_SALES - price or promotion of product(s), any questions on cheaper and pricing
 INV.DETAILS - ingredients and attributes (kosher, allergens, etc.)
-INV.SUGGEST - ask for product ideas or similar items (recommendations)
-
-PRM - Promotions & coupons:
-PRM.CURRENT - store promotions/coupons in general
+INV.SUGGEST - ask for product ideas or similar items (recommendations) without money context
 
 SHP - Delivery & pickup:
 SHP.ZONES - delivery coverage areas
@@ -84,8 +81,6 @@ EXAMPLES
 - "כמה עולה קולה זירו / יש עליה מבצע?" -> 1, INV.PRICE_AND_SALES
 - "זה כשר? יש אלרגנים?" -> 1, INV.DETAILS
 - "תמליץ על חטיפים למסיבה" -> 1, INV.SUGGEST
-
-- "יש לכם מבצעים היום?" -> 1, PRM.CURRENT
 
 - "אתם עושים משלוחים לנתניה?" -> 1, SHP.ZONES
 - "מה המשלוח הכי מוקדם שאפשר?" -> 1, SHP.SLOTS

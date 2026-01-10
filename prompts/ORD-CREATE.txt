@@ -83,7 +83,6 @@ TASK
    - If user gives alternatives that are different TYPES ("חלב או חלב סויה") → add a question to choose type.
 6) Confidence rule:
    - Only when there is REAL ambiguity (for example:
-    • unclear quantity when it matters,
     • unclear product type ("משהו לשתות", "חטיפים לאירוע"),
     • conflicting or confusing instructions, you should add questions.
 

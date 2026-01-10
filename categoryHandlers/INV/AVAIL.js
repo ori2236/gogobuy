@@ -9,7 +9,7 @@ const {
 const { searchProductsAvailability } = require("../../services/productsAvailability");
 const db = require("../../config/db");
 const { saveOpenQuestions } = require("../../utilities/openQuestions");
-const { INV_AVAIL_SCHEMA } = require("./schemas/inv.schema");
+const { INV_AVAIL_SCHEMA } = require("./schemas/avail.schema");
 
 const PROMPT_CAT = "INV";
 const PROMPT_SUB = "AVAIL";
@@ -98,12 +98,11 @@ async function checkAvailability({
   }
 
   const basePrompt = await getPromptFromDB(PROMPT_CAT, PROMPT_SUB);
-  const systemPrompt = basePrompt;
 
   const answer = await chat({
     message,
     history,
-    systemPrompt,
+    systemPrompt: basePrompt,
     response_format: {
       type: "json_schema",
       json_schema: INV_AVAIL_SCHEMA,

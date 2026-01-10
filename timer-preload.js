@@ -26,17 +26,19 @@ const originalLoad = Module._load;
 function shouldInstrument(filename) {
   if (!filename) return false;
 
-  // נרמול נתיב ל־/ כדי שהרג׳קס יעבוד גם ב-Windows
-  const normalized = filename.replace(/\\/g, "/");
+  // built-in modules (e.g. "events", "path", "fs", "node:fs") הם לא נתיב קובץ
+  if (filename.startsWith("node:")) return false;
+  if (!path.isAbsolute(filename)) return false;
 
+  const normalized = filename.replace(/\\/g, "/");
   if (normalized.includes("/node_modules/")) return false;
   if (matcher && !matcher.test(normalized)) return false;
+
   return true;
 }
 
-
 function wrapFn(prefix, name, fn) {
-  return function wrapped(...args) {
+  function wrapped(...args) {
     const start = performance.now();
 
     const log = (ok) => {
@@ -46,6 +48,14 @@ function wrapFn(prefix, name, fn) {
     };
 
     try {
+      // ✅ אם קוראים עם new -> חייבים לבנות עם Reflect.construct
+      if (new.target) {
+        // משתמשים ב-fn כ-newTarget כדי לא לשבור built-ins כמו Promise
+        const out = Reflect.construct(fn, args, fn);
+        log(true);
+        return out;
+      }
+
       const out = fn.apply(this, args);
 
       if (isPromiseLike(out)) {
@@ -67,8 +77,16 @@ function wrapFn(prefix, name, fn) {
       log(false);
       throw err;
     }
-  };
+  }
+
+  // (מומלץ) לשמור prototype כדי לא לשבור instanceof
+  try {
+    wrapped.prototype = fn.prototype;
+  } catch {}
+
+  return wrapped;
 }
+
 
 Module._load = function patchedLoad(request, parent, isMain) {
   const exported = originalLoad.apply(this, arguments);
@@ -81,23 +99,56 @@ Module._load = function patchedLoad(request, parent, isMain) {
   }
 
   if (!shouldInstrument(filename)) return exported;
-const prefix = path.relative(process.cwd(), filename).replace(/\\/g, "/");
+  const prefix = path.relative(process.cwd(), filename).replace(/\\/g, "/");
 
   // module.exports = function ...
   if (typeof exported === "function") {
     if (exported[WRAPPED]) return exported;
+
     const w = wrapFn(prefix, "default", exported);
-    w[WRAPPED] = true;
+
+    // לשמר properties של הפונקציה המקורית (events.EventEmitter וכו')
+    for (const key of Reflect.ownKeys(exported)) {
+      if (key === "length" || key === "name" || key === "prototype") continue;
+      const desc = Object.getOwnPropertyDescriptor(exported, key);
+      if (!desc) continue;
+      try {
+        Object.defineProperty(w, key, desc);
+      } catch {}
+    }
+
+    // אם זה "self reference" כמו events.EventEmitter === events
+    if (w.EventEmitter === exported) w.EventEmitter = w;
+
+    Object.defineProperty(w, WRAPPED, { value: true, enumerable: false });
     return w;
   }
 
   // module.exports = { fn1, fn2, ... }
   if (exported && typeof exported === "object") {
     if (exported[WRAPPED]) return exported;
-    const out = { ...exported };
-    for (const [k, v] of Object.entries(out)) {
-      if (typeof v === "function") out[k] = wrapFn(prefix, k, v);
+
+    const out = Object.create(Object.getPrototypeOf(exported));
+    for (const key of Reflect.ownKeys(exported)) {
+      const desc = Object.getOwnPropertyDescriptor(exported, key);
+      if (!desc) continue;
+      try {
+        Object.defineProperty(out, key, desc);
+      } catch {}
     }
+
+    for (const key of Reflect.ownKeys(out)) {
+      const desc = Object.getOwnPropertyDescriptor(out, key);
+      if (!desc || typeof desc.value !== "function") continue;
+
+      // אל תנסה לדרוס פונקציות שהן read-only
+      if (desc.writable === false) continue;
+
+      try {
+        out[key] = wrapFn(prefix, String(key), desc.value);
+      } catch {}
+    }
+
     Object.defineProperty(out, WRAPPED, { value: true, enumerable: false });
     return out;
   }

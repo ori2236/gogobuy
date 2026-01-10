@@ -2,6 +2,14 @@ const {
   buildCategorySubcategoryItemSchemas,
 } = require("../../productCategories");
 
+const PRICE_INTENT_ENUM = [
+  "PRICE",
+  "PRICE_COMPARE",
+  "PROMOTION",
+  "CHEAPER_ALT",
+  "BUDGET_PICK",
+];
+
 const COMMON_PRODUCT_PROPS = {
   name: { type: "string", minLength: 1 },
   outputName: { anyOf: [{ type: "string", minLength: 1 }, { type: "null" }] },
@@ -9,6 +17,11 @@ const COMMON_PRODUCT_PROPS = {
   units: { anyOf: [{ type: "integer", minimum: 1 }, { type: "null" }] },
   sold_by_weight: { type: "boolean" },
   exclude_tokens: { type: "array", items: { type: "string", minLength: 1 } },
+  compare_group: {
+    anyOf: [{ type: "string", minLength: 1 }, { type: "null" }],
+  },
+  budget_ils: { anyOf: [{ type: "number", minimum: 0 }, { type: "null" }] },
+  price_intent: { type: "string", enum: PRICE_INTENT_ENUM },
 };
 
 const COMMON_PRODUCT_REQUIRED = [
@@ -18,6 +31,9 @@ const COMMON_PRODUCT_REQUIRED = [
   "units",
   "sold_by_weight",
   "exclude_tokens",
+  "compare_group",
+  "budget_ils",
+  "price_intent",
 ];
 
 const CATEGORY_SUBCATEGORY_ANYOF = buildCategorySubcategoryItemSchemas(
@@ -25,13 +41,13 @@ const CATEGORY_SUBCATEGORY_ANYOF = buildCategorySubcategoryItemSchemas(
   COMMON_PRODUCT_REQUIRED
 );
 
-const CREATE_ORDER_SCHEMA = {
-  name: "ord_create_extract",
+const INV_PRICE_AND_SALES_SCHEMA = {
+  name: "inv_price_and_sales_extract",
   strict: true,
   schema: {
     type: "object",
     additionalProperties: false,
-    required: ["products", "questions", "question_updates"],
+    required: ["products", "questions"],
     properties: {
       products: {
         type: "array",
@@ -53,18 +69,8 @@ const CREATE_ORDER_SCHEMA = {
           },
         },
       },
-
-      question_updates: {
-        type: "object",
-        additionalProperties: false,
-        required: ["close_ids", "delete_ids"],
-        properties: {
-          close_ids: { type: "array", items: { type: "integer", minimum: 1 } },
-          delete_ids: { type: "array", items: { type: "integer", minimum: 1 } },
-        },
-      },
     },
   },
 };
 
-module.exports = { CREATE_ORDER_SCHEMA };
+module.exports = { INV_PRICE_AND_SALES_SCHEMA };
