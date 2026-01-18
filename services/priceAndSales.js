@@ -1,7 +1,11 @@
+const db = require("../config/db");
 const {
   buildQuestionsBlock,
   searchProducts,
   fetchAlternatives,
+  tokenizeName,
+  getSubCategoryCandidates,
+  getExcludeTokensFromReq,
 } = require("./products");
 const { saveOpenQuestions } = require("../utilities/openQuestions");
 const { normalizeIncomingQuestions } = require("../utilities/normalize");
@@ -21,6 +25,58 @@ function fmtQty(n, digits = 2) {
   const x = Number(n);
   if (!Number.isFinite(x)) return "";
   return x.toFixed(digits).replace(/\.?0+$/, "");
+}
+
+function nullify(v) {
+  if (v === null || v === undefined) return null;
+
+  if (typeof v === "string") {
+    const s = v.trim();
+    if (!s) return null;
+    const low = s.toLowerCase();
+    if (low === "null" || low === "undefined" || low === "none") return null;
+    return s;
+  }
+
+  return v;
+}
+
+function normalizeToken(t) {
+  return (
+    String(t || "")
+      .toLowerCase()
+      // remove Hebrew geresh/gershayim + common quotes
+      .replace(/[\u05F3\u05F4"'`]/g, "")
+      .trim()
+  );
+}
+
+const DASHES_RE = /[-‐-‒–—―\u05BE]/g;
+
+function tokenVariants(rawTok) {
+  const raw = String(rawTok || "").trim();
+  if (!raw) return [];
+
+  const vars = new Set();
+
+  vars.add(raw);
+
+  const noQuotes = raw.replace(/[\u05F3\u05F4"'`]/g, "").trim();
+  if (noQuotes) vars.add(noQuotes);
+
+  const asDoubleQuote = raw.replace(/\u05F4/g, '"').trim();
+  if (asDoubleQuote) vars.add(asDoubleQuote);
+
+  const noDashes = raw.replace(DASHES_RE, " ").replace(/\s+/g, " ").trim();
+  if (noDashes) vars.add(noDashes);
+
+  const parts = raw
+    .split(DASHES_RE)
+    .map((x) => x.trim())
+    .filter(Boolean);
+  for (const p of parts) vars.add(p);
+
+  return Array.from(vars).filter(Boolean);
 }
 
 function buildCompareQtyText({ req, foundRow, isEnglish }) {
@@ -44,11 +100,9 @@ function buildCompareQtyText({ req, foundRow, isEnglish }) {
         : `${units} יח׳, כ~${kgTxt} ק״ג`;
     }
 
-    // no units => compare by kg
     return isEnglish ? `${kgTxt} kg` : `${kgTxt} ק״ג`;
   }
 
-  // unit-based
   const u = Number.isFinite(amount) ? amount : 1;
   return isEnglish ? `${u} ${u === 1 ? "unit" : "units"}` : `${u} יח׳`;
 }
@@ -65,6 +119,23 @@ function cleanQuestionsBlockHeader(block, isEnglish) {
     cleaned.push(line);
   }
   return cleaned.join("\n").trim();
+}
+
+function buildPromoSubject(req, isEnglish) {
+  const nameHe = nullify(req?.name);
+  const nameEn = nullify(req?.outputName);
+  const sub = nullify(req?.["sub-category"] || req?.sub_category);
+  const cat = nullify(req?.category);
+
+  if (isEnglish && nameEn) return nameEn;
+  if (nameHe) return nameHe;
+  if (nameEn) return nameEn;
+
+  if (sub && cat)
+    return isEnglish ? `${sub} (${cat})` : `קטגוריה: ${cat} / ${sub}`;
+  if (cat) return isEnglish ? `${cat} category` : `קטגוריה: ${cat}`;
+
+  return isEnglish ? "that category" : "הקטגוריה שביקשת";
 }
 
 function buildQuestionsTextSmart({ questions, isEnglish }) {
@@ -93,7 +164,6 @@ function isOutOfStockFromFound(foundRow) {
 
 function isInStockRow(row) {
   const s = Number(row?.stock_amount);
-  // treat NULL as "unknown" -> allow it as in-stock
   if (!Number.isFinite(s)) return true;
   return s > 0;
 }
@@ -551,7 +621,6 @@ async function answerPriceCompareFlow({
   for (const [groupKey, idxs] of groups.entries()) {
     const groupLines = [];
     let groupHasAltOrClarify = false;
-    // collect candidates for result
     const candidates = []; // { name, total, outOfStock, soldByWeight, amount }
     const missingNames = [];
 
@@ -732,6 +801,783 @@ async function answerPriceCompareFlow({
     : "לא הצלחתי להשוות את המחירים. תוכל לנסח שוב?";
 }
 
+function round2(n) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return null;
+  return Math.round(x * 100) / 100;
+}
+
+function pct(n) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return null;
+  return round2(x);
+}
+
+function fmtDateTime(dt, isEnglish) {
+  if (!dt) return null;
+  const d = dt instanceof Date ? dt : new Date(dt);
+  if (Number.isNaN(d.getTime())) return null;
+
+  // Israel time
+  const locale = isEnglish ? "en-GB" : "he-IL";
+  const tz = "Asia/Jerusalem";
+
+  const s = new Intl.DateTimeFormat(locale, {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(d);
+
+  return s.replace(",", "");
+}
+
+async function searchPromotionsForRequest(shop_id, req, { limit = 50 } = {}) {
+  const category = nullify(req?.category);
+  const subCategory = nullify(req?.["sub-category"] || req?.sub_category);
+
+  const nameRaw = nullify(req?.name || req?.outputName) || "";
+
+  const STOP = new Set(["יח", "יחידה", "יחידות", "unit", "units"]);
+  const rawTokens = tokenizeName(nameRaw).filter(Boolean);
+
+  const tokenGroups = [];
+  for (const rawTok of rawTokens) {
+    let vars = tokenVariants(rawTok)
+      .map((v) =>
+        String(v || "")
+          .replace(/\s+/g, " ")
+          .trim()
+      )
+      .filter(Boolean);
+
+    vars = vars.filter((v) => !STOP.has(normalizeToken(v)));
+
+    const seen = new Set();
+    const uniq = [];
+    for (const v of vars) {
+      const key = v.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      uniq.push(v);
+    }
+
+    if (uniq.length) tokenGroups.push(uniq.slice(0, 10));
+  }
+
+  const excludeTokens = getExcludeTokensFromReq(req);
+
+  if (!category && !subCategory && tokenGroups.length === 0) {
+    return { rows: [], total: 0 };
+  }
+
+  const subList = subCategory ? getSubCategoryCandidates(subCategory) : [];
+
+  const params = [shop_id];
+  let sql = `
+    SELECT
+      pr.id            AS promo_id,
+      pr.kind          AS kind,
+      pr.percent_off   AS percent_off,
+      pr.amount_off    AS amount_off,
+      pr.fixed_price   AS fixed_price,
+      pr.bundle_buy_qty AS bundle_buy_qty,
+      pr.bundle_pay_price AS bundle_pay_price,
+      pr.description   AS description,
+      pr.start_at      AS start_at,
+      pr.end_at        AS end_at,
+      pr.product_id    AS product_id,
+
+      p.id             AS product_id2,
+      p.name           AS name,
+      p.display_name_en AS display_name_en,
+      p.price          AS price,
+      p.stock_amount   AS stock_amount,
+      p.category       AS category,
+      p.sub_category   AS sub_category
+    FROM promotion pr
+    JOIN product p
+      ON p.id = pr.product_id
+     AND p.shop_id = pr.shop_id
+    WHERE pr.shop_id = ?
+  `;
+
+  if (category) {
+    sql += ` AND p.category = ?`;
+    params.push(category);
+  }
+
+  if (subList.length) {
+    sql += ` AND p.sub_category IN (${subList.map(() => "?").join(",")})`;
+    params.push(...subList);
+  }
+
+  for (const group of tokenGroups) {
+    const ors = group
+      .map(
+        () => `
+        (
+          p.name COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
+          OR p.display_name_en COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
+        )
+      `
+      )
+      .join(" OR ");
+
+    sql += ` AND ( ${ors} )`;
+
+    for (const v of group) {
+      params.push(v, v);
+    }
+  }
+
+  for (const t of excludeTokens) {
+    const tt = String(t || "").trim();
+    if (!tt) continue;
+    sql += `
+      AND (
+        p.name COLLATE utf8mb4_general_ci NOT LIKE CONCAT('%', ?, '%')
+        AND p.display_name_en COLLATE utf8mb4_general_ci NOT LIKE CONCAT('%', ?, '%')
+      )
+    `;
+    params.push(tt, tt);
+  }
+
+  sql += `
+    AND (
+      (
+        (pr.start_at IS NULL OR pr.start_at <= NOW())
+        AND (pr.end_at IS NULL OR pr.end_at >= NOW())
+      )
+      OR (pr.start_at > NOW())
+      OR (
+        pr.end_at IS NOT NULL
+        AND pr.end_at < NOW()
+        AND pr.end_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+      )
+    )
+  `;
+  
+  sql += `
+    ORDER BY
+      CASE
+        WHEN ( (pr.start_at IS NULL OR pr.start_at <= NOW()) AND (pr.end_at IS NULL OR pr.end_at >= NOW()) ) THEN 0
+        WHEN (pr.start_at > NOW()) THEN 1
+        ELSE 2
+      END,
+      pr.start_at DESC,
+      pr.end_at DESC,
+      pr.id DESC
+    LIMIT ?
+  `;
+
+  params.push(Math.min(Math.max(Number(limit) || 50, 1), 200));
+
+  const [rows] = await db.query(sql, params);
+  return { rows: rows || [], total: (rows || []).length };
+}
+
+
+function promotionStatus(promo, now = new Date()) {
+  const start = promo?.start_at ? new Date(promo.start_at) : null;
+  const end = promo?.end_at ? new Date(promo.end_at) : null;
+
+  if (start && now < start) return "UPCOMING";
+  if (!end) return "ACTIVE"; // no end -> active once started
+  if (now <= end) return "ACTIVE";
+  return "ENDED";
+}
+
+function calcPromotionPricing({
+  promo,
+  baseUnitPrice,
+  reqAmount,
+  soldByWeight,
+}) {
+  const base = Number(baseUnitPrice);
+  const amountRaw = Number(reqAmount);
+  const amount = Number.isFinite(amountRaw) && amountRaw > 0 ? amountRaw : 1;
+
+  if (!Number.isFinite(base)) {
+    return {
+      baseUnit: null,
+      newUnit: null,
+      baseTotal: null,
+      newTotal: null,
+      savingsAmount: null,
+      savingsPercent: null,
+      amount,
+    };
+  }
+
+  const kind = String(promo?.kind || "").toUpperCase();
+
+  // base total: unit-based => units; weight-based => kg
+  const baseTotal = base * amount;
+
+  // Default
+  let newUnit = null;
+  let newTotal = null;
+
+  if (kind === "PERCENT_OFF") {
+    const p = Number(promo?.percent_off);
+    if (Number.isFinite(p)) {
+      newUnit = base * (1 - p / 100);
+      newTotal = newUnit * amount;
+    }
+  } else if (kind === "AMOUNT_OFF") {
+    const off = Number(promo?.amount_off);
+    if (Number.isFinite(off)) {
+      newUnit = Math.max(0, base - off);
+      newTotal = newUnit * amount;
+    }
+  } else if (kind === "FIXED_PRICE") {
+    const fp = Number(promo?.fixed_price);
+    if (Number.isFinite(fp)) {
+      newUnit = Math.max(0, fp);
+      newTotal = newUnit * amount;
+    }
+  } else if (kind === "BUNDLE") {
+    // Usually unit-based. If weight-based, we’ll still display terms but calculations may be confusing.
+    const buyQty = Number(promo?.bundle_buy_qty);
+    const payPrice = Number(promo?.bundle_pay_price);
+
+    if (
+      Number.isFinite(buyQty) &&
+      buyQty >= 2 &&
+      Number.isFinite(payPrice) &&
+      payPrice >= 0
+    ) {
+      // effective unit for info
+      newUnit = payPrice / buyQty;
+
+      if (!soldByWeight) {
+        // if user asked N units, apply bundle for floor(N/buyQty)
+        const N = Math.max(1, Math.floor(amount));
+        const bundles = Math.floor(N / buyQty);
+        const remainder = N - bundles * buyQty;
+
+        newTotal = bundles * payPrice + remainder * base;
+        // override baseTotal for integer units
+        return finalizePromotionPricing({
+          baseUnit: base,
+          newUnit,
+          baseTotal: base * N,
+          newTotal,
+          amount: N,
+        });
+      }
+
+      // weight-based: keep per-unit effective only, totals stay null
+      return finalizePromotionPricing({
+        baseUnit: base,
+        newUnit,
+        baseTotal,
+        newTotal: null,
+        amount,
+      });
+    }
+  }
+
+  return finalizePromotionPricing({
+    baseUnit: base,
+    newUnit,
+    baseTotal,
+    newTotal,
+    amount,
+  });
+}
+
+function finalizePromotionPricing({
+  baseUnit,
+  newUnit,
+  baseTotal,
+  newTotal,
+  amount,
+}) {
+  const bU = Number(baseUnit);
+  const nU = Number(newUnit);
+  const bT = Number(baseTotal);
+  const nT = Number(newTotal);
+
+  const hasBase = Number.isFinite(bU);
+  const hasNew = Number.isFinite(nU);
+
+  const savingsAmount =
+    Number.isFinite(bT) && Number.isFinite(nT) ? Math.max(0, bT - nT) : null;
+
+  const savingsPercent =
+    Number.isFinite(bT) && Number.isFinite(nT) && bT > 0
+      ? Math.max(0, (1 - nT / bT) * 100)
+      : hasBase && hasNew && bU > 0
+      ? Math.max(0, (1 - nU / bU) * 100)
+      : null;
+
+  return {
+    amount,
+    baseUnit: hasBase ? bU : null,
+    newUnit: hasNew ? nU : null,
+    baseTotal: Number.isFinite(bT) ? bT : null,
+    newTotal: Number.isFinite(nT) ? nT : null,
+    savingsAmount: Number.isFinite(savingsAmount) ? savingsAmount : null,
+    savingsPercent: Number.isFinite(savingsPercent) ? savingsPercent : null,
+  };
+}
+
+function humanKindLine(promo, isEnglish) {
+  const kind = String(promo?.kind || "").toUpperCase();
+
+  if (kind === "PERCENT_OFF") {
+    const p = pct(promo?.percent_off);
+    return isEnglish ? `${p}% off` : `${p}% הנחה`;
+  }
+  if (kind === "AMOUNT_OFF") {
+    const a = round2(promo?.amount_off);
+    return isEnglish ? `${formatILS(a)} off` : `${formatILS(a)} הנחה`;
+  }
+  if (kind === "FIXED_PRICE") {
+    const fp = round2(promo?.fixed_price);
+    return isEnglish
+      ? `Fixed price: ${formatILS(fp)}`
+      : `מחיר קבוע: ${formatILS(fp)}`;
+  }
+  if (kind === "BUNDLE") {
+    const buyQty = Number(promo?.bundle_buy_qty);
+    const pay = round2(promo?.bundle_pay_price);
+    if (Number.isFinite(buyQty) && buyQty >= 2 && Number.isFinite(pay)) {
+      return isEnglish
+        ? `Buy ${buyQty} for ${formatILS(pay)}`
+        : `${buyQty} יח׳ ב־${formatILS(pay)}`;
+    }
+    return isEnglish ? "Bundle deal" : "מבצע חבילה";
+  }
+
+  return isEnglish ? "Promotion" : "מבצע";
+}
+
+function buildPromotionBlock({ req, foundRow, promo, isEnglish }) {
+  const name = getCompareDisplayName({ req, foundRow, isEnglish });
+  const outOfStock = isOutOfStockFromFound(foundRow);
+
+  const soldByWeight = req?.sold_by_weight === true;
+
+  const unitPrice = Number(foundRow?.price);
+  const hasPrice = Number.isFinite(unitPrice);
+
+  const basePriceTxt = !hasPrice
+    ? isEnglish
+      ? "no updated price"
+      : "אין מחיר מעודכן"
+    : soldByWeight
+    ? isEnglish
+      ? `${formatILS(unitPrice)} per kg`
+      : `${formatILS(unitPrice)} לק״ג`
+    : `${formatILS(unitPrice)}`;
+
+  // ---- NO PROMO ----
+  if (!promo) {
+    if (isEnglish) {
+      return `No promotion right now for ${name}. Price: ${basePriceTxt}${
+        outOfStock ? " (currently out of stock)" : ""
+      }.`;
+    }
+
+    return `אין לנו מבצע כרגע על ${name}, המחיר שלו הוא ${basePriceTxt}${
+      outOfStock ? " (כרגע חסר במלאי)" : ""
+    }.`;
+  }
+
+  const kind = String(promo?.kind || "").toUpperCase();
+  const now = new Date();
+  const status = promotionStatus(promo, now);
+
+  const startTxt = fmtDateTime(promo.start_at, isEnglish);
+  const endTxt = promo.end_at ? fmtDateTime(promo.end_at, isEnglish) : null;
+
+  const statusLine = (() => {
+    if (isEnglish) {
+      if (status === "UPCOMING")
+        return `Status: not started yet (starts at ${startTxt}${
+          endTxt ? `, ends at ${endTxt}` : ""
+        })`;
+      if (status === "ACTIVE")
+        return `Status: active now (since ${startTxt}${
+          endTxt ? `, until ${endTxt}` : ", no end date"
+        })`;
+      return `Status: ended (was valid until ${endTxt || startTxt})`;
+    }
+
+    if (status === "UPCOMING")
+      return `סטטוס: עדיין לא התחיל (מתחיל ב־${startTxt}${
+        endTxt ? `, עד ${endTxt}` : ""
+      })`;
+    if (status === "ACTIVE")
+      return `סטטוס: פעיל עכשיו (מ־${startTxt}${
+        endTxt ? `, עד ${endTxt}` : ", ללא תאריך סיום"
+      })`;
+    return `סטטוס: הסתיים (היה בתוקף עד ${endTxt || startTxt})`;
+  })();
+
+  if (kind === "BUNDLE") {
+    const buyQty = Number(promo?.bundle_buy_qty);
+    const pay = round2(promo?.bundle_pay_price);
+
+    const hasDeal =
+      Number.isFinite(buyQty) &&
+      buyQty >= 2 &&
+      Number.isFinite(pay) &&
+      pay >= 0;
+
+    if (hasDeal) {
+      const oosNote = outOfStock
+        ? isEnglish
+          ? " (currently out of stock)"
+          : " (כרגע חסר במלאי)"
+        : "";
+
+      // If we don't have a base price, we can still show the deal terms
+      if (!hasPrice) {
+        const line1 = isEnglish
+          ? `Promotion for ${name}: buy ${buyQty} for ${formatILS(
+              pay
+            )}. Price: no updated price.${oosNote}.`
+          : `יש מבצע על ${name}: ${buyQty} יח׳ ב־${formatILS(
+              pay
+            )}. אין מחיר מעודכן להשוואה.${oosNote}.`;
+
+        return `${line1}\n${statusLine}`;
+      }
+
+      const dealUnit = pay / buyQty; // effective unit price in the bundle
+      const baseDealTotal = unitPrice * buyQty;
+      const savingsAmount = Math.max(0, baseDealTotal - pay);
+      const savingsPercent =
+        baseDealTotal > 0 ? (savingsAmount / baseDealTotal) * 100 : null;
+
+      const sPct = savingsPercent === null ? null : pct(savingsPercent);
+
+      const line1 = isEnglish
+        ? `Promotion for ${name}: buy ${buyQty} for ${formatILS(
+            pay
+          )} (${formatILS(dealUnit)} each instead of ${formatILS(
+            unitPrice
+          )}), save ${formatILS(savingsAmount)}${
+            sPct !== null ? ` (${sPct}%)` : ""
+          }${oosNote}.`
+        : `יש מבצע על ${name}: ${buyQty} יח׳ ב־${formatILS(pay)} (${formatILS(
+            dealUnit
+          )} ליח׳ במקום ${formatILS(unitPrice)}), חיסכון: ${formatILS(
+            savingsAmount
+          )}${sPct !== null ? ` (${sPct}%)` : ""}${oosNote}.`;
+
+      const amountNum = Number(req?.amount ?? 1);
+      const showReqTotals =
+        Number.isFinite(amountNum) && Math.abs(amountNum - 1) > 1e-9;
+
+      if (showReqTotals) {
+        const pricing = calcPromotionPricing({
+          promo,
+          baseUnitPrice: unitPrice,
+          reqAmount: amountNum,
+          soldByWeight,
+        });
+
+        if (pricing?.baseTotal !== null && pricing?.newTotal !== null) {
+          const totalsLine = isEnglish
+            ? `Total for ${pricing.amount} units: ${formatILS(
+                pricing.newTotal
+              )} (instead of ${formatILS(pricing.baseTotal)})`
+            : `סה״כ ל־${pricing.amount} יח׳: ${formatILS(
+                pricing.newTotal
+              )} (במקום ${formatILS(pricing.baseTotal)})`;
+
+          return `${line1}\n${totalsLine}\n${statusLine}`;
+        }
+      }
+
+      return `${line1}\n${statusLine}`;
+    }
+  }
+
+  const promoShort = humanKindLine(promo, isEnglish);
+
+  const pricing = calcPromotionPricing({
+    promo,
+    baseUnitPrice: unitPrice,
+    reqAmount: req?.amount ?? 1,
+    soldByWeight,
+  });
+
+  const newUnit = Number(pricing?.newUnit);
+  const hasNewUnit = Number.isFinite(newUnit);
+
+  const newPriceTxt = !hasNewUnit
+    ? null
+    : soldByWeight
+    ? isEnglish
+      ? `${formatILS(newUnit)} per kg`
+      : `${formatILS(newUnit)} לק״ג`
+    : `${formatILS(newUnit)}`;
+
+  // savings (prefer per-unit when not bundle)
+  const savingsPerUnit =
+    kind !== "BUNDLE" && hasPrice && hasNewUnit
+      ? Math.max(0, unitPrice - newUnit)
+      : null;
+
+  const savingsTxt = (() => {
+    const sPct =
+      pricing?.savingsPercent !== null && pricing?.savingsPercent !== undefined
+        ? pct(pricing.savingsPercent)
+        : null;
+
+    if (savingsPerUnit !== null && Number.isFinite(savingsPerUnit)) {
+      const amt = formatILS(savingsPerUnit);
+      if (isEnglish) {
+        return `Save: ${amt}${soldByWeight ? " per kg" : ""}`;
+      }
+      return `חיסכון: ${amt}${soldByWeight ? " לק״ג" : ""}`;
+    }
+
+    // fallback to total savings if we have totals (common for BUNDLE)
+    if (
+      pricing?.savingsAmount !== null &&
+      pricing?.savingsAmount !== undefined
+    ) {
+      const amt = formatILS(pricing.savingsAmount);
+      if (isEnglish) {
+        return `Save: ${amt}${sPct !== null ? ` (${sPct}%)` : ""}`;
+      }
+      return `חיסכון: ${amt}${sPct !== null ? ` (${sPct}%)` : ""}`;
+    }
+
+    return null;
+  })();
+
+  // totals for requested qty (keep short + inline)
+  const amountNum = Number(pricing?.amount ?? req?.amount ?? 1);
+  const canShowTotals =
+    pricing?.baseTotal !== null &&
+    pricing?.newTotal !== null &&
+    Number.isFinite(amountNum) &&
+    (soldByWeight ? Math.abs(amountNum - 1) > 1e-9 : amountNum !== 1);
+
+  const totalsTxt = (() => {
+    if (!canShowTotals) return null;
+
+    const qtyLabel = soldByWeight
+      ? isEnglish
+        ? `~${fmtQty(amountNum)} kg`
+        : `~${fmtQty(amountNum)} ק״ג`
+      : isEnglish
+      ? `${amountNum} units`
+      : `${amountNum} יח׳`;
+
+    if (isEnglish) {
+      return `Total for ${qtyLabel}: ${formatILS(
+        pricing.newTotal
+      )} (instead of ${formatILS(pricing.baseTotal)})`;
+    }
+
+    return `סה״כ ל־${qtyLabel}: ${formatILS(
+      pricing.newTotal
+    )} (במקום ${formatILS(pricing.baseTotal)})`;
+  })();
+
+  // bundle sentence slightly different (doesn't force "new price במקום old" per unit)
+  const pricePart = (() => {
+    if (!hasPrice)
+      return isEnglish ? "Price: no updated price." : "אין מחיר מעודכן.";
+
+    if (kind === "BUNDLE") {
+      const buyQty = Number(promo?.bundle_buy_qty);
+      const pay = round2(promo?.bundle_pay_price);
+      if (Number.isFinite(buyQty) && Number.isFinite(pay)) {
+        return isEnglish
+          ? `Deal: buy ${buyQty} for ${formatILS(pay)} (regular ${formatILS(
+              unitPrice
+            )} each)`
+          : `מחיר: ${buyQty} יח׳ ב־${formatILS(pay)} (במקום ${formatILS(
+              unitPrice
+            )} ליח׳)`;
+      }
+      // fallback
+      return isEnglish ? `Price: ${basePriceTxt}` : `מחיר: ${basePriceTxt}`;
+    }
+
+    if (newPriceTxt) {
+      return isEnglish
+        ? `Price: ${newPriceTxt} instead of ${basePriceTxt}`
+        : `מחיר: ${newPriceTxt} במקום ${basePriceTxt}`;
+    }
+
+    // promo exists but we couldn't compute new price
+    return isEnglish ? `Price: ${basePriceTxt}` : `מחיר: ${basePriceTxt}`;
+  })();
+
+  const oosNote = outOfStock
+    ? isEnglish
+      ? " (currently out of stock)"
+      : " (כרגע חסר במלאי)"
+    : "";
+
+  // If we have both base price and computed new unit price (non-bundle), print one clean line.
+  const canPrintShort =
+    kind !== "BUNDLE" && hasPrice && hasNewUnit && newUnit !== null;
+
+  if (canPrintShort) {
+    const promoNote = (() => {
+      if (kind === "FIXED_PRICE") return null;
+      if (kind === "PERCENT_OFF") {
+        const p = pct(promo?.percent_off);
+        return p !== null ? (isEnglish ? `${p}% off` : `${p}% הנחה`) : null;
+      }
+      if (kind === "AMOUNT_OFF") {
+        const a = round2(promo?.amount_off);
+        return Number.isFinite(a)
+          ? isEnglish
+            ? `${formatILS(a)} off`
+            : `${formatILS(a)} הנחה`
+          : null;
+      }
+      return null;
+    })();
+
+    const noteTxt = promoNote ? ` (${promoNote})` : "";
+
+    const newUnitLabel = `${formatILS(newUnit)}`;
+
+    const oldUnitLabel = soldByWeight
+      ? isEnglish
+        ? `${formatILS(unitPrice)} per kg`
+        : `${formatILS(unitPrice)} לק״ג`
+      : `${formatILS(unitPrice)}`;
+
+    const saveLabel =
+      savingsPerUnit !== null && Number.isFinite(savingsPerUnit)
+        ? soldByWeight
+          ? isEnglish
+            ? `${formatILS(savingsPerUnit)} per kg`
+            : `${formatILS(savingsPerUnit)} לק״ג`
+          : `${formatILS(savingsPerUnit)}`
+        : null;
+
+    const lineShort = isEnglish
+      ? `Promotion for ${name}${noteTxt}: ${newUnitLabel} instead of ${oldUnitLabel}${
+          saveLabel ? `, save ${saveLabel}` : ""
+        }${totalsTxt ? `. ${totalsTxt}` : ""}${oosNote}.`
+      : `יש מבצע על ${name}${noteTxt}: ${newUnitLabel} במקום ${oldUnitLabel}${
+          saveLabel ? `, חיסכון: ${saveLabel}` : ""
+        }${totalsTxt ? `. ${totalsTxt}` : ""}${oosNote}.`;
+
+    return `${lineShort}\n${statusLine}`;
+  }
+
+  const line1 = isEnglish
+    ? `Promotion for ${name}: ${promoShort}. ${pricePart}${
+        savingsTxt ? `, ${savingsTxt}` : ""
+      }${totalsTxt ? `. ${totalsTxt}` : ""}${oosNote}.`
+    : `יש מבצע על ${name}: ${promoShort}. ${pricePart}${
+        savingsTxt ? `, ${savingsTxt}` : ""
+      }${totalsTxt ? `. ${totalsTxt}` : ""}${oosNote}.`;
+
+  return `${line1}\n${statusLine}`;
+}
+
+async function answerPromotionFlow({
+  shop_id,
+  customer_id,
+  isEnglish,
+  promotionReqs,
+  baseQuestions,
+}) {
+  const reqs = Array.isArray(promotionReqs) ? promotionReqs : [];
+
+  const blocks = [];
+  const questionsToSave = [...(baseQuestions || [])];
+
+  for (let i = 0; i < reqs.length; i++) {
+    const req = reqs[i] || {};
+    req.name = nullify(req.name);
+    req.outputName = nullify(req.outputName);
+    req["sub-category"] = nullify(req["sub-category"]);
+    req.sub_category = nullify(req.sub_category);
+    req.category = nullify(req.category);
+
+    const hasName = Boolean(nullify(req?.name || req?.outputName));
+    const limit = hasName ? 50 : 25;
+
+    const { rows } = await searchPromotionsForRequest(shop_id, req, { limit });
+
+    if (!rows.length) {
+      const subject = buildPromoSubject(req, isEnglish);
+
+      blocks.push(
+        isEnglish
+          ? `No promotions found (active/upcoming/ended this week) for ${subject}.`
+          : `לא מצאתי מבצעים (פעילים/עתידיים/שהסתיימו השבוע) עבור ${subject}.`
+      );
+      continue;
+    }
+
+    const promoBlocks = rows.map((r) => {
+      const foundRow = {
+        product_id: Number(r.product_id),
+        price: Number(r.price),
+        stock_amount: Number(r.stock_amount),
+        matched_name: r.name,
+        matched_display_name_en: r.display_name_en,
+      };
+
+      const promo = {
+        id: r.promo_id,
+        shop_id,
+        product_id: r.product_id,
+        kind: r.kind,
+        percent_off: r.percent_off,
+        amount_off: r.amount_off,
+        fixed_price: r.fixed_price,
+        bundle_buy_qty: r.bundle_buy_qty,
+        bundle_pay_price: r.bundle_pay_price,
+        description: r.description,
+        start_at: r.start_at,
+        end_at: r.end_at,
+      };
+
+      return buildPromotionBlock({ req, foundRow, promo, isEnglish });
+    });
+
+    blocks.push(promoBlocks.filter(Boolean).join("\n\n"));
+  }
+
+  const allQuestions = normalizeIncomingQuestions(questionsToSave, {
+    preserveOptions: true,
+  });
+
+  if (allQuestions.length) {
+    await saveOpenQuestions({
+      customer_id,
+      shop_id,
+      order_id: null,
+      questions: allQuestions,
+    });
+  }
+
+  const body = blocks.filter(Boolean).join("\n\n");
+  const tail = buildQuestionsTextSmart({ questions: baseQuestions, isEnglish });
+
+  const finalMsg = [body, tail].filter((x) => x && x.trim()).join("\n\n");
+
+  return finalMsg && finalMsg.trim()
+    ? finalMsg
+    : isEnglish
+    ? "I couldn’t answer that promotion question. Can you rephrase?"
+    : "לא הצלחתי לענות על שאלת המבצע. תוכל לנסח שוב?";
+}
+
 module.exports = {
   answerPriceCompareFlow,
   buildQuestionsTextSmart,
@@ -740,5 +1586,6 @@ module.exports = {
   getSubjectForAlt,
   isOutOfStockFromFound,
   saveFallbackOpenQuestion,
+  answerPromotionFlow,
+  searchPromotionsForRequest,
 };
-

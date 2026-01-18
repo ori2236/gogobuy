@@ -9,6 +9,7 @@ const {
   getSubjectForAlt,
   isOutOfStockFromFound,
   saveFallbackOpenQuestion,
+  answerPromotionFlow,
 } = require("../../services/priceAndSales");
 const { saveOpenQuestions } = require("../../utilities/openQuestions");
 const { normalizeIncomingQuestions } = require("../../utilities/normalize");
@@ -52,19 +53,21 @@ async function answerPriceAndSales({
   let parsed;
   try {
     parsed = JSON.parse(answer);
-  } catch {}
-
-  try {
-    parsed = parseModelAnswer(answer);
-  } catch (e2) {
-    console.error(
-      "[INV-PRICE][ERR] Failed to parse model JSON:",
-      e2?.message,
-      answer
-    );
-    return isEnglish
-      ? "Sorry, there was a problem understanding your pricing question. Can you rephrase it?"
-      : "מצטערים, הייתה תקלה בהבנת שאלת המחיר. אפשר לנסח שוב?";
+  } catch (e1) {
+    try {
+      parsed = parseModelAnswer(answer);
+    } catch (e2) {
+      console.error(
+        "[INV-PRICE][ERR] Failed to parse model JSON:",
+        e2?.message,
+        answer
+      );
+      const botPayload = isEnglish
+        ? "Sorry, there was a problem understanding your pricing question. Can you rephrase it?"
+        : "מצטערים, הייתה תקלה בהבנת שאלת המחיר. אפשר לנסח שוב?";
+      await saveFallbackOpenQuestion(botPayload, customer_id, shop_id);
+      return botPayload;
+    }
   }
 
   dlog("Parsed JSON", JSON.stringify(parsed, null, 2));
@@ -102,6 +105,23 @@ async function answerPriceAndSales({
       customer_id,
       isEnglish,
       compareReqs,
+      baseQuestions,
+    });
+  }
+
+  const promoReqs = productRequests.filter(
+    (p) =>
+      String(p?.price_intent || "")
+        .trim()
+        .toUpperCase() === "PROMOTION"
+  );
+
+  if (promoReqs.length) {
+    return await answerPromotionFlow({
+      shop_id,
+      customer_id,
+      isEnglish,
+      promotionReqs: promoReqs,
       baseQuestions,
     });
   }

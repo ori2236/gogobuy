@@ -55,19 +55,21 @@ module.exports = {
     let parsed;
     try {
       parsed = JSON.parse(answer);
-    } catch (e1) {}
-
-    try {
-      parsed = parseModelAnswer(answer);
-    } catch (e2) {
-      console.error("Failed to parse model JSON:", e2?.message, answer);
-      return {
-        reply:
-          "מצטערים, הייתה תקלה בעיבוד ההזמנה. אפשר לנסח שוב בקצרה מה תרצה להזמין?",
-        raw: answer,
-      };
+    } catch (e1) {
+      try {
+        parsed = parseModelAnswer(answer);
+      } catch (e2) {
+        console.error("Failed to parse model JSON:", e2?.message, answer);
+        return {
+          reply:
+            "מצטערים, הייתה תקלה בעיבוד ההזמנה. אפשר לנסח שוב בקצרה מה תרצה להזמין?",
+          raw: answer,
+        };
+      }
     }
-    console.log(parsed)
+
+    console.log("[ORD-CREATE] parsed answer:", JSON.stringify(parsed, null, 2));
+
     const qUpdates = parsed?.question_updates || {};
     if (Array.isArray(qUpdates.close_ids) && qUpdates.close_ids.length) {
       await closeQuestionsByIds(qUpdates.close_ids);

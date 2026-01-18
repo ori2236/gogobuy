@@ -112,17 +112,17 @@ async function checkAvailability({
   let parsed;
   try {
     parsed = JSON.parse(answer);
-  } catch (e1) {}
-
-  try {
-    parsed = parseModelAnswer(answer);
-  } catch (e2) {
-    console.error("[INV.AVAIL] parseModelAnswer failed:", e2);
-    const botPayload = isEnglish
-      ? "Sorry, I couldn’t understand which products you want me to check. Can you please write again which product you’re asking about?"
-      : "מצטערים, לא הבנו על איזה מוצר אתה שואל. תוכל לכתוב שוב בקצרה על איזה מוצר לבדוק מלאי?";
-    await saveOpenQuestionsAvail(botPayload, customer_id, shop_id);
-    return botPayload;
+  } catch (e1) {
+    try {
+      parsed = parseModelAnswer(answer);
+    } catch (e2) {
+      console.error("[INV.AVAIL] parseModelAnswer failed:", e2);
+      const botPayload = isEnglish
+        ? "Sorry, I couldn’t understand which products you want me to check. Can you please write again which product you’re asking about?"
+        : "מצטערים, לא הבנו על איזה מוצר אתה שואל. תוכל לכתוב שוב בקצרה על איזה מוצר לבדוק מלאי?";
+      await saveFallbackOpenQuestion(botPayload, customer_id, shop_id);
+      return botPayload;
+    }
   }
 
   console.log("[INV.AVAIL] parsed answer:", JSON.stringify(parsed, null, 2));

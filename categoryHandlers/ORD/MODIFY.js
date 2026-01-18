@@ -782,15 +782,15 @@ module.exports = {
     let parsed;
     try {
       parsed = JSON.parse(answer);
-    } catch (e1) {}
-
-    try {
-      parsed = parseModelAnswer(answer);
-    } catch (e2) {
-      console.error("Failed to parse model JSON:", e2?.message, answer);
-      return isEnglish
-        ? "Sorry, I had a problem applying the changes. Please rephrase briefly."
-        : "מצטערים, הייתה תקלה בעיבוד הבקשה. אפשר לנסח שוב בקצרה מה תרצה לשנות בהזמנה?";
+    } catch (e1) {
+      try {
+        parsed = parseModelAnswer(answer);
+      } catch (e2) {
+        console.error("Failed to parse model JSON:", e2?.message, answer);
+        return isEnglish
+          ? "Sorry, I had a problem applying the changes. Please rephrase briefly."
+          : "מצטערים, הייתה תקלה בעיבוד הבקשה. אפשר לנסח שוב בקצרה מה תרצה לשנות בהזמנה?";
+      }
     }
 
     console.log("[ORD-MODIFY] parsed answer:", JSON.stringify(parsed, null, 2));

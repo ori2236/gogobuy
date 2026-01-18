@@ -1031,4 +1031,7 @@ module.exports = {
   getExcludeTokensFromReq,
 
   rebuildTokenWeightsForShop,
+
+  tokenizeName,
+  getSubCategoryCandidates,
 };

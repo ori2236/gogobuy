@@ -1,5 +1,6 @@
 const {
   buildCategorySubcategoryItemSchemas,
+  buildCategorySubcategoryItemSchemasPromotionNullableSubcategory,
 } = require("../../productCategories");
 
 const PRICE_INTENT_ENUM = [
@@ -11,7 +12,7 @@ const PRICE_INTENT_ENUM = [
 ];
 
 const COMMON_PRODUCT_PROPS = {
-  name: { type: "string", minLength: 1 },
+  name: { anyOf: [{ type: "string", minLength: 1 }, { type: "null" }] },
   outputName: { anyOf: [{ type: "string", minLength: 1 }, { type: "null" }] },
   amount: { type: "number", minimum: 0.001 },
   units: { anyOf: [{ type: "integer", minimum: 1 }, { type: "null" }] },
@@ -36,10 +37,17 @@ const COMMON_PRODUCT_REQUIRED = [
   "price_intent",
 ];
 
-const CATEGORY_SUBCATEGORY_ANYOF = buildCategorySubcategoryItemSchemas(
-  COMMON_PRODUCT_PROPS,
-  COMMON_PRODUCT_REQUIRED
-);
+const CATEGORY_SUBCATEGORY_ANYOF = [
+  ...buildCategorySubcategoryItemSchemas(
+    COMMON_PRODUCT_PROPS,
+    COMMON_PRODUCT_REQUIRED
+  ),
+  ...buildCategorySubcategoryItemSchemasPromotionNullableSubcategory(
+    COMMON_PRODUCT_PROPS,
+    COMMON_PRODUCT_REQUIRED
+  ),
+];
+
 
 const INV_PRICE_AND_SALES_SCHEMA = {
   name: "inv_price_and_sales_extract",
