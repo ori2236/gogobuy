@@ -3,6 +3,7 @@ const { getPromptFromDB } = require("../../repositories/prompt");
 const { parseModelAnswer, searchProducts } = require("../../services/products");
 const {
   answerPriceCompareFlow,
+  answerCheaperAltFlow,
   buildQuestionsTextSmart,
   buildFoundProductLine,
   buildAltBlockAndQuestion,
@@ -122,6 +123,23 @@ async function answerPriceAndSales({
       customer_id,
       isEnglish,
       promotionReqs: promoReqs,
+      baseQuestions,
+    });
+  }
+
+  const cheaperAltReqs = productRequests.filter(
+    (p) =>
+      String(p?.price_intent || "")
+        .trim()
+        .toUpperCase() === "CHEAPER_ALT"
+  );
+
+  if (cheaperAltReqs.length) {
+    return await answerCheaperAltFlow({
+      shop_id,
+      customer_id,
+      isEnglish,
+      cheaperAltReqs,
       baseQuestions,
     });
   }

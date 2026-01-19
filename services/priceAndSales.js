@@ -1578,6 +1578,252 @@ async function answerPromotionFlow({
     : "לא הצלחתי לענות על שאלת המבצע. תוכל לנסח שוב?";
 }
 
+function buildCheaperAltQuestionText({ subject, altLines, isEnglish }) {
+  const list = altLines.map((x) => `• ${x}`).join("\n");
+  return isEnglish
+    ? `Cheaper alternatives for ${subject}:\n${list}`
+    : `חלופות זולות יותר עבור ${subject}:\n${list}`;
+}
+
+async function buildCheaperAltBlockAndQuestion({
+  shop_id,
+  req,
+  foundRow,
+  baseUnitPrice,
+  category,
+  sub_category,
+  excludeTokens,
+  usedIds,
+  isEnglish,
+}) {
+  const subject = getSubjectForAlt({ req, foundRow, isEnglish });
+  let alts = await fetchAlternatives(
+    shop_id,
+    category,
+    sub_category,
+    Array.from(usedIds),
+    50,
+    req?.name || req?.outputName || subject,
+    excludeTokens
+  );
+
+  if (Array.isArray(alts) && alts.length) {
+    const cat = String(category || "").trim();
+    if (cat) {
+      alts = alts.filter((a) => String(a?.category || "").trim() === cat);
+    }
+
+    const sub = String(sub_category || "").trim();
+    if (sub) {
+      const subList = getSubCategoryCandidates(sub);
+      if (subList.length) {
+        alts = alts.filter((a) =>
+          subList.includes(String(a?.sub_category || "").trim())
+        );
+      } else {
+        alts = alts.filter((a) => String(a?.sub_category || "").trim() === sub);
+      }
+    }
+  }
+
+  const eps = 1e-9;
+  const cheaper = (alts || [])
+    .filter((a) => {
+      const p = Number(a?.price);
+      return (
+        Number.isFinite(p) &&
+        Number.isFinite(baseUnitPrice) &&
+        p + eps < baseUnitPrice
+      );
+    })
+    .sort(
+      (a, b) => Number(a.price) - Number(b.price) || Number(b.id) - Number(a.id)
+    )
+    .slice(0, 3);
+
+  if (!cheaper.length) {
+    const msg = isEnglish
+      ? `I couldn’t find cheaper alternatives for ${subject}.`
+      : `לא מצאתי חלופות זולות יותר עבור ${subject}.`;
+    return { blockText: msg, questionObj: null, altIds: [] };
+  }
+
+  const altLines = cheaper
+    .map((a) => formatAltLineWithPrice({ altRow: a, req, isEnglish }))
+    .filter(Boolean);
+
+  const options = cheaper
+    .map((a) =>
+      isEnglish
+        ? String(a?.display_name_en || a?.name || "").trim()
+        : String(a?.name || a?.display_name_en || "").trim()
+    )
+    .filter(Boolean);
+
+  const q = {
+    name: foundRow?.matched_name || req?.name || null,
+    question: buildCheaperAltQuestionText({ subject, altLines, isEnglish }),
+    options,
+  };
+
+  const altIds = cheaper
+    .flatMap((a) => [Number(a?.id), Number(a?.product_id)])
+    .filter(Number.isFinite);
+
+  return { blockText: q.question, questionObj: q, altIds };
+}
+
+async function answerCheaperAltFlow({
+  shop_id,
+  customer_id,
+  isEnglish,
+  cheaperAltReqs,
+  baseQuestions,
+}) {
+  const reqs = Array.isArray(cheaperAltReqs) ? cheaperAltReqs : [];
+
+  const searchRequests = reqs.map((p) => {
+    const n = Number(p?.amount);
+    const amount = Number.isFinite(n) && n > 0 ? n : 1;
+    return { ...p, amount };
+  });
+
+  const res = await searchProducts(shop_id, searchRequests);
+  const found = res?.found || [];
+  const notFound = res?.notFound || [];
+
+  const foundByIndex = new Map();
+  for (const f of found) foundByIndex.set(f.originalIndex, f);
+
+  const usedIds = new Set();
+  for (const f of found) {
+    const pid = Number(f?.product_id);
+    if (Number.isFinite(pid)) usedIds.add(pid);
+  }
+
+  const blocks = [];
+  const questionsToSave = [...(baseQuestions || [])];
+
+  for (let i = 0; i < searchRequests.length; i++) {
+    const req = searchRequests[i] || {};
+    const f = foundByIndex.get(i) || null;
+
+    if (!f) {
+      const nf = notFound.find((x) => x.originalIndex === i) || null;
+
+      const category =
+        String(nf?.category || req?.category || "").trim() || null;
+      const sub_category =
+        String(
+          nf?.sub_category || req?.["sub-category"] || req?.sub_category || ""
+        ).trim() || null;
+
+      const excludeTokens =
+        Array.isArray(nf?.exclude_tokens) && nf.exclude_tokens.length
+          ? nf.exclude_tokens
+          : Array.isArray(req.exclude_tokens)
+          ? req.exclude_tokens
+          : [];
+
+      if (category || sub_category) {
+        const { blockText, questionObj, altIds } =
+          await buildAltBlockAndQuestion({
+            shop_id,
+            reason: "NOT_FOUND",
+            req,
+            foundRow: null,
+            category,
+            sub_category,
+            excludeTokens,
+            usedIds,
+            isEnglish,
+          });
+
+        if (blockText) blocks.push(blockText);
+        if (questionObj) questionsToSave.push(questionObj);
+        for (const id of altIds) usedIds.add(id);
+      } else {
+        const reqName = String(req?.name || "").trim() || null;
+        const q = {
+          name: reqName,
+          question: isEnglish
+            ? `I couldn’t find "${
+                reqName || "this product"
+              }". Can you write it differently?`
+            : `לא מצאתי "${reqName || "המוצר"}". תוכל לכתוב את זה בצורה אחרת?`,
+          options: [],
+        };
+        blocks.push(q.question);
+        questionsToSave.push(q);
+      }
+      continue;
+    }
+
+    const baseUnitPrice = Number(f?.price);
+    if (!Number.isFinite(baseUnitPrice)) {
+      const subject = getSubjectForAlt({ req, foundRow: f, isEnglish });
+      blocks.push(
+        isEnglish
+          ? `I found ${subject}, but I don’t have an updated price so I can’t guarantee what’s cheaper.`
+          : `מצאתי ${subject}, אבל אין לי מחיר מעודכן ולכן אני לא יכול להבטיח מה זול יותר.`
+      );
+      continue;
+    }
+
+    const category = String(f?.category || req?.category || "").trim() || null;
+    const sub_category =
+      String(
+        f?.sub_category || req?.["sub-category"] || req?.sub_category || ""
+      ).trim() || null;
+
+    const excludeTokens = getExcludeTokensFromReq(req);
+
+    const baseId = Number(f?.product_id);
+    if (Number.isFinite(baseId)) usedIds.add(baseId);
+
+    const { blockText, questionObj, altIds } =
+      await buildCheaperAltBlockAndQuestion({
+        shop_id,
+        req,
+        foundRow: f,
+        baseUnitPrice,
+        category,
+        sub_category,
+        excludeTokens,
+        usedIds,
+        isEnglish,
+      });
+
+    if (blockText) blocks.push(blockText);
+    if (questionObj) questionsToSave.push(questionObj);
+    for (const id of altIds) usedIds.add(id);
+  }
+
+  const allQuestions = normalizeIncomingQuestions(questionsToSave, {
+    preserveOptions: true,
+  });
+
+  if (allQuestions.length) {
+    await saveOpenQuestions({
+      customer_id,
+      shop_id,
+      order_id: null,
+      questions: allQuestions,
+    });
+  }
+
+  const body = blocks.filter(Boolean).join("\n\n");
+  const tail = buildQuestionsTextSmart({ questions: baseQuestions, isEnglish });
+
+  const finalMsg = [body, tail].filter((x) => x && x.trim()).join("\n\n");
+
+  return finalMsg && finalMsg.trim()
+    ? finalMsg
+    : isEnglish
+    ? "I couldn’t find cheaper alternatives. Can you rephrase?"
+    : "לא הצלחתי למצוא חלופות זולות יותר. תוכל לנסח שוב?";
+}
+
 module.exports = {
   answerPriceCompareFlow,
   buildQuestionsTextSmart,
@@ -1588,4 +1834,5 @@ module.exports = {
   saveFallbackOpenQuestion,
   answerPromotionFlow,
   searchPromotionsForRequest,
+  answerCheaperAltFlow,
 };
