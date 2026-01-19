@@ -1,8 +1,12 @@
 const { chat } = require("../../config/openai");
 const db = require("../../config/db");
 const { getPromptFromDB } = require("../../repositories/prompt");
-const { getOrder } = require("../../utilities/orders");
-const { addMoney, mulMoney, roundTo } = require("../../utilities/decimal");
+const {
+  getOrder,
+  fetchActivePromotionsMap,
+  calcLineTotalWithPromo,
+} = require("../../utilities/orders");
+const { addMoney, roundTo } = require("../../utilities/decimal");
 const { isEnglishMessage } = require("../../utilities/lang");
 const {
   parseModelAnswer,
@@ -22,6 +26,74 @@ const { normalizeIncomingQuestions } = require("../../utilities/normalize");
 const { MODIFY_ORDER_SCHEMA } = require("./schemas/modify.schema");
 const PROMPT_CAT = "ORD";
 const PROMPT_SUB = "MODIFY";
+
+async function repriceOrderItemsWithPromos(
+  conn,
+  { shop_id, order_id, orderItemIds }
+) {
+  const ids = Array.from(
+    new Set(Array.from(orderItemIds).map(Number).filter(Boolean))
+  );
+  if (!ids.length) return;
+
+  const placeholders = ids.map(() => "?").join(",");
+  const [rows] = await conn.query(
+    `SELECT
+    oi.id AS order_item_id,
+    oi.product_id,
+    oi.amount,
+    oi.sold_by_weight,
+    oi.promo_id AS locked_promo_id,
+    p.price AS unit_price,
+    pr.id AS promo_id,
+    pr.kind,
+    pr.percent_off,
+    pr.amount_off,
+    pr.fixed_price,
+    pr.bundle_buy_qty,
+    pr.bundle_pay_price
+    FROM order_item oi
+    JOIN product p ON p.id = oi.product_id
+    LEFT JOIN promotion pr ON pr.id = oi.promo_id
+    WHERE oi.order_id = ?
+    AND oi.id IN (${placeholders})
+  `,
+    [Number(order_id), ...ids]
+  );
+
+  for (const r of rows) {
+    const promo =
+      r.locked_promo_id && r.promo_id
+        ? {
+            id: r.promo_id,
+            kind: r.kind,
+            percent_off: r.percent_off,
+            amount_off: r.amount_off,
+            fixed_price: r.fixed_price,
+            bundle_buy_qty: r.bundle_buy_qty,
+            bundle_pay_price: r.bundle_pay_price,
+          }
+        : null;
+
+    const { lineTotal, promo_id } = calcLineTotalWithPromo({
+      unitPrice: r.unit_price,
+      amount: r.amount,
+      soldByWeight: r.sold_by_weight === 1 || r.sold_by_weight === true,
+      promo,
+    });
+
+    const fallback =
+      Math.round(Number(r.unit_price) * Number(r.amount) * 100) / 100;
+
+    await conn.query(
+      `UPDATE order_item
+        SET price = ?,
+        price_locked = CASE WHEN promo_id IS NULL THEN price_locked ELSE 1 END
+      WHERE id = ? AND order_id = ?`,
+      [lineTotal ?? fallback, Number(r.order_item_id), Number(order_id)]
+    );
+  }
+}
 
 async function applyOrderPatch({
   shop_id,
@@ -90,6 +162,7 @@ async function applyOrderPatch({
     );
   };
 
+  const touchedOrderItemIds = new Set();
   const updateOrderItemAmountAndMaybeMeta = async (
     orderItemId,
     newQty,
@@ -122,11 +195,9 @@ async function applyOrderPatch({
     }
 
     await conn.query(
-      `UPDATE order_item oi
-        JOIN product p ON p.id = oi.product_id
-        SET ${setParts.join(", ")},
-       oi.price = ROUND(p.price * oi.amount, 2)
-        WHERE oi.id = ? AND oi.order_id = ?`,
+      `UPDATE order_item
+      SET ${setParts.join(", ")}
+      WHERE id = ? AND order_id = ?`,
       [...params, Number(orderItemId), Number(order_id)]
     );
   };
@@ -230,6 +301,7 @@ async function applyOrderPatch({
       if (delta === 0) {
         // might still need to update meta (sold_by_weight / units)
         await updateOrderItemAmountAndMaybeMeta(orderItemId, prevQty, s);
+        touchedOrderItemIds.add(Number(orderItemId));
         continue;
       }
 
@@ -247,6 +319,7 @@ async function applyOrderPatch({
         if (stock >= delta) {
           await decStock(Number(row.product_id), delta);
           await updateOrderItemAmountAndMaybeMeta(orderItemId, newQty, s);
+          touchedOrderItemIds.add(Number(orderItemId));
 
           qtyIncreased.push({
             product_id: Number(row.product_id),
@@ -306,6 +379,7 @@ async function applyOrderPatch({
         // delta < 0 (decrease) -> return stock
         await incStock(Number(row.product_id), Math.abs(delta));
         await updateOrderItemAmountAndMaybeMeta(orderItemId, newQty, s);
+        touchedOrderItemIds.add(Number(orderItemId));
 
         qtyDecreased.push({
           product_id: Number(row.product_id),
@@ -494,6 +568,7 @@ async function applyOrderPatch({
             finalQty,
             metaForExisting
           );
+          touchedOrderItemIds.add(Number(existingOrderItem.id));
 
           qtyIncreased.push({
             product_id: pid,
@@ -506,12 +581,23 @@ async function applyOrderPatch({
           });
         } else {
           const unitPrice = Number(prod?.price ?? row.price);
-          const linePrice = roundTo(unitPrice * finalQty, 2);
 
-          await conn.query(
+          const promoMap = await fetchActivePromotionsMap(conn, shop_id, [pid]);
+          const promo = promoMap.get(pid) || null;
+
+          const { lineTotal, promo_id } = calcLineTotalWithPromo({
+            unitPrice,
+            amount: finalQty,
+            soldByWeight: sbw,
+            promo,
+          });
+
+          const linePrice = lineTotal ?? roundTo(unitPrice * finalQty, 2);
+
+          const [ins] = await conn.query(
             `INSERT INTO order_item
-              (order_id, product_id, amount, sold_by_weight, requested_units, price, created_at)
-              VALUES (?, ?, ?, ?, ?, ?, NOW(6))`,
+                (order_id, product_id, amount, sold_by_weight, requested_units, price, price_locked, promo_id, created_at)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW(6))`,
             [
               Number(order_id),
               pid,
@@ -519,8 +605,12 @@ async function applyOrderPatch({
               sbw ? 1 : 0,
               sbw && typeof p.units === "number" ? p.units : null,
               linePrice,
+              1, // price_locked
+              promo_id ?? null,
             ]
           );
+
+          touchedOrderItemIds.add(Number(ins.insertId));
 
           addedApplied.push({
             product_id: pid,
@@ -579,31 +669,51 @@ async function applyOrderPatch({
       }
     }
 
+    await repriceOrderItemsWithPromos(conn, {
+      shop_id,
+      order_id,
+      orderItemIds: touchedOrderItemIds,
+    });
+
     //Recompute total
+    const [[sumRow]] = await conn.query(
+      `SELECT COALESCE(ROUND(SUM(price), 2), 0) AS total
+        FROM order_item
+        WHERE order_id = ?`,
+      [Number(order_id)]
+    );
+
+    const total = Number(sumRow.total || 0);
+
+    await conn.query(
+      `UPDATE orders SET price = ?, updated_at = NOW(6) WHERE id = ?`,
+      [total, Number(order_id)]
+    );
+
     const [curItems] = await conn.query(
       `SELECT
         oi.product_id,
         oi.amount,
         oi.sold_by_weight,
         oi.requested_units,
-        oi.price AS line_price, 
-        p.price  AS unit_price,
+        oi.price AS line_total,
+        oi.promo_id,
+
+        pr.kind AS promo_kind,
+        pr.percent_off,
+        pr.amount_off,
+        pr.fixed_price,
+        pr.bundle_buy_qty,
+        pr.bundle_pay_price,
+
+        p.price AS unit_price,
         p.name,
         p.display_name_en
       FROM order_item oi
       JOIN product p ON p.id = oi.product_id
+      LEFT JOIN promotion pr ON pr.id = oi.promo_id
       WHERE oi.order_id = ?`,
       [Number(order_id)]
-    );
-
-    let total = 0;
-    for (const it of curItems) {
-      total = addMoney(total, Number(it.line_price));
-    }
-
-    await conn.query(
-      `UPDATE orders SET price = ?, updated_at = NOW(6) WHERE id = ?`,
-      [total, Number(order_id)]
     );
 
     await conn.commit();
@@ -624,6 +734,19 @@ async function applyOrderPatch({
           name: displayName,
           amount: Number(it.amount),
           price: Number(it.unit_price),
+          line_total: Number(it.line_total),
+          promo_id: it.promo_id ? Number(it.promo_id) : null,
+          promo: it.promo_id
+            ? {
+                kind: it.promo_kind,
+                percent_off: it.percent_off,
+                amount_off: it.amount_off,
+                fixed_price: it.fixed_price,
+                bundle_buy_qty: it.bundle_buy_qty,
+                bundle_pay_price: it.bundle_pay_price,
+              }
+            : null,
+
           ...(it.sold_by_weight ? { sold_by_weight: true } : {}),
           ...(hasUnits ? { units } : {}),
         };
@@ -893,14 +1016,34 @@ module.exports = {
           ? "Here is your updated order:"
           : "זוהי ההזמנה המעודכנת שלך:";
 
+      let totalNoPromos = 0;
+      for (const it of txRes.items || []) {
+        const unit = Number(it.price);
+        const qty = Number(it.amount);
+        if (!Number.isFinite(unit) || !Number.isFinite(qty)) continue;
+        totalNoPromos = addMoney(totalNoPromos, roundTo(unit * qty, 2));
+      }
+
+      const totalWithPromos = Number(txRes.total || 0);
+      const savings = roundTo(totalNoPromos - totalWithPromos, 2);
+      const hasSavings = Number.isFinite(savings) && savings >= 0.01;
+
       const headerBlock = isEnglish
         ? [
             `Order: #${order.id}`,
-            `Subtotal: *₪${Number(txRes.total || 0).toFixed(2)}*`,
+            hasSavings
+              ? `Subtotal: *₪${totalWithPromos.toFixed(
+                  2
+                )}* instead of ₪${totalNoPromos.toFixed(2)}`
+              : `Subtotal: *₪${totalWithPromos.toFixed(2)}*`,
           ].join("\n")
         : [
             `מספר הזמנה: #${order.id}`,
-            `סה״כ ביניים: *₪${Number(txRes.total || 0).toFixed(2)}*`,
+            hasSavings
+              ? `סה״כ ביניים: *₪${totalWithPromos.toFixed(
+                  2
+                )}* במקום ₪${totalNoPromos.toFixed(2)}`
+              : `סה״כ ביניים: *₪${totalWithPromos.toFixed(2)}*`,
           ].join("\n");
 
       console.log(
@@ -966,8 +1109,9 @@ module.exports = {
           oi.amount,
           oi.sold_by_weight,
           oi.requested_units,
-          oi.price AS line_price,
-          p.price  AS unit_price,
+          oi.price AS line_total,
+          oi.promo_id,
+          p.price AS unit_price,
           p.name,
           p.display_name_en
         FROM order_item oi
@@ -1005,7 +1149,7 @@ module.exports = {
 
       let total = 0;
       for (const it of curItems || []) {
-        total = addMoney(total, Number(it.line_price));
+        total = addMoney(total, Number(it.line_total));
       }
 
       const headerBlock = isEnglish

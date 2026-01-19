@@ -774,7 +774,7 @@ const ALT_TEMPLATES_HE = [
     `לצערנו אין לנו במלאי ${req}. האם יתאים לך ${names.join(" / ")}?`,
   (req, names) =>
     `המוצר ${req} חסר במלאי. ${names.map((n) => `${n}?`).join(" ")}`,
-  (req, names) => `${req} לא זמין כרגע. נוכל להחליף ב־${names.join(" / ")}?`,
+  (req, names) => `${req} לא זמין כרגע. נוכל להחליף ב-${names.join(" / ")}?`,
   (req, names) =>
     `לא מצאנו את ${req}. אולי ${names.map((n) => `${n}?`).join(" ")}`,
 ];
@@ -867,6 +867,52 @@ async function buildAlternativeQuestions(
   return { altQuestions, alternativesMap };
 }
 
+const bold = (s) => (s ? `*${s}*` : "");
+
+const fmtMoney = (n) => {
+  const x = Number(n);
+  return Number.isFinite(x) ? x.toFixed(2) : null;
+};
+
+const fmtQtyShort = (n) => {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return null;
+  const s = x.toFixed(3).replace(/\.?0+$/, "");
+  return s;
+};
+
+function promoToShortText({ promo, unitPrice, isEnglish, isWeight }) {
+  if (!promo || !promo.kind) return "";
+
+  if (promo.kind === "BUNDLE") {
+    const buy = fmtQtyShort(promo.bundle_buy_qty);
+    const pay = fmtMoney(promo.bundle_pay_price);
+    if (!buy || !pay) return "";
+    if (isEnglish) return `${buy} for ₪${pay}`;
+    return isWeight ? `${buy} ק״ג ב-₪${pay}` : `${buy} ב-₪${pay}`;
+  }
+
+  if (promo.kind === "FIXED_PRICE") {
+    const up = fmtMoney(unitPrice);
+    if (isEnglish) return up ? `instead of ₪${up} each` : ``;
+    return up ? `במקום ₪${up} ליח'` : ``;
+  }
+
+  if (promo.kind === "PERCENT_OFF") {
+    const pct = fmtQtyShort(promo.percent_off);
+    if (!pct) return "";
+    return isEnglish ? `${pct}% off` : `${pct}% הנחה`;
+  }
+
+  if (promo.kind === "AMOUNT_OFF") {
+    const off = fmtMoney(promo.amount_off);
+    if (!off) return "";
+    return isEnglish ? `₪${off} off each` : `הנחה ₪${off} ליח'`;
+  }
+
+  return isEnglish ? "promotion" : "מבצע";
+}
+
 function buildItemsBlock({ items, isEnglish, mode }) {
   if (!Array.isArray(items) || !items.length) return "";
 
@@ -886,9 +932,7 @@ function buildItemsBlock({ items, isEnglish, mode }) {
 
     const name = it.name;
     const qty = Number(it.amount);
-    const unitPrice = Number(it.price);
-
-    if (!Number.isFinite(qty) || !Number.isFinite(unitPrice)) continue;
+    if (!Number.isFinite(qty) || qty <= 0) continue;
 
     const soldByWeightRaw = it.sold_by_weight;
     const isWeight =
@@ -901,48 +945,87 @@ function buildItemsBlock({ items, isEnglish, mode }) {
     const units =
       isWeight && Number.isFinite(unitsNum) && unitsNum > 0 ? unitsNum : null;
 
-    const lineTotal = Number((qty * unitPrice).toFixed(2));
+    const unitPrice = Number(it.unit_price ?? it.price);
+    const hasUnitPrice = Number.isFinite(unitPrice);
+
+    const lineTotalRaw = Number(it.line_total);
+    const hasLineTotal = Number.isFinite(lineTotalRaw);
+
+    const lineTotal = hasLineTotal
+      ? lineTotalRaw
+      : hasUnitPrice
+      ? Number((qty * unitPrice).toFixed(2))
+      : null;
+
+    if (!Number.isFinite(lineTotal)) continue;
+
+    const hasPromo = it.promo_id != null;
+    const promo = it.promo || null;
+    const promoText = promoToShortText({
+      promo,
+      unitPrice,
+      isEnglish,
+      isWeight,
+    });
+    const promoBadge = promoText ? ` ${bold(promoText)}` : "";
+
 
     if (!isWeight) {
+      // unit items
       if (qty === 1) {
-        lines.push(`• ${name} - ₪${unitPrice.toFixed(2)}`);
+        // show final line price (maybe promo)
+        lines.push(`• ${name} - ₪${lineTotal.toFixed(2)}${promoBadge}`);
       } else {
         const eachSuffix = isEnglish ? "each" : "ליח'";
+
+        // If promo exists, the effective per-unit can differ (bundle etc.)
+        const effectiveEach = lineTotal / qty;
+        const eachText = hasPromo
+          ? isEnglish
+            ? `avg ₪${effectiveEach.toFixed(2)} ${eachSuffix}`
+            : `ממוצע ₪${effectiveEach.toFixed(2)} ${eachSuffix}`
+          : `₪${unitPrice.toFixed(2)} ${eachSuffix}`;
+
         lines.push(
-          `• ${name} × ${qty} - ₪${lineTotal.toFixed(2)} (₪${unitPrice.toFixed(
+          `• ${name} × ${qty} - ₪${lineTotal.toFixed(
             2
-          )} ${eachSuffix})`
+          )} (${eachText})${promoBadge}`
         );
       }
       continue;
     }
 
+    // weight items (kg)
     if (units) {
       if (isEnglish) {
         lines.push(
-          `• ${name} × ${qty} - ₪${lineTotal.toFixed(2)} (₪${unitPrice.toFixed(
-            2
-          )} per kg, approx price for ${units} units)`
+          `• ${name} × ${qty} - ₪${lineTotal.toFixed(2)}${
+            hasUnitPrice
+              ? ` (₪${unitPrice.toFixed(2)} per kg, approx for ${units} units)`
+              : ""
+          }${promoBadge}`
         );
       } else {
         lines.push(
-          `• ${name} × ${qty} - ₪${lineTotal.toFixed(2)} (₪${unitPrice.toFixed(
-            2
-          )} לק"ג, מחיר משוערך ל${units} יחידות)`
+          `• ${name} × ${qty} - ₪${lineTotal.toFixed(2)}${
+            hasUnitPrice
+              ? ` (₪${unitPrice.toFixed(2)} לק"ג, מחיר משוערך ל${units} יחידות)`
+              : ""
+          }${promoBadge}`
         );
       }
     } else {
       if (isEnglish) {
         lines.push(
-          `• ${name} × ${qty} - ₪${lineTotal.toFixed(2)} (₪${unitPrice.toFixed(
-            2
-          )} per kg)`
+          `• ${name} × ${qty} - ₪${lineTotal.toFixed(2)}${
+            hasUnitPrice ? ` (₪${unitPrice.toFixed(2)} per kg)` : ""
+          }${promoBadge}`
         );
       } else {
         lines.push(
-          `• ${name} × ${qty} - ₪${lineTotal.toFixed(2)} (₪${unitPrice.toFixed(
-            2
-          )} לק"ג)`
+          `• ${name} × ${qty} - ₪${lineTotal.toFixed(2)}${
+            hasUnitPrice ? ` (₪${unitPrice.toFixed(2)} לק"ג)` : ""
+          }${promoBadge}`
         );
       }
     }

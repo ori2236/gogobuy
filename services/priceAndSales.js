@@ -1150,7 +1150,7 @@ function humanKindLine(promo, isEnglish) {
     if (Number.isFinite(buyQty) && buyQty >= 2 && Number.isFinite(pay)) {
       return isEnglish
         ? `Buy ${buyQty} for ${formatILS(pay)}`
-        : `${buyQty} יח׳ ב־${formatILS(pay)}`;
+        : `${buyQty} יח׳ ב-${formatILS(pay)}`;
     }
     return isEnglish ? "Bundle deal" : "מבצע חבילה";
   }
@@ -1211,11 +1211,11 @@ function buildPromotionBlock({ req, foundRow, promo, isEnglish }) {
     }
 
     if (status === "UPCOMING")
-      return `סטטוס: עדיין לא התחיל (מתחיל ב־${startTxt}${
+      return `סטטוס: עדיין לא התחיל (מתחיל ב-${startTxt}${
         endTxt ? `, עד ${endTxt}` : ""
       })`;
     if (status === "ACTIVE")
-      return `סטטוס: פעיל עכשיו (מ־${startTxt}${
+      return `סטטוס: פעיל עכשיו (מ-${startTxt}${
         endTxt ? `, עד ${endTxt}` : ", ללא תאריך סיום"
       })`;
     return `סטטוס: הסתיים (היה בתוקף עד ${endTxt || startTxt})`;
@@ -1244,7 +1244,7 @@ function buildPromotionBlock({ req, foundRow, promo, isEnglish }) {
           ? `Promotion for ${name}: buy ${buyQty} for ${formatILS(
               pay
             )}. Price: no updated price.${oosNote}.`
-          : `יש מבצע על ${name}: ${buyQty} יח׳ ב־${formatILS(
+          : `יש מבצע על ${name}: ${buyQty} יח׳ ב-${formatILS(
               pay
             )}. אין מחיר מעודכן להשוואה.${oosNote}.`;
 
@@ -1267,7 +1267,7 @@ function buildPromotionBlock({ req, foundRow, promo, isEnglish }) {
           )}), save ${formatILS(savingsAmount)}${
             sPct !== null ? ` (${sPct}%)` : ""
           }${oosNote}.`
-        : `יש מבצע על ${name}: ${buyQty} יח׳ ב־${formatILS(pay)} (${formatILS(
+        : `יש מבצע על ${name}: ${buyQty} יח׳ ב-${formatILS(pay)} (${formatILS(
             dealUnit
           )} ליח׳ במקום ${formatILS(unitPrice)}), חיסכון: ${formatILS(
             savingsAmount
@@ -1290,7 +1290,7 @@ function buildPromotionBlock({ req, foundRow, promo, isEnglish }) {
             ? `Total for ${pricing.amount} units: ${formatILS(
                 pricing.newTotal
               )} (instead of ${formatILS(pricing.baseTotal)})`
-            : `סה״כ ל־${pricing.amount} יח׳: ${formatILS(
+            : `סה״כ ל-${pricing.amount} יח׳: ${formatILS(
                 pricing.newTotal
               )} (במקום ${formatILS(pricing.baseTotal)})`;
 
@@ -1382,7 +1382,7 @@ function buildPromotionBlock({ req, foundRow, promo, isEnglish }) {
       )} (instead of ${formatILS(pricing.baseTotal)})`;
     }
 
-    return `סה״כ ל־${qtyLabel}: ${formatILS(
+    return `סה״כ ל-${qtyLabel}: ${formatILS(
       pricing.newTotal
     )} (במקום ${formatILS(pricing.baseTotal)})`;
   })();
@@ -1400,7 +1400,7 @@ function buildPromotionBlock({ req, foundRow, promo, isEnglish }) {
           ? `Deal: buy ${buyQty} for ${formatILS(pay)} (regular ${formatILS(
               unitPrice
             )} each)`
-          : `מחיר: ${buyQty} יח׳ ב־${formatILS(pay)} (במקום ${formatILS(
+          : `מחיר: ${buyQty} יח׳ ב-${formatILS(pay)} (במקום ${formatILS(
               unitPrice
             )} ליח׳)`;
       }

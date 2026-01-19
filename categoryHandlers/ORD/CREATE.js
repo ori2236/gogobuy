@@ -3,6 +3,7 @@ const db = require("../../config/db");
 const { getPromptFromDB } = require("../../repositories/prompt");
 const { createOrderWithStockReserve } = require("../../utilities/orders");
 const { isEnglishMessage } = require("../../utilities/lang");
+const { addMoney, mulMoney, roundTo } = require("../../utilities/decimal");
 const {
   parseModelAnswer,
   searchProducts,
@@ -144,9 +145,33 @@ module.exports = {
     const { found, notFound } = await searchProducts(shop_id, reqProducts);
 
     const cappedWarnings = [];
+    const fractionalWarnings = [];
+
     const cappedFound = found.map((f) => {
-      const origAmount = Number(f.requested_amount) || 0;
-      if (origAmount > maxPerProduct) {
+      let amt = Number(f.requested_amount) || 0;
+      const isWeight = f.sold_by_weight === true;
+
+      if (
+        !isWeight &&
+        Number.isFinite(amt) &&
+        Math.abs(amt - Math.round(amt)) > 1e-9
+      ) {
+        const rounded = Math.ceil(amt);
+
+        const nameForWarning = isEnglish
+          ? (f.matched_display_name_en && f.matched_display_name_en.trim()) ||
+            f.matched_name
+          : f.matched_name;
+
+        fractionalWarnings.push({
+          name: nameForWarning,
+          original: amt,
+          rounded,
+        });
+
+        amt = rounded;
+      }
+      if (amt > maxPerProduct) {
         const nameForWarning = isEnglish
           ? (f.matched_display_name_en && f.matched_display_name_en.trim()) ||
             f.matched_name
@@ -154,16 +179,17 @@ module.exports = {
 
         cappedWarnings.push({
           name: nameForWarning,
-          original: origAmount,
+          original: amt,
           capped: maxPerProduct,
         });
 
-        return {
-          ...f,
-          requested_amount: maxPerProduct,
-        };
+        amt = maxPerProduct;
       }
-      return f;
+
+      return {
+        ...f,
+        requested_amount: amt,
+      };
     });
 
     const foundIdsSet = new Set(cappedFound.map((f) => f.product_id));
@@ -327,25 +353,67 @@ module.exports = {
      oi.amount,
      oi.sold_by_weight,
      oi.requested_units,
-     p.price,
+     oi.price AS line_total,
+     oi.promo_id,
+
+     pr.kind AS promo_kind,
+     pr.percent_off,
+     pr.amount_off,
+     pr.fixed_price,
+     pr.bundle_buy_qty,
+     pr.bundle_pay_price,
+
+     p.price AS unit_price,
      p.name AS name_he,
      p.display_name_en
       FROM order_item oi
       JOIN product p ON p.id = oi.product_id
+      LEFT JOIN promotion pr ON pr.id = oi.promo_id
       WHERE oi.order_id = ?`,
       [orderRes.order_id]
     );
 
+
+    const totalWithPromos = Number(orderRes.totalPrice ?? 0);
+
+    let totalNoPromos = 0;
+    for (const r of rows || []) {
+      const unit = Number(r.unit_price);
+      const qty = Number(r.amount);
+      if (!Number.isFinite(unit) || !Number.isFinite(qty)) continue;
+      totalNoPromos = addMoney(totalNoPromos, roundTo(unit * qty, 2));
+    }
+    const savings = roundTo(totalNoPromos - totalWithPromos, 2);
+    const hasSavings = Number.isFinite(savings) && savings >= 0.01;
+
     const productsForDisplay = rows.map((r) => {
       const units = Number(r.requested_units);
       const hasUnits = Number.isFinite(units) && units > 0;
+
+      const promoId = r.promo_id ? Number(r.promo_id) : null;
 
       return {
         name: isEnglish
           ? (r.display_name_en && r.display_name_en.trim()) || r.name_he
           : r.name_he,
         amount: Number(r.amount),
-        price: Number(r.price),
+
+        unit_price: Number(r.unit_price),
+        line_total: Number(r.line_total),
+
+        promo_id: promoId,
+        promo:
+          promoId && r.promo_kind
+            ? {
+                kind: r.promo_kind,
+                percent_off: r.percent_off,
+                amount_off: r.amount_off,
+                fixed_price: r.fixed_price,
+                bundle_buy_qty: r.bundle_buy_qty,
+                bundle_pay_price: r.bundle_pay_price,
+              }
+            : null,
+
         ...(r.sold_by_weight ? { sold_by_weight: true } : {}),
         ...(hasUnits ? { units } : {}),
       };
@@ -365,16 +433,27 @@ module.exports = {
     const headerBlock = isEnglish
       ? [
           orderRes?.order_id ? `Order: #${orderRes.order_id}` : null,
-          `Subtotal: *₪${(orderRes.totalPrice ?? 0).toFixed(2)}*`,
+          hasSavings
+            ? `Subtotal: *₪${totalWithPromos.toFixed(
+                2
+              )}* instead of ₪${totalNoPromos.toFixed(
+                2
+              )}`
+            : `Subtotal: *₪${totalWithPromos.toFixed(2)}*`,
         ]
           .filter(Boolean)
           .join("\n")
       : [
           orderRes?.order_id ? `מספר הזמנה: #${orderRes.order_id}` : null,
-          `סה״כ ביניים: *₪${(orderRes.totalPrice ?? 0).toFixed(2)}*`,
+          hasSavings
+            ? `סה״כ ביניים: *₪${totalWithPromos.toFixed(
+                2
+              )}* במקום ₪${totalNoPromos.toFixed(2)}`
+            : `סה״כ ביניים: *₪${totalWithPromos.toFixed(2)}*`,
         ]
           .filter(Boolean)
           .join("\n");
+
 
     let limitWarningsBlock = "";
     if (cappedWarnings.length) {
@@ -382,6 +461,23 @@ module.exports = {
         limitWarningsBlock = `Note: you can order up to ${maxPerProduct} units per product.`;
       } else {
         limitWarningsBlock = `שימו לב: ניתן להזמין עד ${maxPerProduct} יחידות מכל מוצר.`;
+      }
+    }
+
+    let fractionalWarningsBlock = "";
+    if (fractionalWarnings.length) {
+      if (isEnglish) {
+        fractionalWarningsBlock =
+          "Note: some items can only be ordered in whole units, so I rounded up:\n" +
+          fractionalWarnings
+            .map((w) => `• ${w.name}: ${w.original} → ${w.rounded}`)
+            .join("\n");
+      } else {
+        fractionalWarningsBlock =
+          "שימו לב: יש מוצרים שנמכרים ביחידות שלמות בלבד, לכן עיגלתי למעלה:\n" +
+          fractionalWarnings
+            .map((w) => `• ${w.name}: ${w.original} → ${w.rounded}`)
+            .join("\n");
       }
     }
 
@@ -398,6 +494,7 @@ module.exports = {
     const finalMessage = [
       summaryLine,
       limitWarningsBlock,
+      fractionalWarningsBlock,
       itemsBlock,
       " ",
       headerBlock,

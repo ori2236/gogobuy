@@ -1,9 +1,6 @@
-const {
-  formatMoney,
-  formatQuantity,
-  addMoney,
-} = require("../../utilities/decimal");
+const { addMoney, roundTo } = require("../../utilities/decimal");
 const { saveOpenQuestions } = require("../../utilities/openQuestions");
+const { buildItemsBlock } = require("../../services/products");
 
 async function orderReview(order, items, isEnglish, customer_id, shop_id) {
   // no open order
@@ -37,86 +34,87 @@ async function orderReview(order, items, isEnglish, customer_id, shop_id) {
       : `ההזמנה שלך כרגע ריקה (הזמנה מספר: #${order.id}).`;
   }
 
-  // order with items
-  let subtotal = 0;
-  const lines = [];
-
-  if (isEnglish) {
-    lines.push("Items currently in your order:");
-  } else {
-    lines.push("המוצרים שכעת בהזמנה:");
-  }
-
-  for (const item of items) {
-    const qty = formatQuantity(item.amount);
-    const lineTotal = Number(item.price || 0);
-
-    const unitPrice =
-      Number(item.amount) > 0 ? lineTotal / Number(item.amount) : lineTotal;
-
-    subtotal = addMoney(subtotal, lineTotal);
-
+  const itemsForView = (items || []).map((it) => {
     const displayName = isEnglish
-      ? (item.display_name_en && item.display_name_en.trim()) || item.name
-      : item.name;
+      ? (it.display_name_en && it.display_name_en.trim()) || it.name
+      : it.name;
 
-    const isWeight = item.sold_by_weight === 1 || item.sold_by_weight === true;
+    const isWeight = it.sold_by_weight === 1 || it.sold_by_weight === true;
 
-    const unitsRaw = Number(item.requested_units);
+    const unitsRaw = Number(it.requested_units);
     const units = Number.isFinite(unitsRaw) && unitsRaw > 0 ? unitsRaw : null;
 
-    if (!isWeight) {
-      lines.push(
-        isEnglish
-          ? `* ${displayName} × ${qty} - ₪${formatMoney(
-              lineTotal
-            )} (₪${formatMoney(unitPrice)} each)`
-          : `* ${displayName} × ${qty} - ₪${formatMoney(
-              lineTotal
-            )} (₪${formatMoney(unitPrice)} ליח')`
-      );
-    } else {
-      if (units) {
-        lines.push(
-          isEnglish
-            ? `* ${displayName} × ${qty} - ₪${formatMoney(
-                lineTotal
-              )} (₪${formatMoney(
-                unitPrice
-              )} per kg, approx price for ${units} units)`
-            : `* ${displayName} × ${qty} - ₪${formatMoney(
-                lineTotal
-              )} (₪${formatMoney(
-                unitPrice
-              )} לק"ג, מחיר משוערך ל${units} יחידות)`
-        );
-      } else {
-        lines.push(
-          isEnglish
-            ? `* ${displayName} × ${qty} - ₪${formatMoney(
-                lineTotal
-              )} (₪${formatMoney(unitPrice)} per kg)`
-            : `* ${displayName} × ${qty} - ₪${formatMoney(
-                lineTotal
-              )} (₪${formatMoney(unitPrice)} לק"ג)`
-        );
-      }
-    }
+    const promoId = it.promo_id ? Number(it.promo_id) : null;
+
+    return {
+      name: displayName,
+      amount: Number(it.amount),
+
+      // unit price (from product)
+      price: Number(it.unit_price),
+
+      // line total (stored in order_item.price)
+      line_total: Number(it.price),
+
+      promo_id: promoId,
+      promo: promoId
+        ? {
+            kind: it.promo_kind,
+            percent_off: it.percent_off,
+            amount_off: it.amount_off,
+            fixed_price: it.fixed_price,
+            bundle_buy_qty: it.bundle_buy_qty,
+            bundle_pay_price: it.bundle_pay_price,
+          }
+        : null,
+
+      ...(isWeight ? { sold_by_weight: true } : {}),
+      ...(isWeight && units ? { units } : {}),
+    };
+  });
+
+  const itemsBlock = buildItemsBlock({
+    items: itemsForView,
+    isEnglish,
+    mode: "review",
+  });
+
+  let subtotal = 0;
+  for (const it of itemsForView) {
+    subtotal = addMoney(subtotal, Number(it.line_total || 0));
   }
 
-  lines.push("");
-
-  if (isEnglish) {
-    lines.push(`Order: #${order.id}`);
-    lines.push(`Subtotal: ₪${formatMoney(subtotal)}`);
-  } else {
-    lines.push(`מספר הזמנה: #${order.id}`);
-    lines.push(`סה״כ ביניים: *₪${formatMoney(subtotal)}*`);
+  let totalNoPromos = 0;
+  for (const it of itemsForView || []) {
+    const unit = Number(it.price);
+    const qty = Number(it.amount);
+    if (!Number.isFinite(unit) || !Number.isFinite(qty)) continue;
+    totalNoPromos = addMoney(totalNoPromos, roundTo(unit * qty, 2));
   }
 
-  return lines.join("\n");
+  const totalWithPromos = Number(subtotal || 0);
+  const savings = roundTo(totalNoPromos - totalWithPromos, 2);
+  const hasSavings = Number.isFinite(savings) && savings >= 0.01;
+
+  const headerBlock = isEnglish
+    ? [
+        `Order: #${order.id}`,
+        hasSavings
+          ? `Subtotal: *₪${totalWithPromos.toFixed(
+              2
+            )}* instead of ₪${totalNoPromos.toFixed(2)}`
+          : `Subtotal: *₪${totalWithPromos.toFixed(2)}*`,
+      ].join("\n")
+    : [
+        `מספר הזמנה: #${order.id}`,
+        hasSavings
+          ? `סה״כ ביניים: *₪${totalWithPromos.toFixed(
+              2
+            )}* במקום ₪${totalNoPromos.toFixed(2)}`
+          : `סה״כ ביניים: *₪${totalWithPromos.toFixed(2)}*`,
+      ].join("\n");
+
+  return [itemsBlock, " ", headerBlock].filter(Boolean).join("\n");
 }
 
-module.exports = {
-  orderReview,
-};
+module.exports = { orderReview };

@@ -88,6 +88,106 @@ async function fetchAlternativesWithStock(
   return rows || [];
 }
 
+function round2(n) {
+  const x = Number(n);
+  if (!Number.isFinite(x)) return null;
+  return Math.round(x * 100) / 100;
+}
+
+function calcLineTotalWithPromo({ unitPrice, amount, soldByWeight, promo }) {
+  const base = Number(unitPrice);
+  const qty = Number(amount);
+
+  if (!Number.isFinite(base) || !Number.isFinite(qty) || qty <= 0) {
+    return { lineTotal: null, promo_id: null };
+  }
+
+  if (!promo) {
+    return { lineTotal: round2(base * qty), promo_id: null };
+  }
+
+  const kind = String(promo.kind || "").toUpperCase();
+  const baseTotal = base * qty;
+
+  if (kind === "PERCENT_OFF") {
+    const p = Number(promo.percent_off);
+    if (!Number.isFinite(p))
+      return { lineTotal: round2(baseTotal), promo_id: promo.id };
+    const newUnit = base * (1 - p / 100);
+    return { lineTotal: round2(newUnit * qty), promo_id: promo.id };
+  }
+
+  if (kind === "AMOUNT_OFF") {
+    const off = Number(promo.amount_off);
+    if (!Number.isFinite(off))
+      return { lineTotal: round2(baseTotal), promo_id: promo.id };
+    const newUnit = Math.max(0, base - off);
+    return { lineTotal: round2(newUnit * qty), promo_id: promo.id };
+  }
+
+  if (kind === "FIXED_PRICE") {
+    const fp = Number(promo.fixed_price);
+    if (!Number.isFinite(fp))
+      return { lineTotal: round2(baseTotal), promo_id: promo.id };
+    const newUnit = Math.max(0, fp);
+    return { lineTotal: round2(newUnit * qty), promo_id: promo.id };
+  }
+
+  if (kind === "BUNDLE") {
+    const buyQty = Number(promo.bundle_buy_qty); // אצלך int
+    const pay = Number(promo.bundle_pay_price);
+
+    if (
+      !Number.isFinite(buyQty) ||
+      buyQty <= 0 ||
+      !Number.isFinite(pay) ||
+      pay < 0
+    ) {
+      return { lineTotal: round2(baseTotal), promo_id: promo.id };
+    }
+
+    if (soldByWeight) {
+      const bundles = Math.floor(qty / buyQty);
+      const remainder = qty - bundles * buyQty;
+      const total = bundles * pay + remainder * base;
+      return { lineTotal: round2(total), promo_id: promo.id };
+    }
+
+    const N = Math.max(1, Math.ceil(qty));
+    const bundles = Math.floor(N / buyQty);
+    const remainder = N - bundles * buyQty;
+    const total = bundles * pay + remainder * base;
+    return { lineTotal: round2(total), promo_id: promo.id };
+  }
+
+  return { lineTotal: round2(baseTotal), promo_id: promo.id };
+}
+
+async function fetchActivePromotionsMap(conn, shop_id, productIds) {
+  const ids = [...new Set(productIds.map(Number).filter(Boolean))];
+  if (!ids.length) return new Map();
+
+  const placeholders = ids.map(() => "?").join(",");
+  const [rows] = await conn.query(
+    `
+    SELECT
+      id, product_id, kind,
+      percent_off, amount_off, fixed_price,
+      bundle_buy_qty, bundle_pay_price
+    FROM promotion
+    WHERE shop_id = ?
+      AND product_id IN (${placeholders})
+      AND (start_at IS NULL OR start_at <= NOW())
+      AND (end_at   IS NULL OR end_at   >= NOW())
+    `,
+    [shop_id, ...ids]
+  );
+
+  const map = new Map();
+  for (const r of rows || []) map.set(Number(r.product_id), r); // one promo per product
+  return map;
+}
+
 async function createOrderWithStockReserve({
   shop_id,
   customer_id,
@@ -210,7 +310,6 @@ async function createOrderWithStockReserve({
               ? Number(li.requested_units)
               : null,
         });
-
       }
     }
 
@@ -243,12 +342,32 @@ async function createOrderWithStockReserve({
       );
     }
 
-    let total = 0;
+    const promoMap = await fetchActivePromotionsMap(
+      conn,
+      shop_id,
+      okItems.map((x) => x.product_id)
+    );
+
     for (const it of okItems) {
-      total = addMoney(total, mulMoney(it.amount, it.price));
+      const promo = promoMap.get(Number(it.product_id)) || null;
+
+      const { lineTotal, promo_id } = calcLineTotalWithPromo({
+        unitPrice: it.price,
+        amount: it.amount,
+        soldByWeight: it.sold_by_weight === true,
+        promo,
+      });
+
+      const fallback = round2(it.price * it.amount);
+      it.line_total = lineTotal ?? fallback;
+      it.promo_id = Number.isFinite(Number(it.line_total)) ? promo_id : null;
     }
 
-    //create the order
+    let total = 0;
+    for (const it of okItems) {
+      total = addMoney(total, it.line_total ?? 0);
+    }
+
     const [insOrder] = await conn.query(
       `INSERT INTO orders
            (shop_id, customer_id, status, price, payment_method, delivery_address, created_at, updated_at)
@@ -258,8 +377,9 @@ async function createOrderWithStockReserve({
     const order_id = insOrder.insertId;
 
     const valuesSql = okItems
-      .map(() => `(?, ?, ?, ?, ?, ?, NOW(6))`)
+      .map(() => `(?, ?, ?, ?, ?, ?, ?, ?, NOW(6))`)
       .join(", ");
+
     const params = [];
     for (const it of okItems) {
       params.push(
@@ -268,13 +388,16 @@ async function createOrderWithStockReserve({
         it.amount,
         it.sold_by_weight ? 1 : 0,
         it.requested_units ?? null,
-        0
+
+        it.line_total ?? 0,
+        1, //price_locked
+        it.promo_id ?? null
       );
     }
 
     await conn.query(
       `INSERT INTO order_item
-     (order_id, product_id, amount, sold_by_weight, requested_units, price, created_at)
+     (order_id, product_id, amount, sold_by_weight, requested_units, price, price_locked, promo_id, created_at)
    VALUES ${valuesSql}`,
       params
     );
@@ -286,12 +409,16 @@ async function createOrderWithStockReserve({
       partial: insufficient.length > 0,
       order_id,
       totalPrice: total,
-      items: okItems.map(({ product_id, name, amount, price }) => ({
-        product_id,
-        name,
-        amount,
-        price,
-      })),
+      items: okItems.map(
+        ({ product_id, name, amount, price, line_total, promo_id }) => ({
+          product_id,
+          name,
+          amount,
+          price,
+          line_total,
+          promo_id,
+        })
+      ),
       insufficient,
     };
   } catch (err) {
@@ -326,14 +453,31 @@ async function getActiveOrder(customer_id, shop_id) {
 
 async function getOrderItems(order_id) {
   const [rows] = await db.query(
-    `SELECT oi.*, p.name, p.display_name_en, p.category, p.sub_category AS 'sub-category'
-       FROM order_item oi
-       LEFT JOIN product p ON p.id = oi.product_id
-      WHERE oi.order_id = ?`,
+    `SELECT
+       oi.*,
+       p.name,
+       p.display_name_en,
+       p.price AS unit_price,
+       p.category,
+       p.sub_category AS 'sub-category',
+       pr.kind AS promo_kind,
+       pr.percent_off,
+       pr.amount_off,
+       pr.fixed_price,
+       pr.bundle_buy_qty,
+       pr.bundle_pay_price
+
+     FROM order_item oi
+     LEFT JOIN product p ON p.id = oi.product_id
+     LEFT JOIN promotion pr
+       ON pr.id = oi.promo_id
+      AND pr.shop_id = p.shop_id
+     WHERE oi.order_id = ?`,
     [order_id]
   );
   return rows;
 }
+
 
 function buildActiveOrderSignals(order, items) {
   if (!order) {
@@ -354,4 +498,6 @@ module.exports = {
   getActiveOrder,
   getOrderItems,
   buildActiveOrderSignals,
+  fetchActivePromotionsMap,
+  calcLineTotalWithPromo,
 };
