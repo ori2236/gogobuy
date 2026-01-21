@@ -178,7 +178,7 @@ function buildCategorySubcategoryItemSchemas(commonProps, commonRequired) {
   }));
 }
 
-function buildCategorySubcategoryItemSchemasPromotionNullableSubcategory(
+function buildNullableSubcategorySchemas(
   commonProps,
   commonRequired
 ) {
@@ -189,12 +189,10 @@ function buildCategorySubcategoryItemSchemasPromotionNullableSubcategory(
     properties: {
       ...commonProps,
 
-      // force this variant to apply only for PROMOTION items
-      price_intent: { type: "string", const: "PROMOTION" },
+      price_intent: { type: "string", enum: ["PROMOTION", "BUDGET_PICK"] },
 
       category: { type: "string", const: cat },
 
-      // allow null for broad promotion questions
       "sub-category": {
         anyOf: [
           { type: "string", enum: DEFAULT_ALLOWED_SUBCATEGORIES_MAP[cat] },
@@ -209,5 +207,5 @@ module.exports = {
   DEFAULT_ALLOWED_SUBCATEGORIES_MAP,
   CATEGORY_ENUM,
   buildCategorySubcategoryItemSchemas,
-  buildCategorySubcategoryItemSchemasPromotionNullableSubcategory,
+  buildNullableSubcategorySchemas,
 };

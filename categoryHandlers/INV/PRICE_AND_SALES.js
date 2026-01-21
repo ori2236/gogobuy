@@ -4,6 +4,7 @@ const { parseModelAnswer, searchProducts } = require("../../services/products");
 const {
   answerPriceCompareFlow,
   answerCheaperAltFlow,
+  answerBudgetPickFlow,
   buildQuestionsTextSmart,
   buildFoundProductLine,
   buildAltBlockAndQuestion,
@@ -140,6 +141,23 @@ async function answerPriceAndSales({
       customer_id,
       isEnglish,
       cheaperAltReqs,
+      baseQuestions,
+    });
+  }
+
+  const budgetReqs = productRequests.filter(
+    (p) =>
+      String(p?.price_intent || "")
+        .trim()
+        .toUpperCase() === "BUDGET_PICK"
+  );
+
+  if (budgetReqs.length) {
+    return await answerBudgetPickFlow({
+      shop_id,
+      customer_id,
+      isEnglish,
+      budgetReqs,
       baseQuestions,
     });
   }

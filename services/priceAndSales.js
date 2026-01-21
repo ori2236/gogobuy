@@ -121,6 +121,14 @@ function cleanQuestionsBlockHeader(block, isEnglish) {
   return cleaned.join("\n").trim();
 }
 
+function buildBudgetPickSubject(req, isEnglish) {
+  const nameHe = nullify(req?.name);
+  const nameEn = nullify(req?.outputName);
+
+  if (isEnglish) return nameEn || nameHe || null;
+  return nameHe || nameEn || null;
+}
+
 function buildPromoSubject(req, isEnglish) {
   const nameHe = nullify(req?.name);
   const nameEn = nullify(req?.outputName);
@@ -131,11 +139,9 @@ function buildPromoSubject(req, isEnglish) {
   if (nameHe) return nameHe;
   if (nameEn) return nameEn;
 
-  if (sub && cat)
-    return isEnglish ? `${sub} (${cat})` : `קטגוריה: ${cat} / ${sub}`;
-  if (cat) return isEnglish ? `${cat} category` : `קטגוריה: ${cat}`;
+  if (sub || cat) return isEnglish ? "that category" : "הקטגוריה שביקשת";
 
-  return isEnglish ? "that category" : "הקטגוריה שביקשת";
+  return isEnglish ? "that" : "מה שביקשת";
 }
 
 function buildQuestionsTextSmart({ questions, isEnglish }) {
@@ -801,6 +807,362 @@ async function answerPriceCompareFlow({
     : "לא הצלחתי להשוות את המחירים. תוכל לנסח שוב?";
 }
 
+function calcBudgetTotal({ req, unitPrice }) {
+  const p = Number(unitPrice);
+  if (!Number.isFinite(p)) return null;
+
+  const amountRaw = Number(req?.amount ?? 1);
+  const amount = Number.isFinite(amountRaw) && amountRaw > 0 ? amountRaw : 1;
+
+  // For unit items: amount = units count
+  // For weight items: amount = kg
+  return p * amount;
+}
+
+function formatBudgetPickLine({ row, req, isEnglish }) {
+  const name = isEnglish
+    ? String(row?.display_name_en || row?.name || "").trim()
+    : String(row?.name || row?.display_name_en || "").trim();
+  if (!name) return null;
+
+  const unitPrice = Number(row?.price);
+  if (!Number.isFinite(unitPrice)) return name;
+
+  const soldByWeight = req?.sold_by_weight === true;
+  const total = calcBudgetTotal({ req, unitPrice });
+
+  const outOfStock = !isInStockRow(row);
+  const oosSuffix = outOfStock
+    ? isEnglish
+      ? " (out of stock)"
+      : " (חסר במלאי)"
+    : "";
+
+  const amountRaw = Number(req?.amount ?? 1);
+  const amount = Number.isFinite(amountRaw) && amountRaw > 0 ? amountRaw : 1;
+
+  if (!soldByWeight) {
+    if (amount <= 1) {
+      return `${name} - ${formatILS(unitPrice)}${oosSuffix}`;
+    }
+
+    return isEnglish
+      ? `${name} - ${formatILS(unitPrice)} each (total ${formatILS(
+          total
+        )} for ${amount})${oosSuffix}`
+      : `${name} - ${formatILS(unitPrice)} ליח׳ (סה״כ ${formatILS(
+          total
+        )} ל-${amount} יח׳)${oosSuffix}`;
+  }
+
+  // weight-based price (₪/kg)
+  if (Math.abs(amount - 1) < 1e-9) {
+    return isEnglish
+      ? `${name} - ${formatILS(unitPrice)} per kg${oosSuffix}`
+      : `${name} - ${formatILS(unitPrice)} לק״ג${oosSuffix}`;
+  }
+
+  return isEnglish
+    ? `${name} - ${formatILS(unitPrice)} per kg (est. ${formatILS(
+        total
+      )} for ~${amount} kg)${oosSuffix}`
+    : `${name} - ${formatILS(unitPrice)} לק״ג (מחיר משוערך ${formatILS(
+        total
+      )} ל~${amount} ק״ג)${oosSuffix}`;
+}
+
+async function queryBudgetPickRows({
+  shop_id,
+  category,
+  sub_category,
+  reqTokens,
+  excludeTokens,
+  usedIds,
+  amount,
+  budget,
+  limit = 6,
+  applyTokenFilter = true,
+}) {
+  const params = [shop_id];
+
+  let sql = `
+    SELECT id, name, display_name_en, price, stock_amount, category, sub_category
+      FROM product
+     WHERE shop_id = ?
+       AND price IS NOT NULL
+       AND price >= 0
+  `;
+
+  if (category) {
+    sql += ` AND category = ?`;
+    params.push(category);
+  }
+
+  if (sub_category) {
+    sql += ` AND sub_category = ?`;
+    params.push(sub_category);
+  }
+
+  const exIds = Array.isArray(usedIds)
+    ? usedIds
+    : usedIds && typeof usedIds[Symbol.iterator] === "function"
+    ? Array.from(usedIds)
+    : [];
+
+  if (exIds.length) {
+    sql += ` AND id NOT IN (${exIds.map(() => "?").join(",")})`;
+    params.push(...exIds);
+  }
+
+  // budget is for total of requested quantity (price * amount)
+  sql += ` AND (price * ?) <= ?`;
+  params.push(amount, budget);
+
+  // exclude tokens
+  if (Array.isArray(excludeTokens) && excludeTokens.length) {
+    for (const t of excludeTokens) {
+      if (!t) continue;
+      sql += `
+        AND (
+          name COLLATE utf8mb4_general_ci NOT LIKE CONCAT('%', ?, '%')
+          AND display_name_en COLLATE utf8mb4_general_ci NOT LIKE CONCAT('%', ?, '%')
+        )
+      `;
+      params.push(t, t);
+    }
+  }
+
+  // token filter
+  if (applyTokenFilter && Array.isArray(reqTokens) && reqTokens.length) {
+    for (const t of reqTokens) {
+      if (!t) continue;
+      sql += `
+        AND (
+          name COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
+          OR display_name_en COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
+        )
+      `;
+      params.push(t, t);
+    }
+  }
+
+  const lim = Math.max(1, Math.min(20, Number(limit) || 6));
+
+  sql += `
+    ORDER BY
+      CASE WHEN stock_amount IS NOT NULL AND stock_amount <= 0 THEN 1 ELSE 0 END ASC,
+      (price * ?) ASC,
+      price ASC,
+      id ASC
+    LIMIT ${lim}
+  `;
+  params.push(amount);
+
+  const [rows] = await db.query(sql, params);
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function pickBudgetCandidates({
+  shop_id,
+  req,
+  category,
+  sub_category,
+  budget,
+  usedIds,
+  limit,
+}) {
+  const reqName = nullify(req?.name) || nullify(req?.outputName) || "";
+  const reqTokens = tokenizeName(reqName);
+
+  const amountRaw = Number(req?.amount ?? 1);
+  const amount = Number.isFinite(amountRaw) && amountRaw > 0 ? amountRaw : 1;
+
+  const excludeTokens = getExcludeTokensFromReq(req);
+
+  const hasCat = Boolean(String(category || "").trim());
+  const hasSub = Boolean(String(sub_category || "").trim());
+  const tries = [];
+
+  if (hasSub) {
+    tries.push({
+      category: hasCat ? category : null,
+      sub_category,
+      applyTokenFilter: true,
+    });
+    if (reqTokens.length) {
+      tries.push({
+        category: hasCat ? category : null,
+        sub_category,
+        applyTokenFilter: false,
+      });
+    }
+  } else if (hasCat) {
+    tries.push({ category, sub_category: null, applyTokenFilter: true });
+    if (reqTokens.length) {
+      tries.push({ category, sub_category: null, applyTokenFilter: false });
+    }
+  } else if (reqTokens.length) {
+    tries.push({ category: null, sub_category: null, applyTokenFilter: true });
+  }
+
+  for (const t of tries) {
+    const rows = await queryBudgetPickRows({
+      shop_id,
+      category: t.category,
+      sub_category: t.sub_category,
+      reqTokens,
+      excludeTokens,
+      usedIds,
+      amount,
+      budget,
+      limit,
+      applyTokenFilter: t.applyTokenFilter,
+    });
+
+    if (!rows.length) continue;
+
+    const tokSet = new Set(
+      reqTokens.map((x) => normalizeToken(x).toLowerCase()).filter(Boolean)
+    );
+
+    const scored = rows.map((r) => {
+      const name = normalizeToken(r?.name).toLowerCase();
+      const en = normalizeToken(r?.display_name_en).toLowerCase();
+      let hit = 0;
+      for (const tok of tokSet) {
+        if (tok && (name.includes(tok) || en.includes(tok))) hit += 1;
+      }
+      const score = tokSet.size ? hit / tokSet.size : 0;
+
+      const total = calcBudgetTotal({ req, unitPrice: Number(r?.price) });
+      const totalScore = Number.isFinite(total)
+        ? total
+        : Number.POSITIVE_INFINITY;
+
+      return { r, score, totalScore };
+    });
+
+    scored.sort(
+      (a, b) =>
+        b.score - a.score ||
+        a.totalScore - b.totalScore ||
+        Number(a.r.id) - Number(b.r.id)
+    );
+
+    return scored.slice(0, limit).map((x) => x.r);
+  }
+
+  return [];
+}
+
+function buildNoBudgetMatchesText({ subject, budget, isEnglish }) {
+  const b = formatILS(budget);
+  const s = String(subject || "").trim();
+  return isEnglish
+    ? `I couldn't find options for ${
+        s || "that"
+      } up to ${b}. You can raise the budget or describe the product differently.`
+    : `לא מצאתי אפשרויות עבור ${
+        s || "זה"
+      } עד ${b}. אפשר להגדיל תקציב או לתאר את המוצר אחרת.`;
+}
+
+async function answerBudgetPickFlow({
+  shop_id,
+  customer_id,
+  isEnglish,
+  budgetReqs,
+  baseQuestions,
+}) {
+  const reqs = Array.isArray(budgetReqs) ? budgetReqs : [];
+
+  const blocks = [];
+  const usedIds = new Set();
+
+  for (let i = 0; i < reqs.length; i++) {
+    const req = reqs[i] || {};
+
+    const budgetRaw = Number(req?.budget_ils);
+    const budget =
+      Number.isFinite(budgetRaw) && budgetRaw > 0 ? budgetRaw : null;
+
+    const category = String(req?.category || "").trim() || null;
+    const sub_category =
+      String(req?.["sub-category"] || req?.sub_category || "").trim() || null;
+
+    const subject = buildBudgetPickSubject(req, isEnglish);
+
+    if (!budget) continue;
+
+    const hasMeaningfulType = Boolean(
+      nullify(req?.name) || nullify(req?.outputName) || sub_category || category
+    );
+
+    if (!hasMeaningfulType) continue;
+
+    const candidates = await pickBudgetCandidates({
+      shop_id,
+      req,
+      category,
+      sub_category,
+      budget,
+      usedIds: Array.from(usedIds),
+      limit: 6,
+    });
+
+    if (!candidates.length) {
+      blocks.push(buildNoBudgetMatchesText({ subject, budget, isEnglish }));
+      continue;
+    }
+
+    for (const r of candidates) {
+      const id = Number(r?.id);
+      if (Number.isFinite(id)) usedIds.add(id);
+    }
+
+    const qtyText = buildCompareQtyText({ req, foundRow: null, isEnglish });
+
+    const header = isEnglish
+      ? `Options up to ${formatILS(budget)}${subject ? ` for ${subject}` : ""}${
+          qtyText > 1 ? ` (${qtyText})` : ""
+        }:`
+      : `אפשרויות עד ${formatILS(budget)}${subject ? ` עבור ${subject}` : ""}${
+          qtyText > 1 ? ` (${qtyText})` : ""
+        }:`;
+
+    const lines = candidates
+      .map((r) => formatBudgetPickLine({ row: r, req, isEnglish }))
+      .filter(Boolean)
+      .map((x) => `• ${x}`);
+
+    blocks.push([header, ...lines].join("\n"));
+  }
+
+  const modelQuestions = normalizeIncomingQuestions(baseQuestions || [], {
+    preserveOptions: true,
+  });
+
+  if (modelQuestions.length) {
+    await saveOpenQuestions({
+      customer_id,
+      shop_id,
+      order_id: null,
+      questions: modelQuestions,
+    });
+  }
+
+  const body = blocks.filter(Boolean).join("\n\n");
+  const tail = buildQuestionsTextSmart({ questions: baseQuestions, isEnglish });
+
+  const finalMsg = [body, tail].filter((x) => x && x.trim()).join("\n\n");
+
+  if (!finalMsg.trim()) {
+    return isEnglish ? "What budget do you have?" : "מה התקציב?";
+  }
+
+  return finalMsg;
+}
+
 function round2(n) {
   const x = Number(n);
   if (!Number.isFinite(x)) return null;
@@ -960,7 +1322,7 @@ async function searchPromotionsForRequest(shop_id, req, { limit = 50 } = {}) {
       )
     )
   `;
-  
+
   sql += `
     ORDER BY
       CASE
@@ -979,7 +1341,6 @@ async function searchPromotionsForRequest(shop_id, req, { limit = 50 } = {}) {
   const [rows] = await db.query(sql, params);
   return { rows: rows || [], total: (rows || []).length };
 }
-
 
 function promotionStatus(promo, now = new Date()) {
   const start = promo?.start_at ? new Date(promo.start_at) : null;
@@ -1015,10 +1376,8 @@ function calcPromotionPricing({
 
   const kind = String(promo?.kind || "").toUpperCase();
 
-  // base total: unit-based => units; weight-based => kg
   const baseTotal = base * amount;
 
-  // Default
   let newUnit = null;
   let newTotal = null;
 
@@ -1835,4 +2194,5 @@ module.exports = {
   answerPromotionFlow,
   searchPromotionsForRequest,
   answerCheaperAltFlow,
+  answerBudgetPickFlow,
 };

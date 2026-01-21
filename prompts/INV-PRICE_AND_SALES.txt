@@ -25,7 +25,7 @@ Return products[] where each item has:
   * Strip descriptive/context words like "לסלט", "לא גדולים", "טעים", "פשוט", "לילדים", "במבצע", "כמו תמיד" and similar.
   * Do NOT invent or guess a brand, manufacturer, flavor, size, package, weight, or volume if the user did not clearly mention it.
     If the user just says "בקבוק קולה" or "פסטה" without a number, keep the name generic without any numeric volume.
-  * If price_intent = "PROMOTION":
+  * If price_intent = "PROMOTION" or "BUDGET_PICK":
     - You MAY set name = null ONLY when the user asks about a broad category/group-level promotion AND they did NOT mention a specific product type.
     - If the user mentions ANY product type (even generic) like "שוקולד" you MUST set name to that product type (Hebrew), and fill the category and sub category.
   * If the user didn’t specify a brand/size, use a generic name like "מיץ אפרסק", "אפרסק", "חלב 3%", etc.
@@ -53,8 +53,8 @@ Return products[] where each item has:
   • If you are unsure default is sold_by_weight = false.
 - category (English): MUST be one of the allowed categories (never null).
 - sub-category (English):
-  • if price_intent ≠ "PROMOTION" MUST be one of the allowed sub-categories for that category.
-  • You MAY set sub-category = null only when intent="PROMOTION" and:
+  • if price_intent is not "PROMOTION" or "BUDGET_PICK", MUST be one of the allowed sub-categories for that category.
+  • You MAY set sub-category = null only when intent="PROMOTION" or "BUDGET_PICK" and:
     - The user’s request is too broad/ambiguous to pick a single sub-category confidently, OR
     - name is null (group promotion) and you only confidently know the category.
 - exclude_tokens (optional array of strings):
@@ -72,18 +72,19 @@ INTENT RULES (IMPORTANT)
 - PRICE_COMPARE: compares products/variants/sizes: "מה יותר זול X או Y?"
 - PROMOTION: asking about promotion on a product: "יש מבצע על X?" / "עד מתי ההנחה?" / "מה בדיוק המבצע?" / "זה כולל גם ...?"
 - CHEAPER_ALT: asking for cheaper alternatives: "יש חלופה זולה יותר ל-X?"
-- BUDGET_PICK: "משהו עד ₪X" (must still be tied to a product type; if type missing ask a question)
+- BUDGET_PICK: "משהו עד ₪X" (can be tied to a product type or a category/group like "מוצרי חלב". If neither type nor category is mentioned, ask a clarification question).
 
 NAMING RULES (CRITICAL)
 - Do NOT invent brand/flavor/size/weight/volume/package if not explicitly mentioned.
 - name MUST be a short generic Hebrew product name (DB-like), not a sentence,
-  EXCEPT: when price_intent = "PROMOTION" and the user asks about a group/category-level promotion, name MAY be null.
+  EXCEPT: when price_intent = "PROMOTION" or "BUDGET_PICK" and the user asks about a group/category-level promotion, name MAY be null.
 
 CLARIFICATION QUESTIONS (ONLY WHEN NEEDED)
-Add questions[] entries ONLY if you cannot identify a product TYPE well enough to output:
-name + category + sub-category (unless price_intent="PROMOTION" and then only category is mandatory).
-Do NOT ask just to choose brand/size/variant.
-Each questions[] item must be: { "name": "<Hebrew product name or null>", "question": "<text>", "options": [] }
+- Add questions[] entries ONLY if you cannot identify a product TYPE well enough to output:
+  name + category + sub-category (unless price_intent="PROMOTION" or "BUDGET_PICK" and then only category is mandatory).
+- Do NOT ask just to choose brand/size/variant.
+  Each questions[] item must be: { "name": "<Hebrew product name or null>", "question": "<text>", "options": [] }
+- If price_intent = "BUDGET_PICK" and budget_ils is null, add a clarification question asking for the budget.
 
 FALLBACK
 - If you cannot identify any product TYPE with reasonable confidence:

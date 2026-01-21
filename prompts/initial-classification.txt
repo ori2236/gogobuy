@@ -51,8 +51,9 @@ RULES
 HINTS
 - Phrases like "עוד כאלה", "תוסיף עוד", "תוריד מזה", "replace X with Y" typically refer to ORD.MODIFY when ACTIVE_ORDER_EXISTS=true.
 - If unclear between MODIFY/CREATE, prefer MODIFY when ACTIVE_ORDER_EXISTS=true.
-- If ACTIVE_ORDER_EXISTS = true and the users message is short or references any product/option from OPEN_QUESTIONS then strongly bias classification to: 1, ORD.MODIFY
+- If ACTIVE_ORDER_EXISTS = true and the users message is short or references any product/option from OPEN_QUESTIONS then strongly bias classification to: 1, ORD.MODIFY.
 - If the message asks what is in the cart → 1, ORD.REVIEW.
+- If the users goal is to stay under a specific budget, classify as: 1, INV.PRICE_AND_SALES.
 
 STATE RULES (ACTIVE_ORDER_EXISTS)
 - If ACTIVE_ORDER_EXISTS=true:

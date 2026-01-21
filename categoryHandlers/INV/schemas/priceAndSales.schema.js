@@ -1,6 +1,6 @@
 const {
   buildCategorySubcategoryItemSchemas,
-  buildCategorySubcategoryItemSchemasPromotionNullableSubcategory,
+  buildNullableSubcategorySchemas,
 } = require("../../productCategories");
 
 const PRICE_INTENT_ENUM = [
@@ -42,7 +42,7 @@ const CATEGORY_SUBCATEGORY_ANYOF = [
     COMMON_PRODUCT_PROPS,
     COMMON_PRODUCT_REQUIRED
   ),
-  ...buildCategorySubcategoryItemSchemasPromotionNullableSubcategory(
+  ...buildNullableSubcategorySchemas(
     COMMON_PRODUCT_PROPS,
     COMMON_PRODUCT_REQUIRED
   ),
