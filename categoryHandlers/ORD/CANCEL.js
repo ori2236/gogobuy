@@ -33,7 +33,6 @@ async function cancelOrderAndRestoreStock(order_id, shop_id) {
       return false;
     }
 
-
     const [items] = await conn.query(
       `SELECT product_id, amount
          FROM order_item
@@ -125,7 +124,9 @@ async function checkIfToCancelOrder({
     //not canceling
     await db.query(
       `UPDATE orders
-         SET status = 'pending', updated_at = NOW()
+         SET status = COALESCE(prev_status, 'pending'),
+             prev_status = NULL,
+             updated_at = NOW()
        WHERE id = ? AND status = 'cancel_pending'`,
       [activeOrder.id]
     );
@@ -172,8 +173,10 @@ async function askToCancelOrder(activeOrder, isEnglish, customer_id, shop_id) {
   //change status to "cancel_pending"
   const [res] = await db.query(
     `UPDATE orders
-      SET status='cancel_pending', updated_at=NOW()
-    WHERE id=? AND status='pending'`,
+        SET prev_status = status,
+            status='cancel_pending',
+            updated_at=NOW()
+      WHERE id=? AND status IN ('pending','confirmed')`,
     [activeOrder.id]
   );
 

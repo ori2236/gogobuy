@@ -1,5 +1,6 @@
 const { addMoney, roundTo } = require("../../utilities/decimal");
 const { saveOpenQuestions } = require("../../utilities/openQuestions");
+const { formatOrderStatus } = require("../../utilities/orders");
 const { buildItemsBlock } = require("../../services/products");
 
 async function orderReview(order, items, isEnglish, customer_id, shop_id) {
@@ -96,9 +97,12 @@ async function orderReview(order, items, isEnglish, customer_id, shop_id) {
   const savings = roundTo(totalNoPromos - totalWithPromos, 2);
   const hasSavings = Number.isFinite(savings) && savings >= 0.01;
 
+  const statusText = formatOrderStatus(order.status, isEnglish);
+
   const headerBlock = isEnglish
     ? [
         `Order: #${order.id}`,
+        `Status: ${statusText}`,
         hasSavings
           ? `Subtotal: *₪${totalWithPromos.toFixed(
               2
@@ -107,6 +111,7 @@ async function orderReview(order, items, isEnglish, customer_id, shop_id) {
       ].join("\n")
     : [
         `מספר הזמנה: #${order.id}`,
+        `סטטוס: ${statusText}`,
         hasSavings
           ? `סה״כ ביניים: *₪${totalWithPromos.toFixed(
               2

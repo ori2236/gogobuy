@@ -1,6 +1,7 @@
 const { orderProducts } = require("./ORD/CREATE");
 const { modifyOrder } = require("./ORD/MODIFY");
 const { orderReview } = require("./ORD/REVIEW");
+const { askToCheckoutOrder } = require("./ORD/CHECKOUT");
 const { askToCancelOrder } = require("./ORD/CANCEL");
 const { checkAvailability } = require("./INV/AVAIL");
 const { answerPriceAndSales } = require("./INV/PRICE_AND_SALES");
@@ -48,9 +49,12 @@ const CATEGORY_HANDLERS = {
       ),
 
     CHECKOUT: async (ctx) =>
-      ctx.isEnglish
-        ? "At the moment you can only create, modify, cancel and review orders. Checkout will be available soon."
-        : "כרגע יש לנו תמיכה רק ביצירת, עריכת, ביטול וצפייה בהזמנות. סיום הזמנה יתווסף בהמשך.",
+      askToCheckoutOrder(
+        ctx.activeOrder,
+        ctx.isEnglish,
+        ctx.customer_id,
+        ctx.shop_id
+      ),
   },
   INV: {
     AVAIL: async (ctx) =>

@@ -18,6 +18,8 @@ const {
 } = require("../utilities/orders");
 const { detectIsEnglish } = require("../utilities/lang");
 const { checkIfToCancelOrder } = require("../categoryHandlers/ORD/CANCEL")
+const { checkIfToCheckoutOrder } = require("../categoryHandlers/ORD/CHECKOUT");
+
 const maxPerProduct = 10;
 
 async function processMessage(message, phone_number, shop_id) {
@@ -32,6 +34,16 @@ async function processMessage(message, phone_number, shop_id) {
   const order_id = activeOrder ? activeOrder.id : null;
   const items = activeOrder ? await getOrderItems(activeOrder.id) : [];
   const sig = buildActiveOrderSignals(activeOrder, items);
+
+    const checkoutReply = await checkIfToCheckoutOrder({
+      activeOrder,
+      message,
+      customer_id,
+      shop_id,
+      saveChat,
+    });
+
+    if (checkoutReply) return checkoutReply;
 
   const cancelReply = await checkIfToCancelOrder({
     activeOrder,

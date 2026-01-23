@@ -443,7 +443,8 @@ async function getActiveOrder(customer_id, shop_id) {
   const [rows] = await db.query(
     `SELECT *
        FROM orders
-      WHERE customer_id=? AND shop_id=? AND status IN ('pending','cancel_pending')
+      WHERE customer_id=? AND shop_id=? 
+        AND status IN ('pending','confirmed','cancel_pending','checkout_pending')
       ORDER BY updated_at DESC, id DESC
       LIMIT 1`,
     [customer_id, shop_id]
@@ -478,7 +479,6 @@ async function getOrderItems(order_id) {
   return rows;
 }
 
-
 function buildActiveOrderSignals(order, items) {
   if (!order) {
     return { ACTIVE_ORDER_EXISTS: false };
@@ -492,6 +492,34 @@ function buildActiveOrderSignals(order, items) {
   };
 }
 
+function formatOrderStatus(status, isEnglish) {
+  const s = String(status || "").toLowerCase();
+
+  const mapEn = {
+    pending: "Pending",
+    checkout_pending: "Waiting for checkout confirmation",
+    confirmed: "Confirmed",
+    preparing: "Preparing",
+    ready: "Ready",
+    delivering: "Delivering",
+    completed: "Completed",
+    cancel_pending: "Waiting for cancel confirmation",
+  };
+
+  const mapHe = {
+    pending: "פתוחה",
+    checkout_pending: "בהמתנה לאישור סיום הזמנה",
+    confirmed: "אושרה",
+    preparing: "בהכנה",
+    ready: "מוכנה",
+    delivering: "במשלוח",
+    completed: "הושלמה",
+    cancel_pending: "בהמתנה לאישור ביטול",
+  };
+
+  const txt = (isEnglish ? mapEn : mapHe)[s];
+  return txt || (isEnglish ? s.toUpperCase() : s); // fallback
+}
 module.exports = {
   createOrderWithStockReserve,
   getOrder,
@@ -500,4 +528,5 @@ module.exports = {
   buildActiveOrderSignals,
   fetchActivePromotionsMap,
   calcLineTotalWithPromo,
+  formatOrderStatus,
 };

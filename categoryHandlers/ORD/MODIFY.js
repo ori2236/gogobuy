@@ -5,6 +5,7 @@ const {
   getOrder,
   fetchActivePromotionsMap,
   calcLineTotalWithPromo,
+  formatOrderStatus,
 } = require("../../utilities/orders");
 const { addMoney, roundTo } = require("../../utilities/decimal");
 const { isEnglishMessage } = require("../../utilities/lang");
@@ -866,6 +867,13 @@ module.exports = {
       return "כדי לערוך הזמנה צריך להיות סל פעיל. להתחיל הזמנה חדשה?";
     }
 
+    const isEnglishEarly = isEnglishMessage(message);
+    if (!["pending", "confirmed"].includes(String(order.status))) {
+      return isEnglishEarly
+        ? `Order (#${order.id}) can't be modified at this stage.`
+        : `אי אפשר לערוך את ההזמנה (#${order.id}) בשלב הזה.`;
+    }
+
     const orderItems =
       Array.isArray(items) && items.length
         ? items
@@ -1028,9 +1036,12 @@ module.exports = {
       const savings = roundTo(totalNoPromos - totalWithPromos, 2);
       const hasSavings = Number.isFinite(savings) && savings >= 0.01;
 
+      const statusText = formatOrderStatus(order.status, isEnglish);
+
       const headerBlock = isEnglish
         ? [
             `Order: #${order.id}`,
+            `Status: ${statusText}`,
             hasSavings
               ? `Subtotal: *₪${totalWithPromos.toFixed(
                   2
@@ -1039,6 +1050,7 @@ module.exports = {
           ].join("\n")
         : [
             `מספר הזמנה: #${order.id}`,
+            `סטטוס: ${statusText}`,
             hasSavings
               ? `סה״כ ביניים: *₪${totalWithPromos.toFixed(
                   2
