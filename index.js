@@ -6,6 +6,7 @@ const db = require("./config/db");
 
 const customerInteractionRoutes = require("./routes/customerInteractionRoutes");
 const webhooksRoutes = require("./routes/webhook");
+const dashboardRoutes = require("./routes/dashboard");
 const deleteLastData = require("./routes/deleteLastData");
 const { rebuildTokenWeightsForShop } = require("./services/products");
 
@@ -19,6 +20,9 @@ app.use(express.urlencoded({ extended: true }));
 // Routes
 app.use("/api/customer-interaction", customerInteractionRoutes);
 app.use("/", webhooksRoutes);
+
+//Dashboard routes
+app.use("/api/dashboard", dashboardRoutes);
 
 //temp
 app.use("/api/deleteLastData", deleteLastData);

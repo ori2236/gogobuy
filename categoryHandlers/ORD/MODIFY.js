@@ -864,7 +864,7 @@ module.exports = {
     }
     const order = activeOrder || (await getOrder(order_id));
     if (!order) {
-      return "כדי לערוך הזמנה צריך להיות סל פעיל. להתחיל הזמנה חדשה?";
+      return "כדי לערוך הזמנה צריך להיות הזמנה פעילה. להתחיל הזמנה חדשה?";
     }
 
     const isEnglishEarly = isEnglishMessage(message);
