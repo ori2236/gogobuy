@@ -1,5 +1,6 @@
 const db = require("../config/db");
 const { sendWhatsAppText } = require("../config/whatsapp");
+const { parseShopId, normalizeWaNumber } = require("../utilities/dashboardUtils");
 
 const ALLOWED_STATUSES = new Set([
   "pending",
@@ -20,8 +21,8 @@ function parseStatusList(statusParam) {
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-  const statuses = parts.filter((s) => ALLOWED_STATUSES.has(s));
 
+  const statuses = parts.filter((s) => ALLOWED_STATUSES.has(s));
   return statuses.length ? statuses : ["confirmed", "preparing"];
 }
 
@@ -37,30 +38,10 @@ async function hasOrdersPickerNoteColumn(conn) {
       AND TABLE_NAME = 'orders'
       AND COLUMN_NAME = 'picker_note'
     LIMIT 1
-    `
+    `,
   );
   HAS_PICKER_NOTE_COL = rows.length > 0;
   return HAS_PICKER_NOTE_COL;
-}
-
-function normalizeWaNumber(phone) {
-  let digits = String(phone || "").replace(/[^\d]/g, "");
-  if (!digits) return null;
-
-  digits = digits.replace(/^0+/, "0");
-
-  if (digits.startsWith("0") && digits.length === 10) {
-    return "972" + digits.slice(1);
-  }
-
-  if (digits.startsWith("972") && digits.length >= 11) {
-    return digits;
-  }
-
-  if (digits.length === 9 && digits.startsWith("5")) {
-    return "972" + digits;
-  }
-  return digits;
 }
 
 function buildPreparingMsg(orderId) {
@@ -77,8 +58,9 @@ function buildReadyMsg(orderId, note) {
 }
 
 exports.getPickerOrders = async (req, res) => {
+  const conn = await db.getConnection();
   try {
-    const shopId = Number(req.query.shop_id || 1);
+    const shopId = parseShopId(req);
     const statuses = parseStatusList(req.query.status);
     const limit = Math.min(Number(req.query.limit || 50), 200);
 
@@ -87,7 +69,12 @@ exports.getPickerOrders = async (req, res) => {
     }
 
     const placeholders = statuses.map(() => "?").join(",");
-    const [ordersRows] = await db.query(
+    const hasPickerNoteCol = await hasOrdersPickerNoteColumn(conn);
+    const pickerNoteSelect = hasPickerNoteCol
+      ? "o.picker_note"
+      : "NULL AS picker_note";
+
+    const [ordersRows] = await conn.query(
       `
       SELECT
         o.id,
@@ -99,7 +86,7 @@ exports.getPickerOrders = async (req, res) => {
         o.delivery_address,
         o.created_at,
         o.updated_at,
-        o.picker_note,
+        ${pickerNoteSelect},
         c.name  AS customer_name,
         c.phone AS customer_phone
       FROM orders o
@@ -109,7 +96,7 @@ exports.getPickerOrders = async (req, res) => {
       ORDER BY o.created_at DESC
       LIMIT ?
       `,
-      [shopId, ...statuses, limit]
+      [shopId, ...statuses, limit],
     );
 
     if (!ordersRows.length) {
@@ -117,9 +104,9 @@ exports.getPickerOrders = async (req, res) => {
     }
 
     const orderIds = ordersRows.map((o) => o.id);
-
     const itemPlaceholders = orderIds.map(() => "?").join(",");
-    const [itemsRows] = await db.query(
+
+    const [itemsRows] = await conn.query(
       `
       SELECT
         oi.id         AS order_item_id,
@@ -128,13 +115,16 @@ exports.getPickerOrders = async (req, res) => {
         oi.amount     AS amount,
         oi.sold_by_weight AS sold_by_weight,
         oi.requested_units AS requested_units,
-        p.name        AS product_name
+        COALESCE(p.name, dp.name, CONCAT('מוצר שנמחק (#', oi.product_id, ')')) AS product_name
       FROM order_item oi
-      JOIN product p ON p.id = oi.product_id
+      LEFT JOIN product p
+        ON p.id = oi.product_id AND p.shop_id = ?
+      LEFT JOIN deleted_product dp
+        ON dp.id = oi.product_id AND dp.shop_id = ?
       WHERE oi.order_id IN (${itemPlaceholders})
       ORDER BY oi.order_id ASC, oi.id ASC
       `,
-      orderIds
+      [shopId, shopId, ...orderIds],
     );
 
     const itemsByOrder = new Map();
@@ -171,6 +161,8 @@ exports.getPickerOrders = async (req, res) => {
   } catch (err) {
     console.error("[dashboard.getPickerOrders]", err);
     return res.status(500).json({ ok: false, message: "Server error" });
+  } finally {
+    conn.release();
   }
 };
 
@@ -190,7 +182,7 @@ exports.updateOrderStatus = async (req, res) => {
 
     const hasNoteInBody = Object.prototype.hasOwnProperty.call(
       req.body || {},
-      "picker_note"
+      "picker_note",
     );
     const pickerNoteFromBody = hasNoteInBody
       ? String(req.body.picker_note || "").trim()
@@ -216,7 +208,7 @@ exports.updateOrderStatus = async (req, res) => {
       WHERE o.id = ?
       FOR UPDATE
       `,
-      [orderId]
+      [orderId],
     );
 
     if (!rows.length) {
@@ -271,7 +263,7 @@ exports.updateOrderStatus = async (req, res) => {
       params.push(orderId);
       await conn.query(
         `UPDATE orders SET ${sets.join(", ")} WHERE id = ?`,
-        params
+        params,
       );
     }
 
@@ -303,7 +295,7 @@ exports.updateOrderStatus = async (req, res) => {
         } catch (err) {
           console.error(
             "[dashboard.updateOrderStatus] WhatsApp send failed:",
-            err?.response?.data || err.message
+            err?.response?.data || err.message,
           );
         }
       })();

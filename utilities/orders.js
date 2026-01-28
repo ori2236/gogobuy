@@ -454,30 +454,48 @@ async function getActiveOrder(customer_id, shop_id) {
 
 async function getOrderItems(order_id) {
   const [rows] = await db.query(
-    `SELECT
-       oi.*,
-       p.name,
-       p.display_name_en,
-       p.price AS unit_price,
-       p.category,
-       p.sub_category AS 'sub-category',
-       pr.kind AS promo_kind,
-       pr.percent_off,
-       pr.amount_off,
-       pr.fixed_price,
-       pr.bundle_buy_qty,
-       pr.bundle_pay_price
+    `
+    SELECT
+      oi.*,
 
-     FROM order_item oi
-     LEFT JOIN product p ON p.id = oi.product_id
-     LEFT JOIN promotion pr
-       ON pr.id = oi.promo_id
-      AND pr.shop_id = p.shop_id
-     WHERE oi.order_id = ?`,
-    [order_id]
+      COALESCE(p.name, dp.name, CONCAT('מוצר שנמחק (#', oi.product_id, ')')) AS name,
+      COALESCE(p.display_name_en, dp.display_name_en, NULL) AS display_name_en,
+      COALESCE(p.category, dp.category, NULL) AS category,
+      COALESCE(p.sub_category, dp.sub_category, NULL) AS 'sub-category',
+
+      COALESCE(p.price, dp.price, NULL) AS unit_price,
+
+      CASE WHEN p.id IS NULL AND dp.id IS NOT NULL THEN 1 ELSE 0 END AS is_deleted_product,
+
+      pr.kind AS promo_kind,
+      pr.percent_off,
+      pr.amount_off,
+      pr.fixed_price,
+      pr.bundle_buy_qty,
+      pr.bundle_pay_price
+
+    FROM order_item oi
+    JOIN orders o
+      ON o.id = oi.order_id
+
+    LEFT JOIN product p
+      ON p.id = oi.product_id AND p.shop_id = o.shop_id
+
+    LEFT JOIN deleted_product dp
+      ON dp.id = oi.product_id AND dp.shop_id = o.shop_id
+
+    LEFT JOIN promotion pr
+      ON pr.id = oi.promo_id
+     AND pr.shop_id = o.shop_id
+
+    WHERE oi.order_id = ?
+    ORDER BY oi.id ASC
+    `,
+    [order_id],
   );
-  return rows;
+  return rows || [];
 }
+
 
 function buildActiveOrderSignals(order, items) {
   if (!order) {
@@ -520,6 +538,7 @@ function formatOrderStatus(status, isEnglish) {
   const txt = (isEnglish ? mapEn : mapHe)[s];
   return txt || (isEnglish ? s.toUpperCase() : s); // fallback
 }
+
 module.exports = {
   createOrderWithStockReserve,
   getOrder,
