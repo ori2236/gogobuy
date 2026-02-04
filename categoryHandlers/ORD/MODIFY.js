@@ -24,16 +24,17 @@ const {
   deleteQuestionsByIds,
 } = require("../../utilities/openQuestions");
 const { normalizeIncomingQuestions } = require("../../utilities/normalize");
-const { MODIFY_ORDER_SCHEMA } = require("./schemas/modify.schema");
+const { buildModifyOrderSchema } = require("./schemas/modify.schema");
+
 const PROMPT_CAT = "ORD";
 const PROMPT_SUB = "MODIFY";
 
 async function repriceOrderItemsWithPromos(
   conn,
-  { shop_id, order_id, orderItemIds }
+  { shop_id, order_id, orderItemIds },
 ) {
   const ids = Array.from(
-    new Set(Array.from(orderItemIds).map(Number).filter(Boolean))
+    new Set(Array.from(orderItemIds).map(Number).filter(Boolean)),
   );
   if (!ids.length) return;
 
@@ -59,7 +60,7 @@ async function repriceOrderItemsWithPromos(
     WHERE oi.order_id = ?
     AND oi.id IN (${placeholders})
   `,
-    [Number(order_id), ...ids]
+    [Number(order_id), ...ids],
   );
 
   for (const r of rows) {
@@ -91,7 +92,7 @@ async function repriceOrderItemsWithPromos(
         SET price = ?,
         price_locked = CASE WHEN promo_id IS NULL THEN price_locked ELSE 1 END
       WHERE id = ? AND order_id = ?`,
-      [lineTotal ?? fallback, Number(r.order_item_id), Number(order_id)]
+      [lineTotal ?? fallback, Number(r.order_item_id), Number(order_id)],
     );
   }
 }
@@ -147,7 +148,7 @@ async function applyOrderPatch({
            ELSE stock_amount - ?
          END
        WHERE id = ? AND shop_id = ?`,
-      [Number(delta), Number(pid), Number(shop_id)]
+      [Number(delta), Number(pid), Number(shop_id)],
     );
   };
 
@@ -159,7 +160,7 @@ async function applyOrderPatch({
            ELSE stock_amount + ?
          END
        WHERE id = ? AND shop_id = ?`,
-      [Number(delta), Number(pid), Number(shop_id)]
+      [Number(delta), Number(pid), Number(shop_id)],
     );
   };
 
@@ -167,7 +168,7 @@ async function applyOrderPatch({
   const updateOrderItemAmountAndMaybeMeta = async (
     orderItemId,
     newQty,
-    modelP
+    modelP,
   ) => {
     const setParts = [`amount = ?`];
     const params = [Number(newQty)];
@@ -199,7 +200,7 @@ async function applyOrderPatch({
       `UPDATE order_item
       SET ${setParts.join(", ")}
       WHERE id = ? AND order_id = ?`,
-      [...params, Number(orderItemId), Number(order_id)]
+      [...params, Number(orderItemId), Number(order_id)],
     );
   };
 
@@ -228,12 +229,12 @@ async function applyOrderPatch({
        JOIN product p ON p.id = oi.product_id
        WHERE oi.order_id = ?
        FOR UPDATE`,
-      [Number(order_id)]
+      [Number(order_id)],
     );
 
     const byOrderItemId = new Map(origItems.map((it) => [Number(it.id), it]));
     const byProdId = new Map(
-      origItems.map((it) => [Number(it.product_id), it])
+      origItems.map((it) => [Number(it.product_id), it]),
     );
 
     //REMOVE
@@ -248,7 +249,7 @@ async function applyOrderPatch({
 
       await conn.query(
         `DELETE FROM order_item WHERE id = ? AND order_id = ? LIMIT 1`,
-        [Number(orderItemId), Number(order_id)]
+        [Number(orderItemId), Number(order_id)],
       );
 
       removedApplied.push({
@@ -312,7 +313,7 @@ async function applyOrderPatch({
              FROM product
              WHERE id = ? AND shop_id = ?
             FOR UPDATE`,
-          [Number(row.product_id), Number(shop_id)]
+          [Number(row.product_id), Number(shop_id)],
         );
 
         const stock = stockToNumber(prod?.stock_amount);
@@ -344,7 +345,7 @@ async function applyOrderPatch({
             [Number(row.product_id)],
             3,
             mainName,
-            excludeTokens
+            excludeTokens,
           );
 
           const altNames = alts.map((a) => display(a));
@@ -367,12 +368,12 @@ async function applyOrderPatch({
                     stock === Infinity ? "לא מוגבל" : stock
                   }). ${tpl(mainName, altNames)}`
               : isEnglish
-              ? `${mainName} is short on stock for the requested increase (requested +${delta}, available ${
-                  stock === Infinity ? "unlimited" : stock
-                }). Would you like a replacement or should I keep the current quantity?`
-              : `${mainName} חסר במלאי להגדלה שביקשת (תוספת ${delta}, זמינות ${
-                  stock === Infinity ? "לא מוגבל" : stock
-                }). להציע חלופה או להשאיר את הכמות הנוכחית?`,
+                ? `${mainName} is short on stock for the requested increase (requested +${delta}, available ${
+                    stock === Infinity ? "unlimited" : stock
+                  }). Would you like a replacement or should I keep the current quantity?`
+                : `${mainName} חסר במלאי להגדלה שביקשת (תוספת ${delta}, זמינות ${
+                    stock === Infinity ? "לא מוגבל" : stock
+                  }). להציע חלופה או להשאיר את הכמות הנוכחית?`,
             options: altNames,
           });
         }
@@ -433,7 +434,7 @@ async function applyOrderPatch({
           [],
           3,
           p.name,
-          excludeTokens
+          excludeTokens,
         );
 
         notFoundAdds.push({
@@ -455,8 +456,8 @@ async function applyOrderPatch({
           question: altNames.length
             ? tpl(subject, altNames)
             : isEnglish
-            ? `Couldn't find "${subject}". Would you like a replacement or should I skip it?`
-            : `לא מצאתי "${p.name}". להציע חלופה או לדלג?`,
+              ? `Couldn't find "${subject}". Would you like a replacement or should I skip it?`
+              : `לא מצאתי "${p.name}". להציע חלופה או לדלג?`,
           options: altNames,
         });
 
@@ -471,7 +472,7 @@ async function applyOrderPatch({
            FROM product
           WHERE id = ? AND shop_id = ?
           FOR UPDATE`,
-        [pid, Number(shop_id)]
+        [pid, Number(shop_id)],
       );
 
       const stock = stockToNumber(prod?.stock_amount);
@@ -482,7 +483,7 @@ async function applyOrderPatch({
            FROM order_item
           WHERE order_id = ? AND product_id = ?
           FOR UPDATE`,
-        [Number(order_id), pid]
+        [Number(order_id), pid],
       );
 
       const prevAmount = existingOrderItem
@@ -567,7 +568,7 @@ async function applyOrderPatch({
           await updateOrderItemAmountAndMaybeMeta(
             Number(existingOrderItem.id),
             finalQty,
-            metaForExisting
+            metaForExisting,
           );
           touchedOrderItemIds.add(Number(existingOrderItem.id));
 
@@ -608,7 +609,7 @@ async function applyOrderPatch({
               linePrice,
               1, // price_locked
               promo_id ?? null,
-            ]
+            ],
           );
 
           touchedOrderItemIds.add(Number(ins.insertId));
@@ -634,7 +635,7 @@ async function applyOrderPatch({
           [pid],
           3,
           mainName,
-          excludeTokens
+          excludeTokens,
         );
 
         insufficientNewAdds.push({
@@ -659,12 +660,12 @@ async function applyOrderPatch({
                   stock === Infinity ? "לא מוגבל" : stock
                 }). ${tpl(p.name, altNames)}`
             : isEnglish
-            ? `${mainName} is short on stock (requested ${actualDelta}, available ${
-                stock === Infinity ? "unlimited" : stock
-              }). Would you like a replacement or should I skip it?`
-            : `${mainName} חסר במלאי (התבקשה כמות ${actualDelta}, זמינות ${
-                stock === Infinity ? "לא מוגבל" : stock
-              }). להציע חלופה או לדלג?`,
+              ? `${mainName} is short on stock (requested ${actualDelta}, available ${
+                  stock === Infinity ? "unlimited" : stock
+                }). Would you like a replacement or should I skip it?`
+              : `${mainName} חסר במלאי (התבקשה כמות ${actualDelta}, זמינות ${
+                  stock === Infinity ? "לא מוגבל" : stock
+                }). להציע חלופה או לדלג?`,
           options: altNames,
         });
       }
@@ -681,14 +682,14 @@ async function applyOrderPatch({
       `SELECT COALESCE(ROUND(SUM(price), 2), 0) AS total
         FROM order_item
         WHERE order_id = ?`,
-      [Number(order_id)]
+      [Number(order_id)],
     );
 
     const total = Number(sumRow.total || 0);
 
     await conn.query(
       `UPDATE orders SET price = ?, updated_at = NOW(6) WHERE id = ?`,
-      [total, Number(order_id)]
+      [total, Number(order_id)],
     );
 
     const [curItems] = await conn.query(
@@ -714,7 +715,7 @@ async function applyOrderPatch({
       JOIN product p ON p.id = oi.product_id
       LEFT JOIN promotion pr ON pr.id = oi.promo_id
       WHERE oi.order_id = ?`,
-      [Number(order_id)]
+      [Number(order_id)],
     );
 
     await conn.commit();
@@ -883,7 +884,7 @@ module.exports = {
            FROM order_item oi
            LEFT JOIN product p ON p.id = oi.product_id
            WHERE oi.order_id = ?`,
-              [order.id]
+              [order.id],
             )
           )[0];
 
@@ -904,7 +905,7 @@ module.exports = {
       systemPrompt: systemWithInputs,
       response_format: {
         type: "json_schema",
-        json_schema: MODIFY_ORDER_SCHEMA,
+        json_schema: await buildModifyOrderSchema(),
       },
     });
 
@@ -923,8 +924,6 @@ module.exports = {
           : "מצטערים, הייתה תקלה בעיבוד הבקשה. אפשר לנסח שוב בקצרה מה תרצה לשנות בהזמנה?";
       }
     }
-
-    console.log("[ORD-MODIFY] parsed answer:", JSON.stringify(parsed, null, 2));
 
     const modelQuestions = normalizeIncomingQuestions(parsed?.questions, {
       preserveOptions: true,
@@ -973,7 +972,7 @@ module.exports = {
       const hasItems = Array.isArray(txRes.items) && txRes.items.length > 0;
       combinedQuestions = normalizeIncomingQuestions(
         [...modelQuestions, ...(txRes.questions || [])],
-        { preserveOptions: true }
+        { preserveOptions: true },
       );
 
       await saveOpenQuestions({
@@ -1021,8 +1020,8 @@ module.exports = {
         typeof parsed?.summary_line === "string" && parsed.summary_line.trim()
           ? parsed.summary_line.trim()
           : isEnglish
-          ? "Here is your updated order:"
-          : "זוהי ההזמנה המעודכנת שלך:";
+            ? "Here is your updated order:"
+            : "זוהי ההזמנה המעודכנת שלך:";
 
       let totalNoPromos = 0;
       for (const it of txRes.items || []) {
@@ -1044,7 +1043,7 @@ module.exports = {
             `Status: ${statusText}`,
             hasSavings
               ? `Subtotal: *₪${totalWithPromos.toFixed(
-                  2
+                  2,
                 )}* instead of ₪${totalNoPromos.toFixed(2)}`
               : `Subtotal: *₪${totalWithPromos.toFixed(2)}*`,
           ].join("\n")
@@ -1053,42 +1052,26 @@ module.exports = {
             `סטטוס: ${statusText}`,
             hasSavings
               ? `סה״כ ביניים: *₪${totalWithPromos.toFixed(
-                  2
+                  2,
                 )}* במקום ₪${totalNoPromos.toFixed(2)}`
               : `סה״כ ביניים: *₪${totalWithPromos.toFixed(2)}*`,
           ].join("\n");
 
       console.log(
-        "[ORD-MODIFY] Current items:",
-        JSON.stringify(txRes.items, null, 2)
-      );
-      console.log(
-        "[ORD-MODIFY] Removed (applied):",
-        JSON.stringify(txRes.meta.removedApplied, null, 2)
-      );
-      console.log(
-        "[ORD-MODIFY] Qty increased:",
-        JSON.stringify(txRes.meta.qtyIncreased, null, 2)
-      );
-      console.log(
         "[ORD-MODIFY] Qty decreased:",
-        JSON.stringify(txRes.meta.qtyDecreased, null, 2)
-      );
-      console.log(
-        "[ORD-MODIFY] Added (applied):",
-        JSON.stringify(txRes.meta.addedApplied, null, 2)
+        JSON.stringify(txRes.meta.qtyDecreased, null, 2),
       );
       console.log(
         "[ORD-MODIFY] Not-found adds (with alts):",
-        JSON.stringify(txRes.meta.notFoundAdds, null, 2)
+        JSON.stringify(txRes.meta.notFoundAdds, null, 2),
       );
       console.log(
         "[ORD-MODIFY] Insufficient existing increases:",
-        JSON.stringify(txRes.meta.insufficientExistingIncreases, null, 2)
+        JSON.stringify(txRes.meta.insufficientExistingIncreases, null, 2),
       );
       console.log(
         "[ORD-MODIFY] Insufficient new adds:",
-        JSON.stringify(txRes.meta.insufficientNewAdds, null, 2)
+        JSON.stringify(txRes.meta.insufficientNewAdds, null, 2),
       );
 
       const questionsBlock = buildQuestionsBlock({
@@ -1129,7 +1112,7 @@ module.exports = {
         FROM order_item oi
         JOIN product p ON p.id = oi.product_id
         WHERE oi.order_id = ?`,
-        [order.id]
+        [order.id],
       );
 
       const itemsForView = (curItems || []).map((it) => ({

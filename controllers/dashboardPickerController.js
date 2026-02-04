@@ -1,6 +1,9 @@
 const db = require("../config/db");
 const { sendWhatsAppText } = require("../config/whatsapp");
-const { parseShopId, normalizeWaNumber } = require("../utilities/dashboardUtils");
+const {
+  parseShopId,
+  normalizeWaNumber,
+} = require("../utilities/dashboardUtils");
 
 const ALLOWED_STATUSES = new Set([
   "pending",
@@ -57,6 +60,76 @@ function buildReadyMsg(orderId, note) {
   return msg;
 }
 
+function buildEmptyOrderDeletedMsg(orderId) {
+  return (
+    `שמנו לב שההזמנה שלך (#${orderId}) נוצרה ללא מוצרים ולכן היא בוטלה.\n` +
+    `אם זו טעות – אפשר לשלוח את ההזמנה מחדש ואנחנו נטפל בזה מיד.`
+  );
+}
+
+async function cleanupEmptyPickerOrders(conn, shopId, { limit = 200 } = {}) {
+  await conn.beginTransaction();
+  try {
+    const [rows] = await conn.query(
+      `
+      SELECT
+        o.id AS order_id,
+        c.phone AS customer_phone
+      FROM orders o
+      JOIN customer c ON c.id = o.customer_id
+      WHERE o.shop_id = ?
+        AND o.status IN ('confirmed','preparing')
+        AND NOT EXISTS (
+          SELECT 1
+          FROM order_item oi
+          WHERE oi.order_id = o.id
+          LIMIT 1
+        )
+      ORDER BY o.created_at ASC
+      LIMIT ?
+      FOR UPDATE
+      `,
+      [shopId, limit],
+    );
+
+    if (!rows.length) {
+      await conn.commit();
+      return [];
+    }
+
+    const ids = rows.map((r) => Number(r.order_id));
+    const placeholders = ids.map(() => "?").join(",");
+
+    await conn.query(
+      `
+      DELETE FROM orders
+      WHERE shop_id = ?
+        AND status IN ('confirmed','preparing')
+        AND id IN (${placeholders})
+        AND NOT EXISTS (
+          SELECT 1
+          FROM order_item oi
+          WHERE oi.order_id = orders.id
+          LIMIT 1
+        )
+      `,
+      [shopId, ...ids],
+    );
+
+    await conn.commit();
+
+    return rows.map((r) => ({
+      orderId: Number(r.order_id),
+      customerPhone: normalizeWaNumber(r.customer_phone),
+    }));
+  } catch (e) {
+    try {
+      await conn.rollback();
+    } catch {}
+    throw e;
+  }
+}
+
 exports.getPickerOrders = async (req, res) => {
   const conn = await db.getConnection();
   try {
@@ -68,6 +141,37 @@ exports.getPickerOrders = async (req, res) => {
       return res.status(400).json({ ok: false, message: "Invalid shop_id" });
     }
 
+    let deletedEmpty = [];
+    try {
+      deletedEmpty = await cleanupEmptyPickerOrders(conn, shopId, {
+        limit: 200,
+      });
+    } catch (e) {
+      console.error("[dashboard.cleanupEmptyPickerOrders] failed:", e);
+      deletedEmpty = [];
+    }
+
+    if (deletedEmpty.length) {
+      (async () => {
+        for (const x of deletedEmpty) {
+          if (!x.customerPhone) continue;
+          const text = buildEmptyOrderDeletedMsg(x.orderId);
+          try {
+            await sendWhatsAppText(x.customerPhone, text);
+            console.log("[dashboard.cleanupEmptyPickerOrders] WhatsApp sent", {
+              orderId: x.orderId,
+              to: x.customerPhone,
+            });
+          } catch (err) {
+            console.error(
+              "[dashboard.cleanupEmptyPickerOrders] WhatsApp send failed:",
+              err?.response?.data || err.message,
+            );
+          }
+        }
+      })();
+    }
+    
     const placeholders = statuses.map(() => "?").join(",");
     const hasPickerNoteCol = await hasOrdersPickerNoteColumn(conn);
     const pickerNoteSelect = hasPickerNoteCol

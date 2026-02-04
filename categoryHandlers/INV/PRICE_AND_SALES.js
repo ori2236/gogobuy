@@ -15,9 +15,8 @@ const {
 } = require("../../services/priceAndSales");
 const { saveOpenQuestions } = require("../../utilities/openQuestions");
 const { normalizeIncomingQuestions } = require("../../utilities/normalize");
-
 const {
-  INV_PRICE_AND_SALES_SCHEMA,
+  buildInvPriceAndSalesSchema
 } = require("./schemas/priceAndSales.schema");
 
 const PROMPT_CAT = "INV";
@@ -37,7 +36,7 @@ async function answerPriceAndSales({
 }) {
   if (typeof message !== "string" || !customer_id || !shop_id) {
     throw new Error(
-      "answerPriceAndSales: missing or invalid message/customer_id/shop_id"
+      "answerPriceAndSales: missing or invalid message/customer_id/shop_id",
     );
   }
 
@@ -48,7 +47,7 @@ async function answerPriceAndSales({
     systemPrompt: basePrompt,
     response_format: {
       type: "json_schema",
-      json_schema: INV_PRICE_AND_SALES_SCHEMA,
+      json_schema: await buildInvPriceAndSalesSchema(),
     },
   });
 
@@ -62,7 +61,7 @@ async function answerPriceAndSales({
       console.error(
         "[INV-PRICE][ERR] Failed to parse model JSON:",
         e2?.message,
-        answer
+        answer,
       );
       const botPayload = isEnglish
         ? "Sorry, there was a problem understanding your pricing question. Can you rephrase it?"
@@ -98,7 +97,7 @@ async function answerPriceAndSales({
     (p) =>
       String(p?.price_intent || "")
         .trim()
-        .toUpperCase() === "PRICE_COMPARE"
+        .toUpperCase() === "PRICE_COMPARE",
   );
 
   if (compareReqs.length) {
@@ -115,7 +114,7 @@ async function answerPriceAndSales({
     (p) =>
       String(p?.price_intent || "")
         .trim()
-        .toUpperCase() === "PROMOTION"
+        .toUpperCase() === "PROMOTION",
   );
 
   if (promoReqs.length) {
@@ -132,7 +131,7 @@ async function answerPriceAndSales({
     (p) =>
       String(p?.price_intent || "")
         .trim()
-        .toUpperCase() === "CHEAPER_ALT"
+        .toUpperCase() === "CHEAPER_ALT",
   );
 
   if (cheaperAltReqs.length) {
@@ -149,7 +148,7 @@ async function answerPriceAndSales({
     (p) =>
       String(p?.price_intent || "")
         .trim()
-        .toUpperCase() === "BUDGET_PICK"
+        .toUpperCase() === "BUDGET_PICK",
   );
 
   if (budgetReqs.length) {
@@ -166,7 +165,7 @@ async function answerPriceAndSales({
     (p) =>
       String(p?.price_intent || "")
         .trim()
-        .toUpperCase() === "PRICE"
+        .toUpperCase() === "PRICE",
   );
 
   if (!priceReqs.length) {
@@ -274,15 +273,15 @@ async function answerPriceAndSales({
     const category = String(nf?.category || req?.category || "").trim() || null;
     const sub_category =
       String(
-        nf?.sub_category || req?.["sub-category"] || req?.sub_category || ""
+        nf?.sub_category || req?.["sub-category"] || req?.sub_category || "",
       ).trim() || null;
 
     const excludeTokens =
       Array.isArray(nf?.exclude_tokens) && nf.exclude_tokens.length
         ? nf.exclude_tokens
         : Array.isArray(req.exclude_tokens)
-        ? req.exclude_tokens
-        : [];
+          ? req.exclude_tokens
+          : [];
 
     if (category || sub_category) {
       const { blockText, questionObj, altIds } = await buildAltBlockAndQuestion(
@@ -296,7 +295,7 @@ async function answerPriceAndSales({
           excludeTokens,
           usedIds,
           isEnglish,
-        }
+        },
       );
 
       if (blockText) blockLines.push(blockText);

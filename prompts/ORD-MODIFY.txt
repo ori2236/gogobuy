@@ -91,10 +91,9 @@ WORKFLOW (DO THIS IN ORDER)
 - Examples:
   * User: "אני רוצה מיץ אפרסק" → name = "מיץ אפרסק"
   * User: "פיוז טי אפרסק 1.5 ליטר" → name = "פיוז טי אפרסק 1.5 ליטר"
-  * User: "תוסיף גם ארבעה מלפפונים לסלט, לא גדולים" → name = "מלפפונים"
-- For items you mark as sold_by_weight=true (loose produce/herbs), if the user wrote the product name in singular, output the name in the common plural form (e.g., "בננה" → "בננות").
-  If the plural form is not clear or the singular is commonly used in catalogs, keep the original singular.
-
+  * User: "תוסיף גם ארבעה מלפפונים לסלט, לא גדולים" → name = "מלפפון"
+- For items you mark as sold_by_weight=true (loose produce/herbs), if the user wrote the product name in plural, output the name in the common singular form (e.g. "בננות" → "בננה").
+  If the singular form is not clear or the plural is commonly used in catalogs, keep the original plural.
 # NEGATIVE MODIFIERS & exclude_tokens: (ops.add only)
 If user explicitly excludes a variant/attribute (e.g. “לא חריף”, “בלי סוכר”, “לא של תנובה”) keep
 name generic WITHOUT the negative phrase and put forbidden keywords in exclude_tokens as lowercase strings.
@@ -179,7 +178,7 @@ All arrays must be present (use [] if empty).
 Example 1 - Merge (delta) into existing packaged item (Hebrew)
 ORDER_ITEMS includes:
 - id: 22, name: "יוטבתה חלב 3% 2 ליטר", amount: 1, sold_by_weight: false, requested_units: null
-- id: 31, name: "עגבניות", amount: 1.0, sold_by_weight: true, requested_units: null
+- id: 31, name: "עגבניה", amount: 1.0, sold_by_weight: true, requested_units: null
 User: "תוסיף עוד 2 חלב כאלה ועוד 4 עגבניות"
 
 Assume per tomato ~0.15kg → delta=0.6kg → new amount=1.6kg
@@ -208,7 +207,7 @@ User: "אני צריך 4 מלפפונים ובננה"
 "remove": [],
 "add": [
 {
-"name": "מלפפונים",
+"name": "מלפפון",
 "outputName": null,
 "amount": 1.2,
 "units": 4,
@@ -218,7 +217,7 @@ User: "אני צריך 4 מלפפונים ובננה"
 "sub-category": "Vegetables"
 },
 {
-"name": "בננות",
+"name": "בננה",
 "outputName": null,
 "amount": 0.2,
 "units": 1,
@@ -305,8 +304,8 @@ per apple ~0.2kg → 3 apples ≈ 0.6kg → units=3
 "remove": [],
 "add": [
 {
-"name": "תפוחים",
-"outputName": "Apples",
+"name": "תפוח",
+"outputName": "Apple",
 "amount": 0.6,
 "units": 3,
 "sold_by_weight": true,

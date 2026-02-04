@@ -37,48 +37,52 @@ const COMMON_PRODUCT_REQUIRED = [
   "price_intent",
 ];
 
-const CATEGORY_SUBCATEGORY_ANYOF = [
-  ...buildCategorySubcategoryItemSchemas(
+async function buildInvPriceAndSalesSchema() {
+  const categorySchemas = await buildCategorySubcategoryItemSchemas(
     COMMON_PRODUCT_PROPS,
-    COMMON_PRODUCT_REQUIRED
-  ),
-  ...buildNullableSubcategorySchemas(
+    COMMON_PRODUCT_REQUIRED,
+  );
+
+  const nullableSchemas = await buildNullableSubcategorySchemas(
     COMMON_PRODUCT_PROPS,
-    COMMON_PRODUCT_REQUIRED
-  ),
-];
+    COMMON_PRODUCT_REQUIRED,
+  );
 
+  const CATEGORY_SUBCATEGORY_ANYOF = [...categorySchemas, ...nullableSchemas];
 
-const INV_PRICE_AND_SALES_SCHEMA = {
-  name: "inv_price_and_sales_extract",
-  strict: true,
-  schema: {
-    type: "object",
-    additionalProperties: false,
-    required: ["products", "questions"],
-    properties: {
-      products: {
-        type: "array",
-        items: {
-          anyOf: CATEGORY_SUBCATEGORY_ANYOF,
+  return {
+    name: "inv_price_and_sales_extract",
+    strict: true,
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["products", "questions"],
+      properties: {
+        products: {
+          type: "array",
+          items: {
+            anyOf: CATEGORY_SUBCATEGORY_ANYOF,
+          },
         },
-      },
-
-      questions: {
-        type: "array",
-        items: {
-          type: "object",
-          additionalProperties: false,
-          required: ["name", "question", "options"],
-          properties: {
-            name: { anyOf: [{ type: "string" }, { type: "null" }] },
-            question: { type: "string", minLength: 1 },
-            options: { type: "array", items: { type: "string", minLength: 1 } },
+        questions: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["name", "question", "options"],
+            properties: {
+              name: { anyOf: [{ type: "string" }, { type: "null" }] },
+              question: { type: "string", minLength: 1 },
+              options: {
+                type: "array",
+                items: { type: "string", minLength: 1 },
+              },
+            },
           },
         },
       },
     },
-  },
-};
+  };
+}
 
-module.exports = { INV_PRICE_AND_SALES_SCHEMA };
+module.exports = { buildInvPriceAndSalesSchema };

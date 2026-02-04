@@ -17,8 +17,8 @@ const {
   deleteQuestionsByIds,
 } = require("../../utilities/openQuestions");
 const { normalizeIncomingQuestions } = require("../../utilities/normalize");
+const { buildCreateOrderSchema } = require("./schemas/create.schema");
 
-const { CREATE_ORDER_SCHEMA } = require("./schemas/create.schema");
 const PROMPT_CAT = "ORD";
 const PROMPT_SUB = "CREATE";
 
@@ -33,7 +33,7 @@ module.exports = {
   }) {
     if (typeof message !== "string" || !customer_id || !shop_id) {
       throw new Error(
-        "orderProducts: missing or invalid message/customer_id/shop_id"
+        "orderProducts: missing or invalid message/customer_id/shop_id",
       );
     }
 
@@ -49,7 +49,7 @@ module.exports = {
       systemPrompt,
       response_format: {
         type: "json_schema",
-        json_schema: CREATE_ORDER_SCHEMA,
+        json_schema: await buildCreateOrderSchema(),
       },
     });
 
@@ -68,8 +68,6 @@ module.exports = {
         };
       }
     }
-
-    console.log("[ORD-CREATE] parsed answer:", JSON.stringify(parsed, null, 2));
 
     const qUpdates = parsed?.question_updates || {};
     if (Array.isArray(qUpdates.close_ids) && qUpdates.close_ids.length) {
@@ -197,15 +195,15 @@ module.exports = {
       shop_id,
       notFound,
       foundIdsSet,
-      isEnglish
+      isEnglish,
     );
 
     const notFoundNameSet = new Set(
       notFound
         .map((nf) =>
-          typeof nf.requested_name === "string" ? nf.requested_name.trim() : ""
+          typeof nf.requested_name === "string" ? nf.requested_name.trim() : "",
         )
-        .filter(Boolean)
+        .filter(Boolean),
     );
 
     const modelQuestions = normalizeIncomingQuestions(parsed?.questions, {
@@ -255,7 +253,7 @@ module.exports = {
         const altNames = (miss.alternatives || []).map((a) =>
           isEnglish
             ? (a.display_name_en && a.display_name_en.trim()) || a.name
-            : a.name
+            : a.name,
         );
         if (isEnglish) {
           stockAltQuestions.push({
@@ -265,7 +263,7 @@ module.exports = {
                 ? `${reqName ?? "The item"} is short on stock (requested ${
                     miss.requested_amount
                   }, available ${miss.in_stock}). Would ${altNames.join(
-                    " / "
+                    " / ",
                   )} work instead?`
                 : `${reqName ?? "The item"} is short on stock (requested ${
                     miss.requested_amount
@@ -282,7 +280,7 @@ module.exports = {
                 ? `${reqName ?? "המוצר"} חסר במלאי (התבקשה כמות ${
                     miss.requested_amount
                   }, זמינות ${miss.in_stock}). האם יתאים ${altNames.join(
-                    " / "
+                    " / ",
                   )} במקום?`
                 : `${reqName ?? "המוצר"} חסר במלאי (התבקשה כמות ${
                     miss.requested_amount
@@ -370,9 +368,8 @@ module.exports = {
       JOIN product p ON p.id = oi.product_id
       LEFT JOIN promotion pr ON pr.id = oi.promo_id
       WHERE oi.order_id = ?`,
-      [orderRes.order_id]
+      [orderRes.order_id],
     );
-
 
     const totalWithPromos = Number(orderRes.totalPrice ?? 0);
 
@@ -427,18 +424,16 @@ module.exports = {
         ? "To complete your order, I need a few clarifications:"
         : "כדי להשלים את ההזמנה חסרות כמה הבהרות:"
       : isEnglish
-      ? "Great, here’s the order I understood from you:"
-      : "יופי, זאת ההזמנה שהבנתי ממך:";
+        ? "Great, here’s the order I understood from you:"
+        : "יופי, זאת ההזמנה שהבנתי ממך:";
 
     const headerBlock = isEnglish
       ? [
           orderRes?.order_id ? `Order: #${orderRes.order_id}` : null,
           hasSavings
             ? `Subtotal: *₪${totalWithPromos.toFixed(
-                2
-              )}* instead of ₪${totalNoPromos.toFixed(
-                2
-              )}`
+                2,
+              )}* instead of ₪${totalNoPromos.toFixed(2)}`
             : `Subtotal: *₪${totalWithPromos.toFixed(2)}*`,
         ]
           .filter(Boolean)
@@ -447,13 +442,12 @@ module.exports = {
           orderRes?.order_id ? `מספר הזמנה: #${orderRes.order_id}` : null,
           hasSavings
             ? `סה״כ ביניים: *₪${totalWithPromos.toFixed(
-                2
+                2,
               )}* במקום ₪${totalNoPromos.toFixed(2)}`
             : `סה״כ ביניים: *₪${totalWithPromos.toFixed(2)}*`,
         ]
           .filter(Boolean)
           .join("\n");
-
 
     let limitWarningsBlock = "";
     if (cappedWarnings.length) {
@@ -509,20 +503,8 @@ module.exports = {
       itemsCount: (orderRes?.items || []).length,
     });
     console.log(
-      "[ORD-CREATE] Items actually added to order:",
-      JSON.stringify(orderRes.items || [], null, 2)
-    );
-    console.log(
       "[ORD-CREATE] Not found (no product matched):",
-      JSON.stringify(notFound, null, 2)
-    );
-    console.log(
-      "[ORD-CREATE] Alternatives for NOT-FOUND items (alternativesMap):",
-      JSON.stringify(alternativesMap, null, 2)
-    );
-    console.log(
-      "[ORD-CREATE] Insufficient items (with STOCK alternatives):",
-      JSON.stringify(orderRes.insufficient || [], null, 2)
+      JSON.stringify(notFound, null, 2),
     );
     return finalMessage;
   },

@@ -1,168 +1,31 @@
-const DEFAULT_ALLOWED_SUBCATEGORIES_MAP = {
-  "Dairy & Eggs": [
-    "Milk",
-    "Milk Alternatives",
-    "Yogurt",
-    "Cheese",
-    "Cream",
-    "Butter & Margarine",
-    "Eggs",
-    "Spreads & Cream Cheese",
-    "Desserts & Puddings",
-  ],
-  Bakery: [
-    "Bread",
-    "Rolls & Buns",
-    "Pita & Flatbread",
-    "Baguettes & Artisan",
-    "Cakes & Pastries",
-    "Cookies & Biscuits",
-    "Tortillas & Wraps",
-    "Gluten-Free Bakery",
-  ],
-  Produce: [
-    "Fruits",
-    "Vegetables",
-    "Fresh Herbs",
-    "Prepped Produce",
-    "Organic Produce",
-  ],
-  "Meat & Poultry": [
-    "Beef",
-    "Chicken",
-    "Turkey",
-    "Lamb",
-    "Mixed & Other Meats",
-    "Ground/Minced",
-    "Cold Cuts",
-    "Sausages",
-  ],
-  "Fish & Seafood": [
-    "Fresh Fish",
-    "Frozen Fish",
-    "Shellfish",
-    "Smoked & Cured",
-    "Canned Fish",
-  ],
-  "Deli & Ready Meals": [
-    "Deli Meats",
-    "Deli Cheeses",
-    "Salads & Spreads",
-    "Ready-to-Eat Meals",
-    "Sushi & Sashimi",
-  ],
-  Frozen: [
-    "Vegetables",
-    "Fruits",
-    "Meat & Poultry",
-    "Fish & Seafood",
-    "Pizza & Dough",
-    "Ice Cream & Desserts",
-    "Ready Meals",
-    "Vegan & Veggie",
-  ],
-  Pantry: [
-    "Flour & Baking",
-    "Sugar & Sweeteners",
-    "Spices & Seasonings",
-    "Oils & Vinegar",
-    "Sauces & Condiments",
-    "Pasta",
-    "Rice & Grains",
-    "Canned Vegetables",
-    "Canned Tomatoes",
-    "Canned Beans & Legumes",
-    "Canned Fish",
-    "Pickles & Olives",
-    "Honey & Spreads",
-    "Breakfast Cereal",
-    "Granola & Muesli",
-    "Nut Butters",
-    "Jams & Preserves",
-    "Asian Pantry",
-    "Mediterranean Pantry",
-    "Mexican Pantry",
-    "Baking Mixes",
-  ],
-  Snacks: [
-    "Chips & Crisps",
-    "Pretzels & Popcorn",
-    "Nuts & Seeds",
-    "Dried Fruit",
-    "Cookies & Biscuits",
-    "Crackers",
-    "Candy & Chocolate",
-    "Energy & Protein Bars",
-  ],
-  Beverages: [
-    "Water",
-    "Sparkling Water",
-    "Soft Drinks",
-    "Juices & Nectars",
-    "Iced Tea & Lemonade",
-    "Coffee",
-    "Tea & Herbal",
-    "Syrups & Concentrates",
-    "Energy Drinks",
-    "Sports Drinks",
-  ],
-  "Alcoholic Beverages": ["Beer", "Wine", "Spirits", "Cider", "Liqueurs"],
-  Baby: [
-    "Diapers",
-    "Wipes",
-    "Formula",
-    "Baby Food",
-    "Baby Snacks",
-    "Bath & Care",
-    "Accessories",
-  ],
-  Household: [
-    "Paper Goods",
-    "Cleaning Supplies",
-    "Dishwashing",
-    "Laundry",
-    "Trash Bags",
-    "Air Fresheners",
-    "Food Storage & Wrap",
-    "Light Bulbs & Batteries",
-  ],
-  "Personal Care": [
-    "Oral Care",
-    "Hair Care",
-    "Skin Care",
-    "Deodorants",
-    "Shaving & Grooming",
-    "Feminine Care",
-    "Bath & Body",
-    "Hand Soap & Sanitizers",
-  ],
-  "Health & Wellness": [
-    "Vitamins & Supplements",
-    "First Aid",
-    "Pain Relief",
-    "Cough & Cold",
-    "Digestive Health",
-    "Allergy",
-  ],
-  Pet: [
-    "Dog Food",
-    "Dog Care",
-    "Cat Food",
-    "Cat Care",
-    "Bird & Small Pet",
-    "Litter & Accessories",
-  ],
-  "Home & Leisure": [
-    "Kitchenware & Utensils",
-    "Disposable Tableware",
-    "Charcoal & BBQ",
-    "Seasonal & Holiday",
-  ],
-};
+const db = require("../config/db");
 
-const CATEGORY_ENUM = Object.keys(DEFAULT_ALLOWED_SUBCATEGORIES_MAP);
+async function fetchCategoriesMap() {
+  const query = `
+    SELECT c.name AS category, s.name AS subcategory
+    FROM product_category c
+    JOIN product_subcategory s ON s.category_id = c.id
+    ORDER BY c.sort_order, s.sort_order;
+  `;
 
-function buildCategorySubcategoryItemSchemas(commonProps, commonRequired) {
+  const [rows] = await db.query(query);
+
+  const categoryMap = {};
+
+  rows.forEach((row) => {
+    if (!categoryMap[row.category]) {
+      categoryMap[row.category] = [];
+    }
+    categoryMap[row.category].push(row.subcategory);
+  });
+
+  return categoryMap;
+}
+
+async function buildCategorySubcategoryItemSchemas(commonProps, commonRequired) {
+  const categoryMap = await fetchCategoriesMap();
+  const CATEGORY_ENUM = Object.keys(categoryMap);
+
   return CATEGORY_ENUM.map((cat) => ({
     type: "object",
     additionalProperties: false,
@@ -172,16 +35,16 @@ function buildCategorySubcategoryItemSchemas(commonProps, commonRequired) {
       category: { type: "string", const: cat },
       "sub-category": {
         type: "string",
-        enum: DEFAULT_ALLOWED_SUBCATEGORIES_MAP[cat],
+        enum: categoryMap[cat],
       },
     },
   }));
 }
 
-function buildNullableSubcategorySchemas(
-  commonProps,
-  commonRequired
-) {
+async function buildNullableSubcategorySchemas(commonProps, commonRequired) {
+  const categoryMap = await fetchCategoriesMap();
+  const CATEGORY_ENUM = Object.keys(categoryMap);
+
   return CATEGORY_ENUM.map((cat) => ({
     type: "object",
     additionalProperties: false,
@@ -195,7 +58,7 @@ function buildNullableSubcategorySchemas(
 
       "sub-category": {
         anyOf: [
-          { type: "string", enum: DEFAULT_ALLOWED_SUBCATEGORIES_MAP[cat] },
+          { type: "string", enum: categoryMap[cat] },
           { type: "null" },
         ],
       },
@@ -204,8 +67,7 @@ function buildNullableSubcategorySchemas(
 }
 
 module.exports = {
-  DEFAULT_ALLOWED_SUBCATEGORIES_MAP,
-  CATEGORY_ENUM,
+  fetchCategoriesMap,
   buildCategorySubcategoryItemSchemas,
   buildNullableSubcategorySchemas,
 };

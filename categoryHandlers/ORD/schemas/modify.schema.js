@@ -20,11 +20,6 @@ const ADD_PRODUCT_REQUIRED = [
   "exclude_tokens",
 ];
 
-const CATEGORY_SUBCATEGORY_ANYOF_FOR_ADD = buildCategorySubcategoryItemSchemas(
-  ADD_PRODUCT_PROPS,
-  ADD_PRODUCT_REQUIRED
-);
-
 const SET_ITEM_SCHEMA = {
   type: "object",
   additionalProperties: false,
@@ -46,59 +41,76 @@ const REMOVE_ITEM_SCHEMA = {
   },
 };
 
-const MODIFY_ORDER_SCHEMA = {
-  name: "ord_modify_patch",
-  strict: true,
-  schema: {
-    type: "object",
-    additionalProperties: false,
-    required: ["ops", "questions", "question_updates"],
-    properties: {
-      ops: {
-        type: "object",
-        additionalProperties: false,
-        required: ["set", "remove", "add"],
-        properties: {
-          set: {
-            type: "array",
-            items: SET_ITEM_SCHEMA,
-          },
-          remove: {
-            type: "array",
-            items: REMOVE_ITEM_SCHEMA,
-          },
-          add: {
-            type: "array",
-            items: { anyOf: CATEGORY_SUBCATEGORY_ANYOF_FOR_ADD },
-          },
-        },
-      },
+async function buildModifyOrderSchema() {
+  const CATEGORY_SUBCATEGORY_ANYOF_FOR_ADD =
+    await buildCategorySubcategoryItemSchemas(
+      ADD_PRODUCT_PROPS,
+      ADD_PRODUCT_REQUIRED,
+    );
 
-      questions: {
-        type: "array",
-        items: {
+  return {
+    name: "ord_modify_patch",
+    strict: true,
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["ops", "questions", "question_updates"],
+      properties: {
+        ops: {
           type: "object",
           additionalProperties: false,
-          required: ["name", "question", "options"],
+          required: ["set", "remove", "add"],
           properties: {
-            name: { anyOf: [{ type: "string" }, { type: "null" }] },
-            question: { type: "string", minLength: 1 },
-            options: { type: "array", items: { type: "string", minLength: 1 } },
+            set: {
+              type: "array",
+              items: SET_ITEM_SCHEMA,
+            },
+            remove: {
+              type: "array",
+              items: REMOVE_ITEM_SCHEMA,
+            },
+            add: {
+              type: "array",
+              items: { anyOf: CATEGORY_SUBCATEGORY_ANYOF_FOR_ADD },
+            },
           },
         },
-      },
 
-      question_updates: {
-        type: "object",
-        additionalProperties: false,
-        required: ["close_ids", "delete_ids"],
-        properties: {
-          close_ids: { type: "array", items: { type: "integer", minimum: 1 } },
-          delete_ids: { type: "array", items: { type: "integer", minimum: 1 } },
+        questions: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["name", "question", "options"],
+            properties: {
+              name: { anyOf: [{ type: "string" }, { type: "null" }] },
+              question: { type: "string", minLength: 1 },
+              options: {
+                type: "array",
+                items: { type: "string", minLength: 1 },
+              },
+            },
+          },
+        },
+
+        question_updates: {
+          type: "object",
+          additionalProperties: false,
+          required: ["close_ids", "delete_ids"],
+          properties: {
+            close_ids: {
+              type: "array",
+              items: { type: "integer", minimum: 1 },
+            },
+            delete_ids: {
+              type: "array",
+              items: { type: "integer", minimum: 1 },
+            },
+          },
         },
       },
     },
-  },
-};
+  };
+}
 
-module.exports = { MODIFY_ORDER_SCHEMA };
+module.exports = { buildModifyOrderSchema };

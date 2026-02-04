@@ -1,8 +1,6 @@
 const db = require("../config/db");
 const { sendWhatsAppText } = require("../config/whatsapp");
-const {
-  DEFAULT_ALLOWED_SUBCATEGORIES_MAP,
-} = require("../categoryHandlers/productCategories");
+const { fetchCategoriesMap } = require("../categoryHandlers/productCategories");
 const { fetchAlternatives } = require("../services/products");
 const {
   isNonEmptyString,
@@ -19,16 +17,13 @@ const DELETE_FROM_ORDER_STATUSES = [
   "cancel_pending",
 ];
 
-function validateCategory(category) {
-  return Object.prototype.hasOwnProperty.call(
-    DEFAULT_ALLOWED_SUBCATEGORIES_MAP,
-    category,
-  );
+function validateCategory(category, categoryMap) {
+  return Object.prototype.hasOwnProperty.call(categoryMap, category);
 }
 
-function validateSubcategory(category, sub) {
-  if (!validateCategory(category)) return false;
-  return (DEFAULT_ALLOWED_SUBCATEGORIES_MAP[category] || []).includes(sub);
+function validateSubcategory(category, sub, categoryMap) {
+  if (!validateCategory(category, categoryMap)) return false;
+  return (categoryMap[category] || []).includes(sub);
 }
 
 function fmtIls(n) {
@@ -62,12 +57,11 @@ exports.getStockCategories = async (req, res) => {
       return res.status(400).json({ ok: false, message: "Invalid shop_id" });
     }
 
-    const categories = Object.entries(DEFAULT_ALLOWED_SUBCATEGORIES_MAP).map(
-      ([category, subs]) => ({
-        category,
-        sub_categories: subs,
-      }),
-    );
+    const categoryMap = await fetchCategoriesMap();
+    const categories = Object.entries(categoryMap).map(([category, subs]) => ({
+      category,
+      sub_categories: subs,
+    }));
 
     return res.json({ ok: true, categories });
   } catch (err) {
@@ -99,7 +93,9 @@ exports.listStockProducts = async (req, res) => {
       });
     }
 
-    if (category && !validateCategory(category)) {
+    const categoryMap = await fetchCategoriesMap();
+    
+    if (category && !validateCategory(category, categoryMap)) {
       return res.status(400).json({ ok: false, message: "Invalid category" });
     }
     if (sub_category && !category) {
@@ -110,7 +106,7 @@ exports.listStockProducts = async (req, res) => {
     if (
       category &&
       sub_category &&
-      !validateSubcategory(category, sub_category)
+      !validateSubcategory(category, sub_category, categoryMap)
     ) {
       return res
         .status(400)
@@ -235,10 +231,12 @@ exports.createStockProduct = async (req, res) => {
         .status(400)
         .json({ ok: false, message: "Invalid stock_amount" });
 
-    if (!category || !validateCategory(category))
+    const categoryMap = await fetchCategoriesMap();
+    
+    if (!category || !validateCategory(category, categoryMap))
       return res.status(400).json({ ok: false, message: "Invalid category" });
 
-    if (!sub_category || !validateSubcategory(category, sub_category))
+    if (!sub_category || !validateSubcategory(category, sub_category, categoryMap))
       return res
         .status(400)
         .json({ ok: false, message: "Invalid sub_category for category" });
@@ -329,12 +327,14 @@ exports.updateStockProduct = async (req, res) => {
       ? String(req.body.sub_category ?? "").trim()
       : existing.sub_category;
 
-    if (!nextCategory || !validateCategory(nextCategory)) {
+    const categoryMap = await fetchCategoriesMap();
+    
+    if (!nextCategory || !validateCategory(nextCategory, categoryMap)) {
       await conn.rollback();
       return res.status(400).json({ ok: false, message: "Invalid category" });
     }
 
-    if (!nextSub || !validateSubcategory(nextCategory, nextSub)) {
+    if (!nextSub || !validateSubcategory(nextCategory, nextSub, categoryMap)) {
       await conn.rollback();
       return res
         .status(400)

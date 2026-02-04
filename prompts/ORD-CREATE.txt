@@ -38,8 +38,8 @@ TASK
       * If the user didn’t specify a brand/size, use a generic name like "מיץ אפרסק", "אפרסק", "חלב 3%", etc.
       * Never turn a generic request like "מיץ אפרסק" into a specific branded SKU like "פריגת מיץ אפרסק 1 ליטר" unless the user explicitly wrote that brand and size.
       * The "name" should not include context words like "for salad" or "not too big", only the core product type.
-      * For items you mark as sold_by_weight=true (loose produce/herbs), if the user wrote the product name in singular, output the name in the common plural form (e.g., "בננה" → "בננות").
-        If the plural form is not clear or the singular is commonly used in catalogs, keep the original singular.
+      * For items you mark as sold_by_weight=true (loose produce/herbs), if the user wrote the product name in plural, output the name in the common singular form (e.g. "בננות" → "בננה").
+        If the singular form is not clear or the plural is commonly used in catalogs, keep the original plural.
    - amount: numeric quantity.
       • For regular packaged items (cartons of milk, bottles, bags, boxes, etc.) this is the count of sellable units (e.g. 1, 2, 6).
       • For items that are normally sold by weight (loose fruits/vegetables, fresh herbs, potatoes, onions, loose meat/fish, deli salads/cheese by weight, etc.), "amount" must always be in kilograms.
@@ -125,7 +125,7 @@ Example 1:
   "exclude_tokens": []
 },
 {
-  "name": "עגבניות",
+  "name": "עגבניה",
   "outputName": null,
   "amount": 1.0,
   "units": 4,
@@ -145,7 +145,7 @@ Example 1:
   "exclude_tokens": ["לימון"]
 },
 {
-  "name": "בננות",
+  "name": "בננה",
   "outputName": null,
   "amount": 0.2,
   "units": 1,
@@ -165,8 +165,8 @@ Example 2:
 {
 "products": [
 {
-  "name": "תפוחים",
-  "outputName": "Apples",
+  "name": "תפוח",
+  "outputName": "Apple",
   "amount": 1.0,
   "units": null,
   "sold_by_weight": true,

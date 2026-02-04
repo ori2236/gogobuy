@@ -20,51 +20,62 @@ const COMMON_PRODUCT_REQUIRED = [
   "exclude_tokens",
 ];
 
-const CATEGORY_SUBCATEGORY_ANYOF = buildCategorySubcategoryItemSchemas(
-  COMMON_PRODUCT_PROPS,
-  COMMON_PRODUCT_REQUIRED
-);
+async function buildCreateOrderSchema() {
+  const CATEGORY_SUBCATEGORY_ANYOF = await buildCategorySubcategoryItemSchemas(
+    COMMON_PRODUCT_PROPS,
+    COMMON_PRODUCT_REQUIRED,
+  );
 
-const CREATE_ORDER_SCHEMA = {
-  name: "ord_create_extract",
-  strict: true,
-  schema: {
-    type: "object",
-    additionalProperties: false,
-    required: ["products", "questions", "question_updates"],
-    properties: {
-      products: {
-        type: "array",
-        items: {
-          anyOf: CATEGORY_SUBCATEGORY_ANYOF,
+  return {
+    name: "ord_create_extract",
+    strict: true,
+    schema: {
+      type: "object",
+      additionalProperties: false,
+      required: ["products", "questions", "question_updates"],
+      properties: {
+        products: {
+          type: "array",
+          items: {
+            anyOf: CATEGORY_SUBCATEGORY_ANYOF,
+          },
         },
-      },
 
-      questions: {
-        type: "array",
-        items: {
+        questions: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["name", "question", "options"],
+            properties: {
+              name: { anyOf: [{ type: "string" }, { type: "null" }] },
+              question: { type: "string", minLength: 1 },
+              options: {
+                type: "array",
+                items: { type: "string", minLength: 1 },
+              },
+            },
+          },
+        },
+
+        question_updates: {
           type: "object",
           additionalProperties: false,
-          required: ["name", "question", "options"],
+          required: ["close_ids", "delete_ids"],
           properties: {
-            name: { anyOf: [{ type: "string" }, { type: "null" }] },
-            question: { type: "string", minLength: 1 },
-            options: { type: "array", items: { type: "string", minLength: 1 } },
+            close_ids: {
+              type: "array",
+              items: { type: "integer", minimum: 1 },
+            },
+            delete_ids: {
+              type: "array",
+              items: { type: "integer", minimum: 1 },
+            },
           },
         },
       },
-
-      question_updates: {
-        type: "object",
-        additionalProperties: false,
-        required: ["close_ids", "delete_ids"],
-        properties: {
-          close_ids: { type: "array", items: { type: "integer", minimum: 1 } },
-          delete_ids: { type: "array", items: { type: "integer", minimum: 1 } },
-        },
-      },
     },
-  },
-};
+  };
+}
 
-module.exports = { CREATE_ORDER_SCHEMA };
+module.exports = { buildCreateOrderSchema };
