@@ -1,19 +1,16 @@
 const db = require("../config/db");
 const {
-  buildQuestionsBlock,
   searchProducts,
   fetchAlternatives,
-  tokenizeName,
-  getSubCategoryCandidates,
-  getExcludeTokensFromReq,
 } = require("./products");
 const { saveOpenQuestions } = require("../utilities/openQuestions");
 const { normalizeIncomingQuestions } = require("../utilities/normalize");
-
-const DEBUG = process.env.DEBUG_PRICE_AND_SALES !== "0";
-function dlog(...args) {
-  if (DEBUG) console.log("[INV-PRICE]", ...args);
-}
+const {
+  tokenizeName,
+  getExcludeTokensFromReq,
+} = require("../utilities/tokens");
+const { buildQuestionsBlock } = require("../utilities/messageBuilders");
+const { getSubCategoryCandidates } = require("../repositories/categories");
 
 function formatILS(n) {
   const x = Number(n);
@@ -149,7 +146,7 @@ function buildQuestionsTextSmart({ questions, isEnglish }) {
   if (questions.length === 1) return String(questions[0].question || "").trim();
 
   const hasMultiline = questions.some((q) =>
-    String(q?.question || "").includes("\n")
+    String(q?.question || "").includes("\n"),
   );
   if (hasMultiline) {
     return questions
@@ -177,7 +174,7 @@ function isInStockRow(row) {
 function getSubjectForAlt({ req, foundRow, isEnglish }) {
   const he = String(foundRow?.matched_name || req?.name || "").trim();
   const en = String(
-    foundRow?.matched_display_name_en || req?.outputName || ""
+    foundRow?.matched_display_name_en || req?.outputName || "",
   ).trim();
 
   if (isEnglish) return en || he || "this product";
@@ -202,10 +199,10 @@ function formatAltLineWithPrice({ altRow, req, isEnglish }) {
     const total = p * amount;
     return isEnglish
       ? `${name} - ${formatILS(p)} each (total ${formatILS(
-          total
+          total,
         )} for ${amount})`
       : `${name} - ${formatILS(p)} ליח׳ (סה״כ ${formatILS(
-          total
+          total,
         )} ל-${amount} יח׳)`;
   }
 
@@ -218,10 +215,10 @@ function formatAltLineWithPrice({ altRow, req, isEnglish }) {
   const total = p * amount;
   return isEnglish
     ? `${name} - ${formatILS(p)} per kg (est. ${formatILS(
-        total
+        total,
       )} for ~${amount} kg)`
     : `${name} - ${formatILS(p)} לק״ג (מחיר משוערך ${formatILS(
-        total
+        total,
       )} ל~${amount} ק״ג)`;
 }
 
@@ -265,7 +262,7 @@ async function buildAltBlockAndQuestion({
     Array.from(usedIds),
     3,
     req?.name || req?.outputName || subject,
-    excludeTokens
+    excludeTokens,
   );
 
   if (Array.isArray(alts) && alts.length) {
@@ -308,7 +305,7 @@ async function buildAltBlockAndQuestion({
     .map((a) =>
       isEnglish
         ? String(a?.display_name_en || a?.name || "").trim()
-        : String(a?.name || a?.display_name_en || "").trim()
+        : String(a?.name || a?.display_name_en || "").trim(),
     )
     .filter(Boolean);
 
@@ -360,16 +357,16 @@ function buildFoundProductLine({ req, foundRow, isEnglish }) {
     if (!soldByWeight) {
       if (amount <= 1)
         return `The product we found is: ${displayName}. Price: ${formatILS(
-          unitPrice
+          unitPrice,
         )}.`;
       const total = unitPrice * amount;
       return `The product we found is: ${displayName}. Price: ${formatILS(
-        unitPrice
+        unitPrice,
       )} each (total ${formatILS(total)} for ${amount}).`;
     }
 
     const base = `The product we found is: ${displayName}. Price: ${formatILS(
-      unitPrice
+      unitPrice,
     )} per kg.`;
     if (!units && Math.abs(amount - 1) < 1e-9) return base;
 
@@ -385,16 +382,16 @@ function buildFoundProductLine({ req, foundRow, isEnglish }) {
   if (!soldByWeight) {
     if (amount <= 1)
       return `המוצר שמצאנו אצלנו הוא: ${displayName}. מחירו: ${formatILS(
-        unitPrice
+        unitPrice,
       )}.`;
     const total = unitPrice * amount;
     return `המוצר שמצאנו אצלנו הוא: ${displayName}. מחיר ליח׳: ${formatILS(
-      unitPrice
+      unitPrice,
     )} (סה״כ ${formatILS(total)} ל-${amount} יח׳).`;
   }
 
   const base = `המוצר שמצאנו אצלנו הוא: ${displayName}. מחירו: ${formatILS(
-    unitPrice
+    unitPrice,
   )} לק״ג.`;
   if (!units && Math.abs(amount - 1) < 1e-9) return base;
 
@@ -422,7 +419,7 @@ async function saveFallbackOpenQuestion(botPayload, customer_id, shop_id) {
 function getCompareDisplayName({ req, foundRow, isEnglish }) {
   const he = String(foundRow?.matched_name || req?.name || "").trim();
   const en = String(
-    foundRow?.matched_display_name_en || req?.outputName || ""
+    foundRow?.matched_display_name_en || req?.outputName || "",
   ).trim();
 
   if (isEnglish) return en || he || "this product";
@@ -476,10 +473,10 @@ function formatCompareFoundLine({ req, foundRow, isEnglish }) {
     const total = unitPrice * amount;
     return isEnglish
       ? `${name} - ${formatILS(unitPrice)} each (total ${formatILS(
-          total
+          total,
         )} for ${amount})${oosSuffix}`
       : `${name} - ${formatILS(unitPrice)} ליח׳ (סה״כ ${formatILS(
-          total
+          total,
         )} ל-${amount} יח׳)${oosSuffix}`;
   }
 
@@ -499,18 +496,18 @@ function formatCompareFoundLine({ req, foundRow, isEnglish }) {
           units === 1 ? "unit" : "units"
         }, ~${kgTxt} kg: ${formatILS(total)})${oosSuffix}`
       : `${name} - ${formatILS(
-          unitPrice
+          unitPrice,
         )} לק״ג (מחיר משוערך ל-${units} יח׳, כ~${kgTxt} ק״ג: ${formatILS(
-          total
+          total,
         )})${oosSuffix}`;
   }
 
   return isEnglish
     ? `${name} - ${formatILS(
-        unitPrice
+        unitPrice,
       )} per kg (est. total for ~${kgTxt} kg: ${formatILS(total)})${oosSuffix}`
     : `${name} - ${formatILS(
-        unitPrice
+        unitPrice,
       )} לק״ג (מחיר משוערך ל~${kgTxt} ק״ג: ${formatILS(total)})${oosSuffix}`;
 }
 
@@ -532,10 +529,10 @@ function buildCompareResultLine({ best, second, isEnglish }) {
   if (Math.abs(diff) <= eps) {
     return isEnglish
       ? `No price difference for ${bestLabel} vs ${secondLabel} (both about ${formatILS(
-          best.total
+          best.total,
         )}).`
       : `אין הבדל במחיר עבור ${bestLabel} מול ${secondLabel} (שניהם בערך ${formatILS(
-          best.total
+          best.total,
         )}).`;
   }
 
@@ -547,10 +544,10 @@ function buildCompareResultLine({ best, second, isEnglish }) {
 
   return isEnglish
     ? `${bestLabel}${cheaperNote} is cheaper than ${secondLabel} by ${formatILS(
-        diff
+        diff,
       )}.`
     : `${bestLabel}${cheaperNote} זול יותר מ${secondLabel} ב${formatILS(
-        diff
+        diff,
       )}.`;
 }
 
@@ -633,7 +630,7 @@ async function answerPriceCompareFlow({
     const sortedIdxs = [...idxs].sort(
       (a, b) =>
         Number(Boolean(foundByIndex.get(b))) -
-        Number(Boolean(foundByIndex.get(a)))
+        Number(Boolean(foundByIndex.get(a))),
     );
 
     for (const i of sortedIdxs) {
@@ -648,15 +645,18 @@ async function answerPriceCompareFlow({
           String(nf?.category || req?.category || "").trim() || null;
         const sub_category =
           String(
-            nf?.sub_category || req?.["sub-category"] || req?.sub_category || ""
+            nf?.sub_category ||
+              req?.["sub-category"] ||
+              req?.sub_category ||
+              "",
           ).trim() || null;
 
         const excludeTokens =
           Array.isArray(nf?.exclude_tokens) && nf.exclude_tokens.length
             ? nf.exclude_tokens
             : Array.isArray(req.exclude_tokens)
-            ? req.exclude_tokens
-            : [];
+              ? req.exclude_tokens
+              : [];
 
         if (category || sub_category) {
           const { blockText, questionObj, altIds } =
@@ -702,7 +702,7 @@ async function answerPriceCompareFlow({
 
       // found: add bullet line
       groupLines.push(
-        `• ${formatCompareFoundLine({ req, foundRow: f, isEnglish })}`
+        `• ${formatCompareFoundLine({ req, foundRow: f, isEnglish })}`,
       );
 
       const unitPrice = Number(f.price);
@@ -803,8 +803,8 @@ async function answerPriceCompareFlow({
   return finalMsg && finalMsg.trim()
     ? finalMsg
     : isEnglish
-    ? "I couldn’t compare those prices. Can you rephrase?"
-    : "לא הצלחתי להשוות את המחירים. תוכל לנסח שוב?";
+      ? "I couldn’t compare those prices. Can you rephrase?"
+      : "לא הצלחתי להשוות את המחירים. תוכל לנסח שוב?";
 }
 
 function calcBudgetTotal({ req, unitPrice }) {
@@ -848,10 +848,10 @@ function formatBudgetPickLine({ row, req, isEnglish }) {
 
     return isEnglish
       ? `${name} - ${formatILS(unitPrice)} each (total ${formatILS(
-          total
+          total,
         )} for ${amount})${oosSuffix}`
       : `${name} - ${formatILS(unitPrice)} ליח׳ (סה״כ ${formatILS(
-          total
+          total,
         )} ל-${amount} יח׳)${oosSuffix}`;
   }
 
@@ -864,10 +864,10 @@ function formatBudgetPickLine({ row, req, isEnglish }) {
 
   return isEnglish
     ? `${name} - ${formatILS(unitPrice)} per kg (est. ${formatILS(
-        total
+        total,
       )} for ~${amount} kg)${oosSuffix}`
     : `${name} - ${formatILS(unitPrice)} לק״ג (מחיר משוערך ${formatILS(
-        total
+        total,
       )} ל~${amount} ק״ג)${oosSuffix}`;
 }
 
@@ -906,8 +906,8 @@ async function queryBudgetPickRows({
   const exIds = Array.isArray(usedIds)
     ? usedIds
     : usedIds && typeof usedIds[Symbol.iterator] === "function"
-    ? Array.from(usedIds)
-    : [];
+      ? Array.from(usedIds)
+      : [];
 
   if (exIds.length) {
     sql += ` AND id NOT IN (${exIds.map(() => "?").join(",")})`;
@@ -1022,7 +1022,7 @@ async function pickBudgetCandidates({
     if (!rows.length) continue;
 
     const tokSet = new Set(
-      reqTokens.map((x) => normalizeToken(x).toLowerCase()).filter(Boolean)
+      reqTokens.map((x) => normalizeToken(x).toLowerCase()).filter(Boolean),
     );
 
     const scored = rows.map((r) => {
@@ -1046,7 +1046,7 @@ async function pickBudgetCandidates({
       (a, b) =>
         b.score - a.score ||
         a.totalScore - b.totalScore ||
-        Number(a.r.id) - Number(b.r.id)
+        Number(a.r.id) - Number(b.r.id),
     );
 
     return scored.slice(0, limit).map((x) => x.r);
@@ -1095,7 +1095,10 @@ async function answerBudgetPickFlow({
     if (!budget) continue;
 
     const hasMeaningfulType = Boolean(
-      nullify(req?.name) || nullify(req?.outputName) || sub_category || category
+      nullify(req?.name) ||
+      nullify(req?.outputName) ||
+      sub_category ||
+      category,
     );
 
     if (!hasMeaningfulType) continue;
@@ -1212,7 +1215,7 @@ async function searchPromotionsForRequest(shop_id, req, { limit = 50 } = {}) {
       .map((v) =>
         String(v || "")
           .replace(/\s+/g, " ")
-          .trim()
+          .trim(),
       )
       .filter(Boolean);
 
@@ -1236,7 +1239,9 @@ async function searchPromotionsForRequest(shop_id, req, { limit = 50 } = {}) {
     return { rows: [], total: 0 };
   }
 
-  const subList = subCategory ? getSubCategoryCandidates(subCategory) : [];
+  const subList = subCategory
+    ? await getSubCategoryCandidates(category, subCategory)
+    : [];
 
   const params = [shop_id];
   let sql = `
@@ -1285,7 +1290,7 @@ async function searchPromotionsForRequest(shop_id, req, { limit = 50 } = {}) {
           p.name COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
           OR p.display_name_en COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
         )
-      `
+      `,
       )
       .join(" OR ");
 
@@ -1472,8 +1477,8 @@ function finalizePromotionPricing({
     Number.isFinite(bT) && Number.isFinite(nT) && bT > 0
       ? Math.max(0, (1 - nT / bT) * 100)
       : hasBase && hasNew && bU > 0
-      ? Math.max(0, (1 - nU / bU) * 100)
-      : null;
+        ? Math.max(0, (1 - nU / bU) * 100)
+        : null;
 
   return {
     amount,
@@ -1531,10 +1536,10 @@ function buildPromotionBlock({ req, foundRow, promo, isEnglish }) {
       ? "no updated price"
       : "אין מחיר מעודכן"
     : soldByWeight
-    ? isEnglish
-      ? `${formatILS(unitPrice)} per kg`
-      : `${formatILS(unitPrice)} לק״ג`
-    : `${formatILS(unitPrice)}`;
+      ? isEnglish
+        ? `${formatILS(unitPrice)} per kg`
+        : `${formatILS(unitPrice)} לק״ג`
+      : `${formatILS(unitPrice)}`;
 
   // ---- NO PROMO ----
   if (!promo) {
@@ -1601,10 +1606,10 @@ function buildPromotionBlock({ req, foundRow, promo, isEnglish }) {
       if (!hasPrice) {
         const line1 = isEnglish
           ? `Promotion for ${name}: buy ${buyQty} for ${formatILS(
-              pay
+              pay,
             )}. Price: no updated price.${oosNote}.`
           : `יש מבצע על ${name}: ${buyQty} יח׳ ב-${formatILS(
-              pay
+              pay,
             )}. אין מחיר מעודכן להשוואה.${oosNote}.`;
 
         return `${line1}\n${statusLine}`;
@@ -1620,16 +1625,16 @@ function buildPromotionBlock({ req, foundRow, promo, isEnglish }) {
 
       const line1 = isEnglish
         ? `Promotion for ${name}: buy ${buyQty} for ${formatILS(
-            pay
+            pay,
           )} (${formatILS(dealUnit)} each instead of ${formatILS(
-            unitPrice
+            unitPrice,
           )}), save ${formatILS(savingsAmount)}${
             sPct !== null ? ` (${sPct}%)` : ""
           }${oosNote}.`
         : `יש מבצע על ${name}: ${buyQty} יח׳ ב-${formatILS(pay)} (${formatILS(
-            dealUnit
+            dealUnit,
           )} ליח׳ במקום ${formatILS(unitPrice)}), חיסכון: ${formatILS(
-            savingsAmount
+            savingsAmount,
           )}${sPct !== null ? ` (${sPct}%)` : ""}${oosNote}.`;
 
       const amountNum = Number(req?.amount ?? 1);
@@ -1647,10 +1652,10 @@ function buildPromotionBlock({ req, foundRow, promo, isEnglish }) {
         if (pricing?.baseTotal !== null && pricing?.newTotal !== null) {
           const totalsLine = isEnglish
             ? `Total for ${pricing.amount} units: ${formatILS(
-                pricing.newTotal
+                pricing.newTotal,
               )} (instead of ${formatILS(pricing.baseTotal)})`
             : `סה״כ ל-${pricing.amount} יח׳: ${formatILS(
-                pricing.newTotal
+                pricing.newTotal,
               )} (במקום ${formatILS(pricing.baseTotal)})`;
 
           return `${line1}\n${totalsLine}\n${statusLine}`;
@@ -1676,10 +1681,10 @@ function buildPromotionBlock({ req, foundRow, promo, isEnglish }) {
   const newPriceTxt = !hasNewUnit
     ? null
     : soldByWeight
-    ? isEnglish
-      ? `${formatILS(newUnit)} per kg`
-      : `${formatILS(newUnit)} לק״ג`
-    : `${formatILS(newUnit)}`;
+      ? isEnglish
+        ? `${formatILS(newUnit)} per kg`
+        : `${formatILS(newUnit)} לק״ג`
+      : `${formatILS(newUnit)}`;
 
   // savings (prefer per-unit when not bundle)
   const savingsPerUnit =
@@ -1732,17 +1737,17 @@ function buildPromotionBlock({ req, foundRow, promo, isEnglish }) {
         ? `~${fmtQty(amountNum)} kg`
         : `~${fmtQty(amountNum)} ק״ג`
       : isEnglish
-      ? `${amountNum} units`
-      : `${amountNum} יח׳`;
+        ? `${amountNum} units`
+        : `${amountNum} יח׳`;
 
     if (isEnglish) {
       return `Total for ${qtyLabel}: ${formatILS(
-        pricing.newTotal
+        pricing.newTotal,
       )} (instead of ${formatILS(pricing.baseTotal)})`;
     }
 
     return `סה״כ ל-${qtyLabel}: ${formatILS(
-      pricing.newTotal
+      pricing.newTotal,
     )} (במקום ${formatILS(pricing.baseTotal)})`;
   })();
 
@@ -1757,10 +1762,10 @@ function buildPromotionBlock({ req, foundRow, promo, isEnglish }) {
       if (Number.isFinite(buyQty) && Number.isFinite(pay)) {
         return isEnglish
           ? `Deal: buy ${buyQty} for ${formatILS(pay)} (regular ${formatILS(
-              unitPrice
+              unitPrice,
             )} each)`
           : `מחיר: ${buyQty} יח׳ ב-${formatILS(pay)} (במקום ${formatILS(
-              unitPrice
+              unitPrice,
             )} ליח׳)`;
       }
       // fallback
@@ -1877,7 +1882,7 @@ async function answerPromotionFlow({
       blocks.push(
         isEnglish
           ? `No promotions found (active/upcoming/ended this week) for ${subject}.`
-          : `לא מצאתי מבצעים (פעילים/עתידיים/שהסתיימו השבוע) עבור ${subject}.`
+          : `לא מצאתי מבצעים (פעילים/עתידיים/שהסתיימו השבוע) עבור ${subject}.`,
       );
       continue;
     }
@@ -1933,8 +1938,8 @@ async function answerPromotionFlow({
   return finalMsg && finalMsg.trim()
     ? finalMsg
     : isEnglish
-    ? "I couldn’t answer that promotion question. Can you rephrase?"
-    : "לא הצלחתי לענות על שאלת המבצע. תוכל לנסח שוב?";
+      ? "I couldn’t answer that promotion question. Can you rephrase?"
+      : "לא הצלחתי לענות על שאלת המבצע. תוכל לנסח שוב?";
 }
 
 function buildCheaperAltQuestionText({ subject, altLines, isEnglish }) {
@@ -1963,7 +1968,7 @@ async function buildCheaperAltBlockAndQuestion({
     Array.from(usedIds),
     50,
     req?.name || req?.outputName || subject,
-    excludeTokens
+    excludeTokens,
   );
 
   if (Array.isArray(alts) && alts.length) {
@@ -1974,10 +1979,10 @@ async function buildCheaperAltBlockAndQuestion({
 
     const sub = String(sub_category || "").trim();
     if (sub) {
-      const subList = getSubCategoryCandidates(sub);
+      const subList = await getSubCategoryCandidates(cat, sub);
       if (subList.length) {
         alts = alts.filter((a) =>
-          subList.includes(String(a?.sub_category || "").trim())
+          subList.includes(String(a?.sub_category || "").trim()),
         );
       } else {
         alts = alts.filter((a) => String(a?.sub_category || "").trim() === sub);
@@ -1996,7 +2001,8 @@ async function buildCheaperAltBlockAndQuestion({
       );
     })
     .sort(
-      (a, b) => Number(a.price) - Number(b.price) || Number(b.id) - Number(a.id)
+      (a, b) =>
+        Number(a.price) - Number(b.price) || Number(b.id) - Number(a.id),
     )
     .slice(0, 3);
 
@@ -2015,7 +2021,7 @@ async function buildCheaperAltBlockAndQuestion({
     .map((a) =>
       isEnglish
         ? String(a?.display_name_en || a?.name || "").trim()
-        : String(a?.name || a?.display_name_en || "").trim()
+        : String(a?.name || a?.display_name_en || "").trim(),
     )
     .filter(Boolean);
 
@@ -2074,15 +2080,15 @@ async function answerCheaperAltFlow({
         String(nf?.category || req?.category || "").trim() || null;
       const sub_category =
         String(
-          nf?.sub_category || req?.["sub-category"] || req?.sub_category || ""
+          nf?.sub_category || req?.["sub-category"] || req?.sub_category || "",
         ).trim() || null;
 
       const excludeTokens =
         Array.isArray(nf?.exclude_tokens) && nf.exclude_tokens.length
           ? nf.exclude_tokens
           : Array.isArray(req.exclude_tokens)
-          ? req.exclude_tokens
-          : [];
+            ? req.exclude_tokens
+            : [];
 
       if (category || sub_category) {
         const { blockText, questionObj, altIds } =
@@ -2124,7 +2130,7 @@ async function answerCheaperAltFlow({
       blocks.push(
         isEnglish
           ? `I found ${subject}, but I don’t have an updated price so I can’t guarantee what’s cheaper.`
-          : `מצאתי ${subject}, אבל אין לי מחיר מעודכן ולכן אני לא יכול להבטיח מה זול יותר.`
+          : `מצאתי ${subject}, אבל אין לי מחיר מעודכן ולכן אני לא יכול להבטיח מה זול יותר.`,
       );
       continue;
     }
@@ -2132,7 +2138,7 @@ async function answerCheaperAltFlow({
     const category = String(f?.category || req?.category || "").trim() || null;
     const sub_category =
       String(
-        f?.sub_category || req?.["sub-category"] || req?.sub_category || ""
+        f?.sub_category || req?.["sub-category"] || req?.sub_category || "",
       ).trim() || null;
 
     const excludeTokens = getExcludeTokensFromReq(req);
@@ -2179,8 +2185,8 @@ async function answerCheaperAltFlow({
   return finalMsg && finalMsg.trim()
     ? finalMsg
     : isEnglish
-    ? "I couldn’t find cheaper alternatives. Can you rephrase?"
-    : "לא הצלחתי למצוא חלופות זולות יותר. תוכל לנסח שוב?";
+      ? "I couldn’t find cheaper alternatives. Can you rephrase?"
+      : "לא הצלחתי למצוא חלופות זולות יותר. תוכל לנסח שוב?";
 }
 
 module.exports = {

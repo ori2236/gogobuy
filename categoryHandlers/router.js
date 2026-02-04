@@ -108,7 +108,6 @@ async function routeByCategory(category, subcategory, ctx) {
 }
 
 module.exports = {
-  CATEGORY_HANDLERS,
   routeByCategory,
   isValidCategorySub,
 };

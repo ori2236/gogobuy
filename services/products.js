@@ -1,238 +1,11 @@
 const db = require("../config/db");
-const { normalizeIncomingQuestions } = require("../utilities/normalize");
-
-const SUBCATEGORY_GROUPS = {
-  // ===== Dairy & Eggs =====
-  Cheese: ["Cheese", "Spreads & Cream Cheese"],
-  "Spreads & Cream Cheese": ["Spreads & Cream Cheese", "Cheese"],
-
-  Yogurt: ["Yogurt", "Desserts & Puddings"],
-  "Desserts & Puddings": ["Desserts & Puddings", "Yogurt"],
-
-  Milk: ["Milk", "Milk Alternatives"],
-  "Milk Alternatives": ["Milk Alternatives", "Milk"],
-
-  // ===== Bakery =====
-  Bread: ["Bread", "Rolls & Buns", "Baguettes & Artisan"],
-  "Rolls & Buns": ["Rolls & Buns", "Bread"],
-  "Baguettes & Artisan": ["Baguettes & Artisan", "Bread"],
-
-  "Cakes & Pastries": ["Cakes & Pastries", "Cookies & Biscuits"],
-  "Cookies & Biscuits": ["Cookies & Biscuits", "Cakes & Pastries"],
-
-  "Pita & Flatbread": ["Pita & Flatbread", "Tortillas & Wraps"],
-  "Tortillas & Wraps": ["Tortillas & Wraps", "Pita & Flatbread"],
-
-  // ===== Produce =====
-  Fruits: ["Fruits", "Organic Produce"],
-  Vegetables: ["Vegetables", "Organic Produce"],
-  "Organic Produce": ["Organic Produce", "Fruits", "Vegetables"],
-
-  "Prepped Produce": ["Prepped Produce", "Vegetables"],
-
-  // ===== Meat & Poultry =====
-  Beef: ["Beef", "Ground/Minced"],
-  "Ground/Minced": ["Ground/Minced", "Beef"],
-
-  "Cold Cuts": ["Cold Cuts", "Turkey", "Chicken"],
-  Turkey: ["Turkey", "Cold Cuts"],
-  Chicken: ["Chicken", "Cold Cuts"],
-
-  Sausages: ["Sausages", "Mixed & Other Meats"],
-  "Mixed & Other Meats": ["Mixed & Other Meats", "Sausages"],
-
-  // ===== Fish & Seafood =====
-  "Fresh Fish": ["Fresh Fish", "Frozen Fish"],
-  "Frozen Fish": ["Frozen Fish", "Fresh Fish"],
-
-  // ===== Deli & Ready Meals =====
-  "Ready-to-Eat Meals": ["Ready-to-Eat Meals", "Sushi & Sashimi"],
-  "Sushi & Sashimi": ["Sushi & Sashimi", "Ready-to-Eat Meals"],
-
-  // ===== Frozen =====
-  "Pizza & Dough": ["Pizza & Dough", "Ready Meals"],
-  "Ready Meals": ["Ready Meals", "Pizza & Dough"],
-
-  // ===== Pantry =====
-  "Flour & Baking": ["Flour & Baking", "Baking Mixes"],
-  "Baking Mixes": ["Baking Mixes", "Flour & Baking"],
-
-  "Breakfast Cereal": ["Breakfast Cereal", "Granola & Muesli"],
-  "Granola & Muesli": ["Granola & Muesli", "Breakfast Cereal"],
-
-  "Canned Vegetables": ["Canned Vegetables", "Canned Beans & Legumes"],
-  "Canned Beans & Legumes": ["Canned Beans & Legumes", "Canned Vegetables"],
-
-  "Honey & Spreads": ["Honey & Spreads", "Nut Butters", "Jams & Preserves"],
-  "Nut Butters": ["Nut Butters", "Honey & Spreads"],
-  "Jams & Preserves": ["Jams & Preserves", "Honey & Spreads"],
-
-  "Asian Pantry": ["Asian Pantry", "Sauces & Condiments"],
-  "Mediterranean Pantry": ["Mediterranean Pantry", "Sauces & Condiments"],
-  "Mexican Pantry": ["Mexican Pantry", "Sauces & Condiments"],
-  "Canned Tomatoes": ["Canned Tomatoes", "Sauces & Condiments"],
-  "Sauces & Condiments": [
-    "Sauces & Condiments",
-    "Asian Pantry",
-    "Mediterranean Pantry",
-    "Mexican Pantry",
-    "Canned Tomatoes",
-  ],
-
-  // ===== Snacks =====
-  "Chips & Crisps": ["Chips & Crisps", "Pretzels & Popcorn"],
-  "Pretzels & Popcorn": ["Pretzels & Popcorn", "Chips & Crisps"],
-
-  // ===== Personal Care =====
-  "Bath & Body": ["Bath & Body", "Hand Soap & Sanitizers"],
-  "Hand Soap & Sanitizers": ["Hand Soap & Sanitizers", "Bath & Body"],
-
-  // ===== Health & Wellness =====
-  "Pain Relief": ["Pain Relief", "Cough & Cold"],
-  "Cough & Cold": ["Cough & Cold", "Pain Relief"],
-};
-
-function getSubCategoryCandidates(sub) {
-  const s = (sub || "").trim();
-  if (!s) return [];
-  if (SUBCATEGORY_GROUPS[s]) return SUBCATEGORY_GROUPS[s];
-  return [s];
-}
-
-const HEBREW_NOISE_TOKENS = new Set([
-  "רגיל",
-  "רגילה",
-  "רגילים",
-  "רגילות",
-  "קטן",
-  "קטנה",
-  "קטנים",
-  "קטנות",
-  "גדול",
-  "גדולה",
-  "גדולים",
-  "גדולות",
-]);
-
-const ENGLISH_NOISE_TOKENS = new Set([
-  "regular",
-  "normal",
-  "plain",
-  "classic",
-  "small",
-  "large",
-  "big",
-]);
-
-function getExcludeTokensFromReq(req) {
-  const raw = req && req.exclude_tokens;
-  if (!Array.isArray(raw)) return [];
-  return raw
-    .map((x) => normalizeToken(typeof x === "string" ? x : String(x || "")))
-    .map((x) => x.toLowerCase())
-    .filter(Boolean);
-}
-
-function normForContains(s) {
-  return normalizeToken(String(s || "").toLowerCase());
-}
-
-function filterRowsByExcludeTokens(rows, excludeTokens) {
-  if (!rows || !rows.length || !excludeTokens.length) return rows || [];
-
-  const ex = excludeTokens.map(normForContains).filter(Boolean);
-
-  return rows.filter((r) => {
-    const name = normForContains(r.name || "");
-    const en = normForContains(r.display_name_en || "");
-    return !ex.some((t) => (t && name.includes(t)) || (t && en.includes(t)));
-  });
-}
-
-function isNoiseToken(t) {
-  return HEBREW_NOISE_TOKENS.has(t) || ENGLISH_NOISE_TOKENS.has(t);
-}
-
-function normalizeToken(t) {
-  return String(t || "")
-    .normalize("NFKC")
-    .replace(/['’"]/g, "")
-    .trim();
-}
-
-function tokenImportance(token) {
-  const t = String(token || "").toLowerCase();
-
-  if (/^\d+(\.\d+)?$/.test(t)) return 0.5;
-
-  if (/\d/.test(t)) return 0.7;
-
-  return 1;
-}
-
-function tokenizeName(str) {
-  if (!str) return [];
-
-  const baseTokens = String(str)
-    .toLowerCase()
-    .replace(/[^\w\u0590-\u05FF]+/g, " ")
-    .split(/\s+/)
-    .map((t) => normalizeToken(t))
-    .filter(Boolean);
-
-  if (baseTokens.length <= 1) return baseTokens;
-
-  const filtered = baseTokens.filter((t) => !isNoiseToken(t));
-  return filtered.length ? filtered : baseTokens;
-}
-
-function safeParseJson(txt) {
-  if (typeof txt !== "string") throw new Error("safeParseJson expects string");
-  try {
-    return JSON.parse(txt);
-  } catch {}
-  const fenced = txt.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  if (fenced) {
-    try {
-      return JSON.parse(fenced[1]);
-    } catch {}
-  }
-  const i = txt.indexOf("{");
-  const j = txt.lastIndexOf("}");
-  if (i !== -1 && j !== -1 && j > i) {
-    const slice = txt.slice(i, j + 1);
-    try {
-      return JSON.parse(slice);
-    } catch {}
-  }
-  throw new Error("Not valid JSON");
-}
-
-function parseModelAnswer(answer) {
-  if (!answer) throw new Error("Empty model answer");
-
-  if (
-    typeof answer === "object" &&
-    ("products" in answer || "summary_line" in answer || "questions" in answer)
-  ) {
-    return answer;
-  }
-
-  const content =
-    (typeof answer?.choices?.[0]?.message?.content === "string" &&
-      answer.choices[0].message.content) ||
-    (typeof answer?.message === "string" && answer.message) ||
-    (typeof answer?.content === "string" && answer.content) ||
-    (typeof answer === "string" ? answer : null);
-
-  if (!content) {
-    if (typeof answer?.choices?.[0]?.message?.content === "object")
-      return answer.choices[0].message.content;
-    if (typeof answer?.content === "object") return answer.content;
-    throw new Error("Unknown model answer shape");
-  }
-  return safeParseJson(content);
-}
+const {
+  tokenImportance,
+  tokenizeName,
+  getExcludeTokensFromReq,
+  filterRowsByExcludeTokens,
+} = require("../utilities/tokens");
+const { getSubCategoryCandidates } = require("../repositories/categories");
 
 async function pickBestWeighted({ shop_id, rows, reqTokens, excludeTokens }) {
   rows = filterRowsByExcludeTokens(rows, excludeTokens);
@@ -266,7 +39,7 @@ async function pickBestWeighted({ shop_id, rows, reqTokens, excludeTokens }) {
       const wRaw = invDfMap.has(t) ? invDfMap.get(t) : 1; // fallback
       const inv = Number(wRaw) || 1;
 
-      const imp = tokenImportance(t);// *0.5 for numbers
+      const imp = tokenImportance(t); // *0.5 for numbers
       const add = inv * imp;
 
       extraScore += add;
@@ -286,7 +59,7 @@ async function pickBestWeighted({ shop_id, rows, reqTokens, excludeTokens }) {
       a.extraScore - b.extraScore ||
       a.priceScore - b.priceScore ||
       a.wordCount - b.wordCount ||
-      b.row.id - a.row.id
+      b.row.id - a.row.id,
   );
 
   const best = scored[0];
@@ -303,7 +76,9 @@ async function findBestProductForRequest(shop_id, req) {
   const nameRaw = (req?.name || "").trim();
 
   const primarySub = subCategoryRaw || null;
-  const subCandidates = primarySub ? getSubCategoryCandidates(primarySub) : [];
+  const subCandidates = primarySub
+    ? await getSubCategoryCandidates(category, primarySub)
+    : [];
   const otherSubs = primarySub
     ? subCandidates.filter((s) => s !== primarySub)
     : [];
@@ -483,65 +258,6 @@ async function findBestProductForRequest(shop_id, req) {
   return null;
 }
 
-async function rebuildTokenWeightsForShop(shop_id) {
-  const [rows] = await db.query(
-    `
-    SELECT id, name, display_name_en
-    FROM product
-    WHERE shop_id = ?
-    `,
-    [shop_id]
-  );
-
-  const df = new Map();
-
-  for (const r of rows) {
-    const tokens = new Set(tokenizeName(r.name || ""));
-    for (const t of tokens) {
-      df.set(t, (df.get(t) || 0) + 1);
-    }
-  }
-
-  const conn = await db.getConnection();
-  try {
-    await conn.beginTransaction();
-
-    await conn.query(`DELETE FROM product_token_weight WHERE shop_id = ?`, [
-      shop_id,
-    ]);
-
-    const chunkSize = 500;
-    const entries = Array.from(df.entries()); // [token, docFreq]
-
-    for (let i = 0; i < entries.length; i += chunkSize) {
-      const chunk = entries.slice(i, i + chunkSize);
-
-      const values = [];
-      const params = [];
-
-      for (const [token, docFreq] of chunk) {
-        values.push("(?, ?, ?, ?)");
-        params.push(shop_id, token, docFreq, docFreq > 0 ? 1 / docFreq : 1);
-      }
-
-      await conn.query(
-        `
-        INSERT INTO product_token_weight (shop_id, token, doc_freq, inv_df)
-        VALUES ${values.join(",")}
-        `,
-        params
-      );
-    }
-
-    await conn.commit();
-  } catch (e) {
-    await conn.rollback();
-    throw e;
-  } finally {
-    conn.release();
-  }
-}
-
 async function fetchInvDfMap(shop_id, tokens) {
   const uniq = Array.from(new Set(tokens)).filter(Boolean);
 
@@ -555,7 +271,7 @@ async function fetchInvDfMap(shop_id, tokens) {
     WHERE shop_id = ?
       AND token IN (${placeholders})
     `,
-    [shop_id, ...uniq]
+    [shop_id, ...uniq],
   );
 
   const map = new Map();
@@ -615,7 +331,7 @@ async function fetchAlternatives(
   excludeIds = [],
   limit = 3,
   requestedName = null,
-  excludeTokens = []
+  excludeTokens = [],
 ) {
   if (!category && !subCategory) return [];
 
@@ -637,7 +353,7 @@ async function fetchAlternatives(
     let subList = [];
     if (sub) {
       if (useGroup) {
-        subList = getSubCategoryCandidates(sub);
+        subList = await getSubCategoryCandidates(cat, sub);
       } else {
         subList = [sub];
       }
@@ -690,7 +406,7 @@ async function fetchAlternatives(
             b.score - a.score ||
             (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0) ||
             a.wordCount - b.wordCount ||
-            a.row.id - b.row.id
+            a.row.id - b.row.id,
         )
 
         .map((s) => s.row);
@@ -796,7 +512,7 @@ async function buildAlternativeQuestions(
   notFound,
   foundIdsSet,
   isEnglish,
-  context = ""
+  context = "",
 ) {
   const altQuestions = [];
   const alternativesMap = {};
@@ -823,7 +539,7 @@ async function buildAlternativeQuestions(
       exclude,
       3,
       mainName,
-      excludeTokens
+      excludeTokens,
     );
 
     if (!alts || !alts.length) continue;
@@ -842,7 +558,7 @@ async function buildAlternativeQuestions(
     const names = alts.map((a) =>
       isEnglish
         ? (a.display_name_en && a.display_name_en.trim()) || a.name
-        : a.name
+        : a.name,
     );
 
     const he = (nf.requested_name || "").trim();
@@ -867,186 +583,9 @@ async function buildAlternativeQuestions(
   return { altQuestions, alternativesMap };
 }
 
-const bold = (s) => (s ? `*${s}*` : "");
-
-const fmtMoney = (n) => {
-  const x = Number(n);
-  return Number.isFinite(x) ? x.toFixed(2) : null;
-};
-
-const fmtQtyShort = (n) => {
-  const x = Number(n);
-  if (!Number.isFinite(x)) return null;
-  const s = x.toFixed(3).replace(/\.?0+$/, "");
-  return s;
-};
-
-function promoToShortText({ promo, unitPrice, isEnglish, isWeight }) {
-  if (!promo || !promo.kind) return "";
-
-  if (promo.kind === "BUNDLE") {
-    const buy = fmtQtyShort(promo.bundle_buy_qty);
-    const pay = fmtMoney(promo.bundle_pay_price);
-    if (!buy || !pay) return "";
-    if (isEnglish) return `${buy} for ₪${pay}`;
-    return isWeight ? `${buy} ק״ג ב-₪${pay}` : `${buy} ב-₪${pay}`;
-  }
-
-  if (promo.kind === "FIXED_PRICE") {
-    const up = fmtMoney(unitPrice);
-    if (isEnglish) return up ? `instead of ₪${up} each` : ``;
-    return up ? `במקום ₪${up} ליח'` : ``;
-  }
-
-  if (promo.kind === "PERCENT_OFF") {
-    const pct = fmtQtyShort(promo.percent_off);
-    if (!pct) return "";
-    return isEnglish ? `${pct}% off` : `${pct}% הנחה`;
-  }
-
-  if (promo.kind === "AMOUNT_OFF") {
-    const off = fmtMoney(promo.amount_off);
-    if (!off) return "";
-    return isEnglish ? `₪${off} off each` : `הנחה ₪${off} ליח'`;
-  }
-
-  return isEnglish ? "promotion" : "מבצע";
-}
-
-function buildItemsBlock({ items, isEnglish, mode }) {
-  if (!Array.isArray(items) || !items.length) return "";
-
-  const lines = [];
-  lines.push(
-    isEnglish
-      ? mode === "create"
-        ? "Items added to your order:"
-        : "Items in your order now:"
-      : mode === "create"
-      ? "המוצרים שהוספתי להזמנה:"
-      : "המוצרים שכעת בהזמנה:"
-  );
-
-  for (const it of items) {
-    if (!it || !it.name) continue;
-
-    const name = it.name;
-    const qty = Number(it.amount);
-    if (!Number.isFinite(qty) || qty <= 0) continue;
-
-    const soldByWeightRaw = it.sold_by_weight;
-    const isWeight =
-      soldByWeightRaw === true ||
-      soldByWeightRaw === 1 ||
-      soldByWeightRaw === "1";
-
-    const unitsRaw = it.units ?? it.requested_units ?? it.requestedUnits;
-    const unitsNum = Number(unitsRaw);
-    const units =
-      isWeight && Number.isFinite(unitsNum) && unitsNum > 0 ? unitsNum : null;
-
-    const unitPrice = Number(it.unit_price ?? it.price);
-    const hasUnitPrice = Number.isFinite(unitPrice);
-
-    const lineTotalRaw = Number(it.line_total);
-    const hasLineTotal = Number.isFinite(lineTotalRaw);
-
-    const lineTotal = hasLineTotal
-      ? lineTotalRaw
-      : hasUnitPrice
-      ? Number((qty * unitPrice).toFixed(2))
-      : null;
-
-    if (!Number.isFinite(lineTotal)) continue;
-
-    const hasPromo = it.promo_id != null;
-    const promo = it.promo || null;
-    const promoText = promoToShortText({
-      promo,
-      unitPrice,
-      isEnglish,
-      isWeight,
-    });
-    const promoBadge = promoText ? ` ${bold(promoText)}` : "";
-
-
-    if (!isWeight) {
-      // unit items
-      if (qty === 1) {
-        // show final line price (maybe promo)
-        lines.push(`• ${name} - ₪${lineTotal.toFixed(2)}${promoBadge}`);
-      } else {
-        const eachSuffix = isEnglish ? "each" : "ליח'";
-
-        // If promo exists, the effective per-unit can differ (bundle etc.)
-        const effectiveEach = lineTotal / qty;
-        const eachText = hasPromo
-          ? isEnglish
-            ? `avg ₪${effectiveEach.toFixed(2)} ${eachSuffix}`
-            : `ממוצע ₪${effectiveEach.toFixed(2)} ${eachSuffix}`
-          : `₪${unitPrice.toFixed(2)} ${eachSuffix}`;
-
-        lines.push(
-          `• ${name} × ${qty} - ₪${lineTotal.toFixed(
-            2
-          )} (${eachText})${promoBadge}`
-        );
-      }
-      continue;
-    }
-
-    // weight items (kg)
-    if (units) {
-      if (isEnglish) {
-        lines.push(
-          `• ${name} × ${qty} - ₪${lineTotal.toFixed(2)}${
-            hasUnitPrice
-              ? ` (₪${unitPrice.toFixed(2)} per kg, approx for ${units} units)`
-              : ""
-          }${promoBadge}`
-        );
-      } else {
-        lines.push(
-          `• ${name} × ${qty} - ₪${lineTotal.toFixed(2)}${
-            hasUnitPrice
-              ? ` (₪${unitPrice.toFixed(2)} לק"ג, מחיר משוערך ל${units} יחידות)`
-              : ""
-          }${promoBadge}`
-        );
-      }
-    } else {
-      if (isEnglish) {
-        lines.push(
-          `• ${name} × ${qty} - ₪${lineTotal.toFixed(2)}${
-            hasUnitPrice ? ` (₪${unitPrice.toFixed(2)} per kg)` : ""
-          }${promoBadge}`
-        );
-      } else {
-        lines.push(
-          `• ${name} × ${qty} - ₪${lineTotal.toFixed(2)}${
-            hasUnitPrice ? ` (₪${unitPrice.toFixed(2)} לק"ג)` : ""
-          }${promoBadge}`
-        );
-      }
-    }
-  }
-
-  return lines.join("\n");
-}
-
-function buildQuestionsBlock({ questions, isEnglish }) {
-  const qs = normalizeIncomingQuestions(questions);
-  if (!qs.length) return "";
-  const lines = [];
-  lines.push("");
-  lines.push(isEnglish ? "Questions:" : "שאלות:");
-  for (const q of qs) lines.push(`• ${q.question}`);
-  return lines.join("\n");
-}
-
 async function searchVariants(
   shop_id,
-  { category = null, subCategory = null, searchTerm = null, limit = 50 } = {}
+  { category = null, subCategory = null, searchTerm = null, limit = 50 } = {},
 ) {
   const tokens = tokenizeName(searchTerm || "");
 
@@ -1064,7 +603,7 @@ async function searchVariants(
   }
 
   if (subCategory) {
-    const subs = getSubCategoryCandidates(subCategory);
+    const subs = await getSubCategoryCandidates(category, subCategory);
     if (subs.length) {
       sql += ` AND sub_category IN (${subs.map(() => "?").join(",")})`;
       params.push(...subs);
@@ -1094,11 +633,6 @@ async function searchVariants(
 }
 
 module.exports = {
-  // JSON parsing
-  safeParseJson,
-  parseModelAnswer,
-
-  // Product search & alternatives
   findBestProductForRequest,
   searchProducts,
   fetchAlternatives,
@@ -1106,15 +640,5 @@ module.exports = {
 
   pickAltTemplate,
 
-  buildItemsBlock,
-  buildQuestionsBlock,
-
   searchVariants,
-
-  getExcludeTokensFromReq,
-
-  rebuildTokenWeightsForShop,
-
-  tokenizeName,
-  getSubCategoryCandidates,
 };

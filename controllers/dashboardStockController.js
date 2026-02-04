@@ -1,6 +1,5 @@
 const db = require("../config/db");
 const { sendWhatsAppText } = require("../config/whatsapp");
-const { fetchCategoriesMap } = require("../categoryHandlers/productCategories");
 const { fetchAlternatives } = require("../services/products");
 const {
   isNonEmptyString,
@@ -8,6 +7,8 @@ const {
   parseShopId,
   normalizeWaNumber,
 } = require("../utilities/dashboardUtils");
+const { rebuildTokenWeightsForShop } = require("../services/buildTokenWeights");
+const { fetchCategoriesMap } = require("../repositories/categories");
 
 const DELETE_FROM_ORDER_STATUSES = [
   "pending",
@@ -94,7 +95,7 @@ exports.listStockProducts = async (req, res) => {
     }
 
     const categoryMap = await fetchCategoriesMap();
-    
+
     if (category && !validateCategory(category, categoryMap)) {
       return res.status(400).json({ ok: false, message: "Invalid category" });
     }
@@ -232,11 +233,14 @@ exports.createStockProduct = async (req, res) => {
         .json({ ok: false, message: "Invalid stock_amount" });
 
     const categoryMap = await fetchCategoriesMap();
-    
+
     if (!category || !validateCategory(category, categoryMap))
       return res.status(400).json({ ok: false, message: "Invalid category" });
 
-    if (!sub_category || !validateSubcategory(category, sub_category, categoryMap))
+    if (
+      !sub_category ||
+      !validateSubcategory(category, sub_category, categoryMap)
+    )
       return res
         .status(400)
         .json({ ok: false, message: "Invalid sub_category for category" });
@@ -270,7 +274,9 @@ exports.createStockProduct = async (req, res) => {
       `,
       [id, shopId],
     );
-
+    rebuildTokenWeightsForShop(shopId).catch((e) =>
+      console.error("[tokens.rebuild] failed", e?.message || e),
+    );
     return res.status(201).json({ ok: true, product: rows[0] || { id } });
   } catch (err) {
     console.error("[stock.createStockProduct]", err);
@@ -295,7 +301,7 @@ exports.updateStockProduct = async (req, res) => {
 
     const [existingRows] = await conn.query(
       `
-      SELECT id, shop_id, category, sub_category
+      SELECT id, shop_id, name, category, sub_category
       FROM product
       WHERE id = ? AND shop_id = ?
       FOR UPDATE
@@ -309,6 +315,15 @@ exports.updateStockProduct = async (req, res) => {
     }
 
     const existing = existingRows[0];
+
+    const hasName = Object.prototype.hasOwnProperty.call(
+      req.body || {},
+      "name",
+    );
+    const nextName = hasName
+      ? String(req.body.name ?? "").trim()
+      : existing.name;
+    const shouldRebuild = hasName && nextName && nextName !== existing.name;
 
     const hasCat = Object.prototype.hasOwnProperty.call(
       req.body || {},
@@ -328,7 +343,7 @@ exports.updateStockProduct = async (req, res) => {
       : existing.sub_category;
 
     const categoryMap = await fetchCategoriesMap();
-    
+
     if (!nextCategory || !validateCategory(nextCategory, categoryMap)) {
       await conn.rollback();
       return res.status(400).json({ ok: false, message: "Invalid category" });
@@ -421,6 +436,12 @@ exports.updateStockProduct = async (req, res) => {
       `,
       [id, shopId],
     );
+
+    if (shouldRebuild) {
+      rebuildTokenWeightsForShop(shopId).catch((e) =>
+        console.error("[tokens.rebuild] failed", e?.message || e),
+      );
+    }
 
     return res.json({ ok: true, product: rows[0] || { id } });
   } catch (err) {
@@ -630,7 +651,9 @@ exports.deleteStockProduct = async (req, res) => {
       })();
     }
 
-    return;
+    rebuildTokenWeightsForShop(shopId).catch((e) =>
+      console.error("[tokens.rebuild] failed", e?.message || e),
+    );
   } catch (err) {
     try {
       await conn.rollback();

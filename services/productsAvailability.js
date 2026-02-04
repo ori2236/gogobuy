@@ -1,9 +1,8 @@
 const db = require("../config/db");
-
 const {
   findBestProductForRequest,
-  getExcludeTokensFromReq,
 } = require("./products");
+const { getExcludeTokensFromReq } = require("../utilities/tokens");
 
 function isHebrewOrNumberToken(t) {
   const s = String(t || "");

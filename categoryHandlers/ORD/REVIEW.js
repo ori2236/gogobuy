@@ -1,7 +1,7 @@
 const { addMoney, roundTo } = require("../../utilities/decimal");
 const { saveOpenQuestions } = require("../../utilities/openQuestions");
 const { formatOrderStatus } = require("../../utilities/orders");
-const { buildItemsBlock } = require("../../services/products");
+const { buildItemsBlock } = require("../../utilities/messageBuilders");
 
 async function orderReview(order, items, isEnglish, customer_id, shop_id) {
   // no open order
@@ -105,7 +105,7 @@ async function orderReview(order, items, isEnglish, customer_id, shop_id) {
         `Status: ${statusText}`,
         hasSavings
           ? `Subtotal: *₪${totalWithPromos.toFixed(
-              2
+              2,
             )}* instead of ₪${totalNoPromos.toFixed(2)}`
           : `Subtotal: *₪${totalWithPromos.toFixed(2)}*`,
       ].join("\n")
@@ -114,7 +114,7 @@ async function orderReview(order, items, isEnglish, customer_id, shop_id) {
         `סטטוס: ${statusText}`,
         hasSavings
           ? `סה״כ ביניים: *₪${totalWithPromos.toFixed(
-              2
+              2,
             )}* במקום ₪${totalNoPromos.toFixed(2)}`
           : `סה״כ ביניים: *₪${totalWithPromos.toFixed(2)}*`,
       ].join("\n");

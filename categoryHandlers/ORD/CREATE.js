@@ -3,13 +3,10 @@ const db = require("../../config/db");
 const { getPromptFromDB } = require("../../repositories/prompt");
 const { createOrderWithStockReserve } = require("../../utilities/orders");
 const { isEnglishMessage } = require("../../utilities/lang");
-const { addMoney, mulMoney, roundTo } = require("../../utilities/decimal");
+const { addMoney, roundTo } = require("../../utilities/decimal");
 const {
-  parseModelAnswer,
   searchProducts,
   buildAlternativeQuestions,
-  buildItemsBlock,
-  buildQuestionsBlock,
 } = require("../../services/products");
 const {
   saveOpenQuestions,
@@ -18,6 +15,11 @@ const {
 } = require("../../utilities/openQuestions");
 const { normalizeIncomingQuestions } = require("../../utilities/normalize");
 const { buildCreateOrderSchema } = require("./schemas/create.schema");
+const { parseModelAnswer } = require("../../utilities/jsonParse");
+const {
+  buildItemsBlock,
+  buildQuestionsBlock,
+} = require("../../utilities/messageBuilders");
 
 const PROMPT_CAT = "ORD";
 const PROMPT_SUB = "CREATE";

@@ -8,7 +8,6 @@ const customerInteractionRoutes = require("./routes/customerInteractionRoutes");
 const webhooksRoutes = require("./routes/webhook");
 const dashboardRoutes = require("./routes/dashboard");
 const deleteLastData = require("./routes/deleteLastData");
-const { rebuildTokenWeightsForShop } = require("./services/products");
 
 const app = express();
 const port = config.port || 3000;
@@ -41,7 +40,6 @@ db.getConnection()
     console.log("Database connected");
     connection.release(); // Release the connection back to the pool
   })
-  .then(() => rebuildTokenWeightsForShop(1)) // shop_id
   .catch((err) => {
     console.error("Failed to connect to the database:", err);
     process.exit(1);

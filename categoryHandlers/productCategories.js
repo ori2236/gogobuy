@@ -1,26 +1,4 @@
-const db = require("../config/db");
-
-async function fetchCategoriesMap() {
-  const query = `
-    SELECT c.name AS category, s.name AS subcategory
-    FROM product_category c
-    JOIN product_subcategory s ON s.category_id = c.id
-    ORDER BY c.sort_order, s.sort_order;
-  `;
-
-  const [rows] = await db.query(query);
-
-  const categoryMap = {};
-
-  rows.forEach((row) => {
-    if (!categoryMap[row.category]) {
-      categoryMap[row.category] = [];
-    }
-    categoryMap[row.category].push(row.subcategory);
-  });
-
-  return categoryMap;
-}
+const { fetchCategoriesMap } = require("../repositories/categories");
 
 async function buildCategorySubcategoryItemSchemas(commonProps, commonRequired) {
   const categoryMap = await fetchCategoriesMap();
@@ -67,7 +45,6 @@ async function buildNullableSubcategorySchemas(commonProps, commonRequired) {
 }
 
 module.exports = {
-  fetchCategoriesMap,
   buildCategorySubcategoryItemSchemas,
   buildNullableSubcategorySchemas,
 };

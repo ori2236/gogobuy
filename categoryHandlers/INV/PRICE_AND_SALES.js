@@ -1,6 +1,6 @@
 const { chat } = require("../../config/openai");
 const { getPromptFromDB } = require("../../repositories/prompt");
-const { parseModelAnswer, searchProducts } = require("../../services/products");
+const { searchProducts } = require("../../services/products");
 const {
   answerPriceCompareFlow,
   answerCheaperAltFlow,
@@ -18,6 +18,7 @@ const { normalizeIncomingQuestions } = require("../../utilities/normalize");
 const {
   buildInvPriceAndSalesSchema
 } = require("./schemas/priceAndSales.schema");
+const { parseModelAnswer } = require("../../utilities/jsonParse");
 
 const PROMPT_CAT = "INV";
 const PROMPT_SUB = "PRICE_AND_SALES";

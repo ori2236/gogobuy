@@ -10,13 +10,9 @@ const {
 const { addMoney, roundTo } = require("../../utilities/decimal");
 const { isEnglishMessage } = require("../../utilities/lang");
 const {
-  parseModelAnswer,
   pickAltTemplate,
   findBestProductForRequest,
   fetchAlternatives,
-  buildItemsBlock,
-  buildQuestionsBlock,
-  getExcludeTokensFromReq,
 } = require("../../services/products");
 const {
   saveOpenQuestions,
@@ -25,6 +21,12 @@ const {
 } = require("../../utilities/openQuestions");
 const { normalizeIncomingQuestions } = require("../../utilities/normalize");
 const { buildModifyOrderSchema } = require("./schemas/modify.schema");
+const { getExcludeTokensFromReq } = require("../../utilities/tokens");
+const { parseModelAnswer } = require("../../utilities/jsonParse");
+const {
+  buildItemsBlock,
+  buildQuestionsBlock,
+} = require("../../utilities/messageBuilders");
 
 const PROMPT_CAT = "ORD";
 const PROMPT_SUB = "MODIFY";

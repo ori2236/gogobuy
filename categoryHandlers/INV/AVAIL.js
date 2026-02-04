@@ -1,15 +1,17 @@
 const { chat } = require("../../config/openai");
 const { getPromptFromDB } = require("../../repositories/prompt");
 const {
-  parseModelAnswer,
   buildAlternativeQuestions,
-  buildQuestionsBlock,
   searchVariants,
 } = require("../../services/products");
-const { searchProductsAvailability } = require("../../services/productsAvailability");
+const {
+  searchProductsAvailability,
+} = require("../../services/productsAvailability");
 const db = require("../../config/db");
 const { saveOpenQuestions } = require("../../utilities/openQuestions");
 const { buildInvAvailSchema } = require("./schemas/avail.schema");
+const { parseModelAnswer } = require("../../utilities/jsonParse");
+const { buildQuestionsBlock } = require("../../utilities/messageBuilders");
 
 const PROMPT_CAT = "INV";
 const PROMPT_SUB = "AVAIL";
@@ -143,12 +145,12 @@ async function checkAvailability({
       category: p.category,
       subCategory: p["sub-category"] || p.sub_category,
       requested_amount: p.requested_amount,
-    }))
+    })),
   );
 
   console.log(
     "[INV.AVAIL] clarifyQuestionsFromModel:",
-    clarifyQuestionsFromModel
+    clarifyQuestionsFromModel,
   );
 
   const hasProducts = productRequests.length > 0;
@@ -176,7 +178,7 @@ async function checkAvailability({
     });
 
     const res = await searchProductsAvailability(shop_id, searchRequests);
-    
+
     found = res.found || [];
     notFound = res.notFound || [];
     console.log("[INV.AVAIL] found:", found);
@@ -285,7 +287,7 @@ async function checkAvailability({
         availabilityLines.push(
           isEnglish
             ? "I can’t tell how many units are in stock because I’m not sure which product you mean. Can you write its name?"
-            : "אני לא יכול לענות כמה יחידות יש במלאי כי לא ברור על איזה מוצר אתה שואל. תוכל לכתוב את שם המוצר?"
+            : "אני לא יכול לענות כמה יחידות יש במלאי כי לא ברור על איזה מוצר אתה שואל. תוכל לכתוב את שם המוצר?",
         );
         continue;
       }
@@ -294,7 +296,7 @@ async function checkAvailability({
         availabilityLines.push(
           isEnglish
             ? `${displayLabel} is currently out of stock.`
-            : `${displayLabel} כרגע חסר במלאי.`
+            : `${displayLabel} כרגע חסר במלאי.`,
         );
         continue;
       }
@@ -309,13 +311,13 @@ async function checkAvailability({
         availabilityLines.push(
           isEnglish
             ? `Right now we don’t have any ${displayLabel} in stock.`
-            : `כרגע אין לנו במלאי בכלל ${displayLabel}.`
+            : `כרגע אין לנו במלאי בכלל ${displayLabel}.`,
         );
       } else if (stock < maxPerProduct) {
         availabilityLines.push(
           isEnglish
             ? `Right now we have ${stock} units of ${displayLabel} in stock.`
-            : `כרגע יש לנו במלאי ${stock} יחידות של ${displayLabel}.`
+            : `כרגע יש לנו במלאי ${stock} יחידות של ${displayLabel}.`,
         );
       } else {
         quantityNames.push(displayLabel);
@@ -341,7 +343,7 @@ async function checkAvailability({
         availabilityLines.push(
           isEnglish
             ? `${displayLabel} is currently out of stock.`
-            : `${displayLabel} כרגע חסר במלאי.`
+            : `${displayLabel} כרגע חסר במלאי.`,
         );
 
         notFoundForAlternatives.push({
@@ -356,7 +358,7 @@ async function checkAvailability({
         availabilityLines.push(
           isEnglish
             ? `This is a large quantity request. For orders of more than ${maxPerProduct} units, it’s better to talk directly with a store representative so they can check the stock and help you.`
-            : `זו כמות גדולה. להזמנות של יותר מ-${maxPerProduct} יחידות עדיף לדבר עם נציג מהסופר כדי לבדוק את המלאי ולעזור לך.`
+            : `זו כמות גדולה. להזמנות של יותר מ-${maxPerProduct} יחידות עדיף לדבר עם נציג מהסופר כדי לבדוק את המלאי ולעזור לך.`,
         );
       } else if (requestedAmount <= 1) {
         // Simple: "Do you have X?" → answer with product + price
@@ -371,24 +373,24 @@ async function checkAvailability({
           if (price !== null) {
             availabilityLines.push(
               `Yes, we currently have ${displayLabel} in stock. The product is: ${productNameForUser}, and it costs ₪${price.toFixed(
-                2
-              )}.`
+                2,
+              )}.`,
             );
           } else {
             availabilityLines.push(
-              `Yes, we currently have ${displayLabel} in stock. The product is: ${productNameForUser}.`
+              `Yes, we currently have ${displayLabel} in stock. The product is: ${productNameForUser}.`,
             );
           }
         } else {
           if (price !== null) {
             availabilityLines.push(
               `כן, יש לנו במלאי ${displayLabel}. המוצר הוא: ${productNameForUser}, והוא עולה ₪${price.toFixed(
-                2
-              )}.`
+                2,
+              )}.`,
             );
           } else {
             availabilityLines.push(
-              `כן, יש לנו במלאי ${displayLabel}. המוצר הוא: ${productNameForUser}.`
+              `כן, יש לנו במלאי ${displayLabel}. המוצר הוא: ${productNameForUser}.`,
             );
           }
         }
@@ -397,13 +399,13 @@ async function checkAvailability({
           availabilityLines.push(
             isEnglish
               ? `Right now we have ${stock} units of ${displayLabel} in stock, which is enough for the quantity you asked for.`
-              : `כרגע יש לנו במלאי ${stock} יחידות של ${displayLabel}, ויש מספיק לכמות שביקשת.`
+              : `כרגע יש לנו במלאי ${stock} יחידות של ${displayLabel}, ויש מספיק לכמות שביקשת.`,
           );
         } else {
           availabilityLines.push(
             isEnglish
               ? `Yes, we have enough ${displayLabel} in stock for the quantity you asked for.`
-              : `כן, יש לנו מספיק ${displayLabel} במלאי לכמות שביקשת.`
+              : `כן, יש לנו מספיק ${displayLabel} במלאי לכמות שביקשת.`,
           );
         }
       } else {
@@ -411,7 +413,7 @@ async function checkAvailability({
         availabilityLines.push(
           isEnglish
             ? `Right now we only have ${stock} units of ${displayLabel} in stock, which is less than you asked for.`
-            : `כרגע יש לנו במלאי רק ${stock} יחידות של ${displayLabel}, פחות מהכמות שביקשת.`
+            : `כרגע יש לנו במלאי רק ${stock} יחידות של ${displayLabel}, פחות מהכמות שביקשת.`,
         );
 
         notFoundForAlternatives.push({
@@ -444,7 +446,7 @@ async function checkAvailability({
           variantLines.push(
             isEnglish
               ? `I couldn’t find any in-stock products matching "${searchTermForText}".`
-              : `לא מצאתי מוצרים במלאי שמתאימים ל-"${searchTermForText}".`
+              : `לא מצאתי מוצרים במלאי שמתאימים ל-"${searchTermForText}".`,
           );
         } else {
           const listNames = Array.from(
@@ -452,9 +454,9 @@ async function checkAvailability({
               rows.map((r) =>
                 isEnglish
                   ? (r.display_name_en && r.display_name_en.trim()) || r.name
-                  : r.name
-              )
-            )
+                  : r.name,
+              ),
+            ),
           );
 
           if (listNames.length === 1) {
@@ -462,17 +464,17 @@ async function checkAvailability({
             variantLines.push(
               isEnglish
                 ? `We currently have the following product for "${searchTermForText}": ${single}.`
-                : `כרגע יש לנו במלאי את המוצר הבא עבור "${searchTermForText}": ${single}.`
+                : `כרגע יש לנו במלאי את המוצר הבא עבור "${searchTermForText}": ${single}.`,
             );
           } else if (listNames.length <= 4) {
             variantLines.push(
               isEnglish
                 ? `We currently have the following products for "${searchTermForText}": ${listNames.join(
-                    ", "
+                    ", ",
                   )}.`
                 : `כרגע יש לנו במלאי את המוצרים הבאים עבור "${searchTermForText}": ${listNames.join(
-                    ", "
-                  )}.`
+                    ", ",
+                  )}.`,
             );
           } else {
             const itemsBlock = listNames.join("\n");
@@ -480,7 +482,7 @@ async function checkAvailability({
             variantLines.push(
               isEnglish
                 ? `We currently have the following products for "${searchTermForText}":\n${itemsBlock}`
-                : `כרגע יש לנו במלאי את המוצרים הבאים עבור "${searchTermForText}":\n${itemsBlock}`
+                : `כרגע יש לנו במלאי את המוצרים הבאים עבור "${searchTermForText}":\n${itemsBlock}`,
             );
           }
         }
@@ -491,7 +493,7 @@ async function checkAvailability({
         availabilityLines.push(
           isEnglish
             ? `I’m not sure which type of product you mean for "${displayLabel}". Can you clarify?`
-            : `לא ברור לי בדיוק לאיזה סוג מוצר אתה מתכוון לגבי "${displayLabel}". תוכל לחדד?`
+            : `לא ברור לי בדיוק לאיזה סוג מוצר אתה מתכוון לגבי "${displayLabel}". תוכל לחדד?`,
         );
         continue;
       }
@@ -548,9 +550,9 @@ async function checkAvailability({
             variantsRows.map((r) =>
               isEnglish
                 ? (r.display_name_en && r.display_name_en.trim()) || r.name
-                : r.name
-            )
-          )
+                : r.name,
+            ),
+          ),
         );
 
         if (listNames.length === 1) {
@@ -560,19 +562,19 @@ async function checkAvailability({
             variantLines.push(
               isEnglish
                 ? `We have the following option for ${displayLabel}: ${single}.`
-                : `יש לנו את האפשרות הבאה עבור ${displayLabel}: ${single}.`
+                : `יש לנו את האפשרות הבאה עבור ${displayLabel}: ${single}.`,
             );
           } else if (intent === "ASK_BRANDS") {
             variantLines.push(
               isEnglish
                 ? `We carry the following product of ${displayLabel}: ${single}.`
-                : `יש לנו במלאי את המוצר הבא מסוג ${displayLabel}: ${single}.`
+                : `יש לנו במלאי את המוצר הבא מסוג ${displayLabel}: ${single}.`,
             );
           } else if (intent === "ASK_BOTH") {
             variantLines.push(
               isEnglish
                 ? `Yes, we have ${displayLabel}. The product in stock is: ${single}.`
-                : `כן, יש לנו ${displayLabel}. המוצר במלאי הוא: ${single}.`
+                : `כן, יש לנו ${displayLabel}. המוצר במלאי הוא: ${single}.`,
             );
           }
         } else if (listNames.length <= 4) {
@@ -582,19 +584,19 @@ async function checkAvailability({
             variantLines.push(
               isEnglish
                 ? `We have the following options for ${displayLabel}: ${inlineList}.`
-                : `יש לנו את האפשרויות הבאות עבור ${displayLabel}: ${inlineList}.`
+                : `יש לנו את האפשרויות הבאות עבור ${displayLabel}: ${inlineList}.`,
             );
           } else if (intent === "ASK_BRANDS") {
             variantLines.push(
               isEnglish
                 ? `We carry the following options for ${displayLabel}: ${inlineList}.`
-                : `יש לנו במלאי את המוצרים הבאים מסוג ${displayLabel}: ${inlineList}.`
+                : `יש לנו במלאי את המוצרים הבאים מסוג ${displayLabel}: ${inlineList}.`,
             );
           } else if (intent === "ASK_BOTH") {
             variantLines.push(
               isEnglish
                 ? `Yes, we have ${displayLabel}. Available options: ${inlineList}.`
-                : `כן, יש לנו ${displayLabel}. האפשרויות במלאי: ${inlineList}.`
+                : `כן, יש לנו ${displayLabel}. האפשרויות במלאי: ${inlineList}.`,
             );
           }
         } else {
@@ -604,19 +606,19 @@ async function checkAvailability({
             variantLines.push(
               isEnglish
                 ? `We have the following options for ${displayLabel}:\n${itemsBlock}`
-                : `יש לנו את האפשרויות הבאות עבור ${displayLabel}:\n${itemsBlock}`
+                : `יש לנו את האפשרויות הבאות עבור ${displayLabel}:\n${itemsBlock}`,
             );
           } else if (intent === "ASK_BRANDS") {
             variantLines.push(
               isEnglish
                 ? `We carry the following options for ${displayLabel}:\n${itemsBlock}`
-                : `יש לנו במלאי את המוצרים הבאים מסוג ${displayLabel}:\n${itemsBlock}`
+                : `יש לנו במלאי את המוצרים הבאים מסוג ${displayLabel}:\n${itemsBlock}`,
             );
           } else if (intent === "ASK_BOTH") {
             variantLines.push(
               isEnglish
                 ? `Yes, we have ${displayLabel}. Available options:\n${itemsBlock}`
-                : `כן, יש לנו ${displayLabel}. האפשרויות במלאי:\n${itemsBlock}`
+                : `כן, יש לנו ${displayLabel}. האפשרויות במלאי:\n${itemsBlock}`,
             );
           }
         }
@@ -629,14 +631,14 @@ async function checkAvailability({
     availabilityLines.push(
       isEnglish
         ? `I can’t tell exactly how many units of ${namesJoined} we have in stock.`
-        : `אני לא יכול לענות כמה יחידות של ${namesJoined} יש במלאי.`
+        : `אני לא יכול לענות כמה יחידות של ${namesJoined} יש במלאי.`,
     );
   }
 
   let altQuestions = [];
   if (notFoundForAlternatives.length) {
     const foundIdsSet = new Set(
-      found.filter((f) => Number(f.stock_amount) > 0).map((f) => f.product_id)
+      found.filter((f) => Number(f.stock_amount) > 0).map((f) => f.product_id),
     );
 
     const altRes = await buildAlternativeQuestions(
@@ -644,7 +646,7 @@ async function checkAvailability({
       notFoundForAlternatives,
       foundIdsSet,
       isEnglish,
-      "availability"
+      "availability",
     );
     altQuestions = altRes.altQuestions || [];
   }
@@ -660,7 +662,7 @@ async function checkAvailability({
   }
 
   const allAvailabilityLines = [...availabilityLines, ...variantLines].filter(
-    (line) => line && line.trim()
+    (line) => line && line.trim(),
   );
 
   const hasAvailability = allAvailabilityLines.length > 0;
