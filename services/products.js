@@ -513,11 +513,34 @@ async function buildAlternativeQuestions(
   foundIdsSet,
   isEnglish,
   context = "",
+  opts = {},
 ) {
   const altQuestions = [];
   const alternativesMap = {};
   const usedIds = new Set(foundIdsSet);
   let t = 0;
+
+  const threshold = Number.isFinite(Number(opts.threshold))
+    ? Number(opts.threshold)
+    : 3;
+  const shortLimit = Number.isFinite(Number(opts.shortLimit))
+    ? Number(opts.shortLimit)
+    : 2;
+  const longLimit = Number.isFinite(Number(opts.longLimit))
+    ? Number(opts.longLimit)
+    : 3;
+
+  const baseQuestionsCount = Number.isFinite(Number(opts.baseQuestionsCount))
+    ? Number(opts.baseQuestionsCount)
+    : 0;
+
+  const forceShort = opts.forceShort === true;
+
+  const nextLimit = () => {
+    if (forceShort) return shortLimit;
+    const nextQNum = baseQuestionsCount + altQuestions.length + 1;
+    return nextQNum > threshold ? shortLimit : longLimit;
+  };
 
   for (const nf of notFound) {
     const cat = (nf.category || "").trim();
@@ -537,7 +560,7 @@ async function buildAlternativeQuestions(
       cat,
       sub,
       exclude,
-      3,
+      nextLimit(),
       mainName,
       excludeTokens,
     );
@@ -635,6 +658,7 @@ async function searchVariants(
 module.exports = {
   findBestProductForRequest,
   searchProducts,
+  
   fetchAlternatives,
   buildAlternativeQuestions,
 

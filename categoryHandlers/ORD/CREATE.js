@@ -41,7 +41,7 @@ module.exports = {
 
     const basePrompt = await getPromptFromDB(PROMPT_CAT, PROMPT_SUB);
 
-    const openQsCtxToPrompt = openQsCtx.length ? openQsCtx : "";
+    const openQsCtxToPrompt = openQsCtx.length ? JSON.stringify(openQsCtx) : "";
 
     const systemPrompt = [basePrompt, "", openQsCtxToPrompt].join("\n");
 
@@ -144,6 +144,23 @@ module.exports = {
 
     const { found, notFound } = await searchProducts(shop_id, reqProducts);
 
+    const modelQuestions = normalizeIncomingQuestions(parsed?.questions, {
+      preserveOptions: true,
+    });
+
+    const notFoundNameSet = new Set(
+      notFound
+        .map((nf) =>
+          typeof nf.requested_name === "string" ? nf.requested_name.trim() : "",
+        )
+        .filter(Boolean),
+    );
+
+    const filteredModelQuestions = modelQuestions.filter((q) => {
+      const nm = typeof q?.name === "string" ? q.name.trim() : "";
+      return !nm || !notFoundNameSet.has(nm);
+    });
+
     const cappedWarnings = [];
     const fractionalWarnings = [];
 
@@ -193,29 +210,6 @@ module.exports = {
     });
 
     const foundIdsSet = new Set(cappedFound.map((f) => f.product_id));
-    const { altQuestions, alternativesMap } = await buildAlternativeQuestions(
-      shop_id,
-      notFound,
-      foundIdsSet,
-      isEnglish,
-    );
-
-    const notFoundNameSet = new Set(
-      notFound
-        .map((nf) =>
-          typeof nf.requested_name === "string" ? nf.requested_name.trim() : "",
-        )
-        .filter(Boolean),
-    );
-
-    const modelQuestions = normalizeIncomingQuestions(parsed?.questions, {
-      preserveOptions: true,
-    });
-
-    const filteredModelQuestions = modelQuestions.filter((q) => {
-      const nm = typeof q?.name === "string" ? q.name.trim() : "";
-      return !nm || !notFoundNameSet.has(nm);
-    });
 
     const orderInputLineItems = cappedFound.map((f) => ({
       product_id: f.product_id,
@@ -237,6 +231,38 @@ module.exports = {
       delivery_address: null,
     });
 
+   const insufficientCount = Array.isArray(orderRes.insufficient)
+     ? orderRes.insufficient.length
+     : 0;
+
+   const notFoundEligibleCount = notFound.filter((nf) => {
+     const cat = (nf.category || "").trim();
+     const sub = (nf.sub_category || "").trim();
+     return !!cat || !!sub;
+   }).length;
+
+
+    const baseQuestionsCount = filteredModelQuestions.length;
+    const forceShort =
+      baseQuestionsCount + notFoundEligibleCount + insufficientCount > 3;
+
+    const altLimit = forceShort ? 2 : 3;
+
+    const { altQuestions, alternativesMap } = await buildAlternativeQuestions(
+      shop_id,
+      notFound,
+      foundIdsSet,
+      isEnglish,
+      "",
+      {
+        baseQuestionsCount,
+        forceShort,
+        threshold: 3,
+        shortLimit: 2,
+        longLimit: 3,
+      },
+    );
+
     // questions about the stock
     const stockAltQuestions = [];
     if (Array.isArray(orderRes.insufficient) && orderRes.insufficient.length) {
@@ -252,11 +278,13 @@ module.exports = {
               miss.matched_display_name_en
         ).trim();
 
-        const altNames = (miss.alternatives || []).map((a) =>
-          isEnglish
-            ? (a.display_name_en && a.display_name_en.trim()) || a.name
-            : a.name,
-        );
+        const altNames = (miss.alternatives || [])
+          .slice(0, altLimit)
+          .map((a) =>
+            isEnglish
+              ? (a.display_name_en && a.display_name_en.trim()) || a.name
+              : a.name,
+          );
         if (isEnglish) {
           stockAltQuestions.push({
             name: reqName,

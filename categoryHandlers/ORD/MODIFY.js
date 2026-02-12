@@ -105,11 +105,22 @@ async function applyOrderPatch({
   ops,
   isEnglish,
   maxPerProduct,
+  baseQuestionsCount = 0,
 }) {
   const conn = await db.getConnection();
   const stockQuestions = [];
   let altTemplateIdx = 0;
 
+  const threshold = 3;
+  const shortLimit = 2;
+  const longLimit = 3;
+
+  const nextAltLimit = () => {
+    const nextQNum =
+      Number(baseQuestionsCount || 0) + stockQuestions.length + 1;
+    return nextQNum > threshold ? shortLimit : longLimit;
+  };
+  
   const removedApplied = [];
   const qtyIncreased = [];
   const qtyDecreased = [];
@@ -345,7 +356,7 @@ async function applyOrderPatch({
             row.category || prod?.category || null,
             row.sub_category || prod?.sub_category || null,
             [Number(row.product_id)],
-            3,
+            nextAltLimit(),
             mainName,
             excludeTokens,
           );
@@ -434,7 +445,7 @@ async function applyOrderPatch({
           cat,
           sub,
           [],
-          3,
+          nextAltLimit(),
           p.name,
           excludeTokens,
         );
@@ -635,7 +646,7 @@ async function applyOrderPatch({
           prod?.category || row.category || null,
           prod?.sub_category || row.sub_category || null,
           [pid],
-          3,
+          nextAltLimit(),
           mainName,
           excludeTokens,
         );
@@ -969,6 +980,7 @@ module.exports = {
         ops: patchOps,
         isEnglish,
         maxPerProduct,
+        baseQuestionsCount: modelQuestions.length,
       });
 
       const hasItems = Array.isArray(txRes.items) && txRes.items.length > 0;
