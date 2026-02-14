@@ -18,7 +18,7 @@ async function chat({ message, history = [], systemPrompt, response_format }) {
     ...history,
     { role: "user", content: message },
   ];
-
+  console.log({ messages }, { response_format });
   const r = await client.chat.completions.create({
     model: deployment,
     messages,

@@ -29,7 +29,7 @@ async function wasSentBefore(customer_id, shop_id, message) {
   return false;
 }
 
-async function getHistory(customer_id, shop_id, maxMsgs = 3) {
+async function getHistory(customer_id, shop_id, maxMsgs = 5) {
   const [rows] = await db.query(
     `SELECT sender, status, message, created_at
        FROM chat

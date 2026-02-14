@@ -17,7 +17,7 @@ const {
   buildActiveOrderSignals,
 } = require("../utilities/orders");
 const { detectIsEnglish } = require("../utilities/lang");
-const { checkIfToCancelOrder } = require("../categoryHandlers/ORD/CANCEL")
+const { checkIfToCancelOrder } = require("../categoryHandlers/ORD/CANCEL");
 const { checkIfToCheckoutOrder } = require("../categoryHandlers/ORD/CHECKOUT");
 
 const maxPerProduct = 10;
@@ -35,15 +35,15 @@ async function processMessage(message, phone_number, shop_id) {
   const items = activeOrder ? await getOrderItems(activeOrder.id) : [];
   const sig = buildActiveOrderSignals(activeOrder, items);
 
-    const checkoutReply = await checkIfToCheckoutOrder({
-      activeOrder,
-      message,
-      customer_id,
-      shop_id,
-      saveChat,
-    });
+  const checkoutReply = await checkIfToCheckoutOrder({
+    activeOrder,
+    message,
+    customer_id,
+    shop_id,
+    saveChat,
+  });
 
-    if (checkoutReply) return checkoutReply;
+  if (checkoutReply) return checkoutReply;
 
   const cancelReply = await checkIfToCancelOrder({
     activeOrder,
@@ -88,7 +88,7 @@ async function processMessage(message, phone_number, shop_id) {
   } else if (parsed.type === "classified") {
     const { category, subcategory } = parsed;
     console.log(
-      `[classification] category=${category}, subcategory=${subcategory}`
+      `[classification] category=${category}, subcategory=${subcategory}`,
     );
 
     if (!isValidCategorySub(category, subcategory)) {
