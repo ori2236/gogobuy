@@ -22,6 +22,30 @@ const { checkIfToCheckoutOrder } = require("../categoryHandlers/ORD/CHECKOUT");
 
 const maxPerProduct = 10;
 
+function toPromptOrderItem(it) {
+  return {
+    id: it.id, // order_item.id
+    product_id: it.product_id,
+    name: it.name, // Hebrew canonical
+    amount: Number(it.amount),
+    sold_by_weight: !!it.sold_by_weight,
+    requested_units:
+      it.requested_units == null ? null : Number(it.requested_units),
+    category: it.category || "",
+    "sub-category": it.sub_category || it["sub-category"] || "",
+  };
+}
+
+function toPromptQuestion(q, status) {
+  return {
+    id: q.id,
+    product_name: q.product_name ?? null,
+    question_text: q.question_text || "",
+    options: Array.isArray(q.options) ? q.options : [],
+    status, // "open" | "close"
+  };
+}
+
 async function processMessage(message, phone_number, shop_id) {
   const customer_id = await ensureCustomer(shop_id, phone_number);
 
@@ -58,6 +82,19 @@ async function processMessage(message, phone_number, shop_id) {
   const openQs = await fetchOpenQuestions(customer_id, shop_id, 7);
   const closedQs = await fetchRecentClosedQuestions(customer_id, shop_id, 5);
 
+  const promptPayload = {
+    current_user_message: message || "",
+    active_order_exists: !!activeOrder,
+    ...(activeOrder
+      ? { order_items: (items || []).map(toPromptOrderItem) }
+      : {}),
+    open_questions: [
+      ...(openQs || []).map((q) => toPromptQuestion(q, "open")),
+      ...(closedQs || []).map((q) => toPromptQuestion(q, "close")),
+    ],
+  };
+
+
   const { parsed, replyText, history } = await classifyIncoming({
     message,
     customer_id,
@@ -65,6 +102,7 @@ async function processMessage(message, phone_number, shop_id) {
     sig,
     openQs,
     closedQs,
+    promptPayload,
   });
 
   if (parsed.type === "clarify") {
