@@ -1,8 +1,11 @@
 const { fetchCategoriesMap } = require("../repositories/categories");
 
-async function buildCategorySubcategoryItemSchemas(commonProps, commonRequired) {
+async function buildCategorySubcategoryItemSchemas(
+  commonProps,
+  commonRequired,
+) {
   const categoryMap = await fetchCategoriesMap();
-  const CATEGORY_ENUM = Object.keys(categoryMap);
+  const CATEGORY_ENUM = Object.keys(categoryMap).sort();
 
   return CATEGORY_ENUM.map((cat) => ({
     type: "object",
@@ -13,7 +16,7 @@ async function buildCategorySubcategoryItemSchemas(commonProps, commonRequired) 
       category: { type: "string", const: cat },
       "sub-category": {
         type: "string",
-        enum: categoryMap[cat],
+        enum: [...categoryMap[cat]].sort(),
       },
     },
   }));
@@ -21,7 +24,7 @@ async function buildCategorySubcategoryItemSchemas(commonProps, commonRequired) 
 
 async function buildNullableSubcategorySchemas(commonProps, commonRequired) {
   const categoryMap = await fetchCategoriesMap();
-  const CATEGORY_ENUM = Object.keys(categoryMap);
+  const CATEGORY_ENUM = Object.keys(categoryMap).sort();
 
   return CATEGORY_ENUM.map((cat) => ({
     type: "object",
@@ -36,7 +39,7 @@ async function buildNullableSubcategorySchemas(commonProps, commonRequired) {
 
       "sub-category": {
         anyOf: [
-          { type: "string", enum: categoryMap[cat] },
+          { type: "string", enum: [...categoryMap[cat]].sort() },
           { type: "null" },
         ],
       },

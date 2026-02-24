@@ -120,7 +120,7 @@ async function applyOrderPatch({
       Number(baseQuestionsCount || 0) + stockQuestions.length + 1;
     return nextQNum > threshold ? shortLimit : longLimit;
   };
-  
+
   const removedApplied = [];
   const qtyIncreased = [];
   const qtyDecreased = [];
@@ -901,12 +901,9 @@ module.exports = {
             )
           )[0];
 
-    const basePrompt = await getPromptFromDB(PROMPT_CAT, PROMPT_SUB);
+    const systemPrompt = await getPromptFromDB(PROMPT_CAT, PROMPT_SUB);
 
-    const systemWithInputs = [
-      basePrompt,
-      "",
-      "=== STRUCTURED CONTEXT ===",
+    const userContext = [
       `- OPEN_QUESTIONS: ${JSON.stringify(openQsCtx)}`,
       `- ORDER: ${JSON.stringify(order)}`,
       `- ORDER_ITEMS: ${JSON.stringify(orderItems)}`,
@@ -915,11 +912,13 @@ module.exports = {
     const answer = await chat({
       message,
       history,
-      systemPrompt: systemWithInputs,
+      systemPrompt,
+      userContext,
       response_format: {
         type: "json_schema",
         json_schema: await buildModifyOrderSchema(),
       },
+      prompt_cache_key: "ord_modify_v1",
     });
 
     let isEnglish = isEnglishMessage(message);

@@ -49,7 +49,6 @@ function buildOpenQuestionsContext({ openQs = [], closedQs = [] }) {
   const closedLite = closedQs.map(toLite);
 
   return [
-    "`=== STRUCTURED CONTEXT ===",
     "- OPEN_QUESTIONS (last 48h):",
     JSON.stringify(openLite).slice(0, 3000),
     "- CLOSED_QUESTIONS_RECENT (last 48h):",

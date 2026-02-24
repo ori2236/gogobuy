@@ -56,27 +56,31 @@ async function classifyIncoming({
   sig,
   openQs,
   closedQs,
-  maxHistoryMsgs = 5,
 }) {
   const contextHeader = buildClassifierContextHeader({ sig });
   const openQuestionsCtx = buildOpenQuestionsContext({ openQs, closedQs });
 
-  let systemPromptBase = await getPromptFromDB(
+  let systemPrompt = await getPromptFromDB(
     CLASSIFIER_PROMPT_CAT,
     CLASSIFIER_PROMPT_SUB
   );
 
-  const systemPrompt = [
-    systemPromptBase,
-    "",
-    "=== STRUCTURED CONTEXT ===",
+  const userContext = [
     contextHeader,
     openQuestionsCtx,
   ].join("\n");
 
   let history = await getHistory(customer_id, shop_id);
 
-  const answer = await chat({ message, history, systemPrompt });
+  const answer = await chat({
+    message,
+    history,
+    systemPrompt,
+    userContext,
+    prompt_cache_key: "classifier_v1",
+    use: "classifier"
+  });
+
   const replyText =
     typeof answer === "string"
       ? answer

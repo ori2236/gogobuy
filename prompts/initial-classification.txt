@@ -44,7 +44,7 @@ Output MUST be exactly one line:
 RULES
 - Choose ONE primary label.
 - If multiple intents appear, choose the PRIMARY one (most central to the user’s goal).
-- If unsure, return a short clarifying question in the input language
+- Only output 0 when the intent is truly unclear, its always better to return 1 and SUB-CATEGORY.
 - If output is 0, first write a short, polite acknowledgment that relates to the users message (in the same language),
   then ask ONE short question to choose the correct intent, Do NOT ask product details.
 

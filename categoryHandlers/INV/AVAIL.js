@@ -99,16 +99,17 @@ async function checkAvailability({
     throw new Error("INV.AVAIL: customer_id is required");
   }
 
-  const basePrompt = await getPromptFromDB(PROMPT_CAT, PROMPT_SUB);
+  const systemPrompt = await getPromptFromDB(PROMPT_CAT, PROMPT_SUB);
 
   const answer = await chat({
     message,
     history,
-    systemPrompt: basePrompt,
+    systemPrompt,
     response_format: {
       type: "json_schema",
       json_schema: await buildInvAvailSchema(),
     },
+    prompt_cache_key: "inv_avail_v1",
   });
 
   let parsed;

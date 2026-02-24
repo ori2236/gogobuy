@@ -41,15 +41,16 @@ async function answerPriceAndSales({
     );
   }
 
-  const basePrompt = await getPromptFromDB(PROMPT_CAT, PROMPT_SUB);
+  const systemPrompt = await getPromptFromDB(PROMPT_CAT, PROMPT_SUB);
   const answer = await chat({
     message,
     history,
-    systemPrompt: basePrompt,
+    systemPrompt,
     response_format: {
       type: "json_schema",
       json_schema: await buildInvPriceAndSalesSchema(),
     },
+    prompt_cache_key: "inv_price_and_sales_v1",
   });
 
   let parsed;

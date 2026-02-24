@@ -39,20 +39,22 @@ module.exports = {
       );
     }
 
-    const basePrompt = await getPromptFromDB(PROMPT_CAT, PROMPT_SUB);
+    const systemPrompt = await getPromptFromDB(PROMPT_CAT, PROMPT_SUB);
 
     const openQsCtxToPrompt = openQsCtx.length ? JSON.stringify(openQsCtx) : "";
 
-    const systemPrompt = [basePrompt, "", openQsCtxToPrompt].join("\n");
+    const userContext = openQsCtxToPrompt || null;
 
     const answer = await chat({
       message,
       history,
       systemPrompt,
+      userContext,
       response_format: {
         type: "json_schema",
         json_schema: await buildCreateOrderSchema(),
       },
+      prompt_cache_key: "ord_create_v1",
     });
 
     let parsed;
