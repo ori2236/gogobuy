@@ -1,5 +1,4 @@
 const { OpenAI } = require("openai");
-const { performance } = require("perf_hooks");
 const crypto = require("crypto");
 
 const endpoint = (process.env.AZURE_OPENAI_ENDPOINT || "").replace(/\/+$/, "");
@@ -21,7 +20,6 @@ function makeClient(deployment, apiVersion) {
     baseURL: `${endpoint}/openai/deployments/${deployment}`,
     defaultHeaders: { "api-key": apiKey },
     defaultQuery: { "api-version": apiVersion },
-    logLevel: "debug",
   });
 }
 
@@ -56,9 +54,6 @@ async function chat({
   const modelDeployment =
     use === "classifier" ? deploymentClassifier : deploymentMain;
 
-  const clientReqId = crypto.randomUUID();
-  const t0 = performance.now();
-
   const body = {
     model: modelDeployment,
     messages,
@@ -75,27 +70,13 @@ async function chat({
     body.stop = ["\n"];
   };
 
+  const clientReqId = crypto.randomUUID();
   const req = client.chat.completions.create(body, {
     headers: { "X-Client-Request-Id": clientReqId },
   });
 
-  // פה מקבלים גם data וגם raw Response (כולל headers)
-  const { data, response, request_id } = await req.withResponse();
-
-  const t1 = performance.now();
-  const h = response.headers;
-
-  console.log("AOAI timing/headers:", {
-    ms_total: Math.round(t1 - t0),
-    clientReqId,
-    serverReqId: request_id,
-    region: h.get("x-ms-region"),
-    remainTokens: h.get("x-ratelimit-remaining-tokens"),
-    remainReq: h.get("x-ratelimit-remaining-requests"),
-    usage: data?.usage,
-  });
-
-  console.log("answer: ", data?.choices?.[0]?.message?.content?.trim());
+  const { data } = await req.withResponse();
+  
   return (
     data?.choices?.[0]?.message?.content?.trim() || "לא התקבלה תשובה מהמודל."
   );
