@@ -1,5 +1,5 @@
 const db = require("../config/db");
-const { sendWhatsAppText } = require("../config/whatsapp");
+const { sendWhatsAppText } = require("../utilities/whatsapp");
 const {
   parseShopId,
   normalizeWaNumber,

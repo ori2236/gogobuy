@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const db = require("../config/db");
-const { sendWhatsAppText } = require("../config/whatsapp");
+const { sendWhatsAppText } = require("../utilities/whatsapp");
 const { processMessage } = require("../services/messageFlow");
 
 const VERIFY_TOKEN = (process.env.WHATSAPP_VERIFY_TOKEN || "").trim();
@@ -21,7 +21,7 @@ router.get("/webhooks", (req, res) => {
 router.post("/webhooks", async (req, res) => {
   try {
     const receivedAt = Date.now();
-    
+
     const SHOP_ID = 1;
     const change = req.body?.entry?.[0]?.changes?.[0]?.value;
     const msg = change?.messages?.[0];

@@ -19,15 +19,8 @@ const {
 const { detectIsEnglish } = require("../utilities/lang");
 const { checkIfToCancelOrder } = require("../categoryHandlers/ORD/CANCEL");
 const { checkIfToCheckoutOrder } = require("../categoryHandlers/ORD/CHECKOUT");
-const {
-  sendWhatsAppText,
-  sendWhatsAppTypingIndicator,
-  sendWhatsAppMarkAsRead,
-} = require("../config/whatsapp");
-const {
-  isSlowIntent,
-  pickProgressText,
-} = require("../services/sendProgressionMessage");
+const { sendWhatsAppMarkAsRead } = require("../utilities/whatsapp");
+const { startSlowProgression } = require("./sendProgressionMessage");
 
 const maxPerProduct = 10;
 
@@ -50,7 +43,7 @@ async function processMessage(
       sendWhatsAppMarkAsRead(waMessageId).catch((e) =>
         console.error("[wa markAsRead]", e?.response?.data || e),
       );
-    }, 700);
+    }, 800);
   }
 
   const activeOrder = await getActiveOrder(customer_id, shop_id);
@@ -158,47 +151,16 @@ async function processMessage(
       maxPerProduct,
     };
 
-    const slow = isSlowIntent(category, subcategory);
-
-    let typingTimer = null;
-    let progressTimer = null;
-    let typingInterval = null;
-
-    if (slow) {
-      const elapsed = Date.now() - receivedAt;
-
-      const pokeTyping = () => {
-        if (!waMessageId) return;
-        sendWhatsAppTypingIndicator(waMessageId).catch((e) =>
-          console.error("[wa typing]", e?.response?.data || e),
-        );
-      };
-
-      const startTypingLoop = () => {
-        if (!waMessageId) return;
-        pokeTyping();
-
-        if (typingInterval) return;
-        typingInterval = setInterval(pokeTyping, 20000);
-      };
-
-      const typingDelay = Math.max(0, 3000 - elapsed);
-      typingTimer = setTimeout(startTypingLoop, typingDelay);
-
-      const progressDelay = Math.max(0, 8000 - elapsed);
-
-      progressTimer = setTimeout(() => {
-        const progressText = pickProgressText(category, subcategory, isEnglish);
-
-        sendWhatsAppText(phone_number, progressText)
-          .catch((e) =>
-            console.error("[wa progress text]", e?.response?.data || e),
-          )
-          .finally(() => {
-            startTypingLoop();
-          });
-      }, progressDelay);
-    }
+    const stopProgression = startSlowProgression({
+      category,
+      subcategory,
+      isEnglish,
+      phone_number,
+      waMessageId,
+      receivedAt,
+      typingAtMs: 2000,
+      progressEveryMs: 8000,
+    });
 
     let botPayload = null;
 
@@ -207,9 +169,7 @@ async function processMessage(
     } catch (err) {
       console.error("[routeByCategory error]", err);
     } finally {
-      if (typingTimer) clearTimeout(typingTimer);
-      if (progressTimer) clearTimeout(progressTimer);
-      if (typingInterval) clearInterval(typingInterval);
+      stopProgression();
     }
 
     if (botPayload == null) {

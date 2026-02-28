@@ -1,5 +1,8 @@
-// services/sendProgressionMessage.js
 const crypto = require("crypto");
+const {
+  sendWhatsAppText,
+  sendWhatsAppTypingIndicator,
+} = require("../utilities/whatsapp");
 
 const SLOW_INTENTS = new Set([
   "ORD.CREATE",
@@ -85,23 +88,104 @@ function isSlowIntent(category, subcategory) {
   return SLOW_INTENTS.has(key);
 }
 
-function pickRandom(arr) {
-  if (!arr || arr.length === 0) return null;
-  const idx = crypto.randomInt(0, arr.length);
-  return arr[idx];
-}
-
-function pickProgressText(category, subcategory, isEnglish) {
+function createSessionPicker(category, subcategory, isEnglish) {
   const key = `${String(category).toUpperCase()}.${String(subcategory).toUpperCase()}`;
   const lang = isEnglish ? "en" : "he";
-
-  const arr = PROGRESS_TEXTS?.[lang]?.[key];
+  const arr = PROGRESS_TEXTS?.[lang]?.[key] || [];
 
   const fallback = isEnglish
     ? "One moment, I am checking that for you."
     : "רגע אחד, אני בודק את זה.";
 
-  return pickRandom(arr) || fallback;
+  if (!arr.length) return () => fallback;
+  if (arr.length === 1) return () => arr[0];
+
+  let bag = [];
+  const refill = () => {
+    bag = arr.slice();
+    for (let i = bag.length - 1; i > 0; i--) {
+      const j = crypto.randomInt(0, i + 1);
+      [bag[i], bag[j]] = [bag[j], bag[i]];
+    }
+  };
+
+  refill();
+
+  return () => {
+    if (bag.length === 0) refill();
+    return bag.pop();
+  };
 }
 
-module.exports = { isSlowIntent, pickProgressText };
+function startSlowProgression({
+  category,
+  subcategory,
+  isEnglish,
+  phone_number,
+  waMessageId,
+  receivedAt,
+  typingAtMs = 2000,
+  progressEveryMs = 8000,
+}) {
+  let cancelled = false;
+  let typingTimer = null;
+  let progressTimeout = null;
+  let progressInterval = null;
+
+  const stop = () => {
+    cancelled = true;
+    if (typingTimer) clearTimeout(typingTimer);
+    if (progressTimeout) clearTimeout(progressTimeout);
+    if (progressInterval) clearInterval(progressInterval);
+  };
+
+  if (!isSlowIntent(category, subcategory)) return stop;
+
+  const nextProgress = createSessionPicker(category, subcategory, isEnglish);
+  const elapsed = Date.now() - (receivedAt || Date.now());
+
+  const firstProgressDelay = Math.max(0, progressEveryMs - elapsed);
+
+  if (waMessageId) {
+    const typingDelay = Math.max(0, typingAtMs - elapsed);
+    if (typingDelay < firstProgressDelay) {
+      typingTimer = setTimeout(() => {
+        if (cancelled) return;
+        sendWhatsAppTypingIndicator(waMessageId).catch((e) =>
+          console.error(`[wa typing]`, e?.response?.data || e),
+        );
+      }, typingDelay);
+    }
+  }
+
+  let sent = 0;
+  const maxProgressMessages = 4;
+
+  const sendProgressOnce = () => {
+    if (cancelled) return;
+    if (sent >= maxProgressMessages) return;
+    sent++;
+
+    const text = nextProgress();
+    sendWhatsAppText(phone_number, text).catch((e) =>
+      console.error(`[wa progress]`, e?.response?.data || e),
+    );
+  };
+
+  progressTimeout = setTimeout(() => {
+    if (cancelled) return;
+
+    sendProgressOnce();
+
+    progressInterval = setInterval(() => {
+      sendProgressOnce();
+    }, progressEveryMs);
+  }, firstProgressDelay);
+
+  return stop;
+}
+
+module.exports = {
+  isSlowIntent,
+  startSlowProgression,
+};
