@@ -20,6 +20,8 @@ router.get("/webhooks", (req, res) => {
 
 router.post("/webhooks", async (req, res) => {
   try {
+    const receivedAt = Date.now();
+    
     const SHOP_ID = 1;
     const change = req.body?.entry?.[0]?.changes?.[0]?.value;
     const msg = change?.messages?.[0];
@@ -40,7 +42,7 @@ router.post("/webhooks", async (req, res) => {
       try {
         const [existing] = await db.query(
           "SELECT id FROM whatsapp_incoming WHERE wa_message_id = ? LIMIT 1",
-          [waMessageId]
+          [waMessageId],
         );
 
         if (existing.length) {
@@ -50,13 +52,13 @@ router.post("/webhooks", async (req, res) => {
 
         await db.query(
           "INSERT INTO whatsapp_incoming (wa_message_id) VALUES (?)",
-          [waMessageId]
+          [waMessageId],
         );
       } catch (err) {
         if (err && err.code === "ER_DUP_ENTRY") {
           console.log(
             "Duplicate WhatsApp message (race), skipping",
-            waMessageId
+            waMessageId,
           );
           return res.sendStatus(200);
         }
@@ -75,13 +77,15 @@ router.post("/webhooks", async (req, res) => {
           const botResp = await processMessage(
             messageText,
             from,
-            SHOP_ID
+            SHOP_ID,
+            waMessageId,
+            receivedAt,
           );
 
           if (botResp && botResp.skipSend) {
             console.log(
               "Skipping WhatsApp reply due to logical duplicate for waMessageId",
-              waMessageId
+              waMessageId,
             );
             return;
           }
@@ -96,7 +100,7 @@ router.post("/webhooks", async (req, res) => {
       } catch (err) {
         console.error(
           "Webhook async error:",
-          err?.response?.data || err.message
+          err?.response?.data || err.message,
         );
       }
     })();

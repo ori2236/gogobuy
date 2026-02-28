@@ -6,7 +6,7 @@ const router = express.Router();
 
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN;
 const ACCESS_TOKEN = process.env.WHATSAPP_TOKEN;
-const PHONE_ID     = process.env.WHATSAPP_PHONE_ID;
+const PHONE_ID = process.env.WHATSAPP_PHONE_ID;
 
 router.get('/webhook/whatsapp', (req, res) => {
   const mode   = req.query['hub.mode'];

@@ -17,12 +17,27 @@ const {
   buildActiveOrderSignals,
 } = require("../utilities/orders");
 const { detectIsEnglish } = require("../utilities/lang");
-const { checkIfToCancelOrder } = require("../categoryHandlers/ORD/CANCEL")
+const { checkIfToCancelOrder } = require("../categoryHandlers/ORD/CANCEL");
 const { checkIfToCheckoutOrder } = require("../categoryHandlers/ORD/CHECKOUT");
+const {
+  sendWhatsAppText,
+  sendWhatsAppTypingIndicator,
+  sendWhatsAppMarkAsRead,
+} = require("../config/whatsapp");
+const {
+  isSlowIntent,
+  pickProgressText,
+} = require("../services/sendProgressionMessage");
 
 const maxPerProduct = 10;
 
-async function processMessage(message, phone_number, shop_id) {
+async function processMessage(
+  message,
+  phone_number,
+  shop_id,
+  waMessageId = "",
+  receivedAt = Date.now(),
+) {
   const customer_id = await ensureCustomer(shop_id, phone_number);
 
   const wasSent = await wasSentBefore(customer_id, shop_id, message);
@@ -30,20 +45,28 @@ async function processMessage(message, phone_number, shop_id) {
     return { skipSend: true };
   }
 
+  if (waMessageId) {
+    setTimeout(() => {
+      sendWhatsAppMarkAsRead(waMessageId).catch((e) =>
+        console.error("[wa markAsRead]", e?.response?.data || e),
+      );
+    }, 700);
+  }
+
   const activeOrder = await getActiveOrder(customer_id, shop_id);
   const order_id = activeOrder ? activeOrder.id : null;
   const items = activeOrder ? await getOrderItems(activeOrder.id) : [];
   const sig = buildActiveOrderSignals(activeOrder, items);
 
-    const checkoutReply = await checkIfToCheckoutOrder({
-      activeOrder,
-      message,
-      customer_id,
-      shop_id,
-      saveChat,
-    });
+  const checkoutReply = await checkIfToCheckoutOrder({
+    activeOrder,
+    message,
+    customer_id,
+    shop_id,
+    saveChat,
+  });
 
-    if (checkoutReply) return checkoutReply;
+  if (checkoutReply) return checkoutReply;
 
   const cancelReply = await checkIfToCancelOrder({
     activeOrder,
@@ -88,7 +111,7 @@ async function processMessage(message, phone_number, shop_id) {
   } else if (parsed.type === "classified") {
     const { category, subcategory } = parsed;
     console.log(
-      `[classification] category=${category}, subcategory=${subcategory}`
+      `[classification] category=${category}, subcategory=${subcategory}`,
     );
 
     if (!isValidCategorySub(category, subcategory)) {
@@ -134,12 +157,42 @@ async function processMessage(message, phone_number, shop_id) {
       isEnglish,
       maxPerProduct,
     };
+
+    const slow = isSlowIntent(category, subcategory);
+
+    let typingTimer = null;
+    let progressTimer = null;
+
+    if (slow) {
+      const elapsed = Date.now() - receivedAt;
+
+      if (waMessageId) {
+        const typingDelay = Math.max(0, 4000 - elapsed);
+        typingTimer = setTimeout(() => {
+          sendWhatsAppTypingIndicator(waMessageId).catch((e) =>
+            console.error("[wa typing]", e?.response?.data || e),
+          );
+        }, typingDelay);
+      }
+
+      const progressDelay = Math.max(0, 8000 - elapsed);
+      progressTimer = setTimeout(() => {
+        const progressText = pickProgressText(category, subcategory, isEnglish);
+        sendWhatsAppText(phone_number, progressText).catch((e) =>
+          console.error("[wa progress text]", e?.response?.data || e),
+        );
+      }, progressDelay);
+    }
+
     let botPayload = null;
 
     try {
       botPayload = await routeByCategory(category, subcategory, ctx);
     } catch (err) {
       console.error("[routeByCategory error]", err);
+    } finally {
+      if (typingTimer) clearTimeout(typingTimer);
+      if (progressTimer) clearTimeout(progressTimer);
     }
 
     if (botPayload == null) {
@@ -152,7 +205,6 @@ async function processMessage(message, phone_number, shop_id) {
       });
 
       const fallback = "כרגע אין לנו תמיכה בבקשות מסוג זה";
-
       return fallback;
     }
 
