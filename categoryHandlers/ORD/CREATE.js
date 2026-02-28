@@ -56,7 +56,7 @@ module.exports = {
       },
       prompt_cache_key: "ord_create_v1",
     });
-
+    console.log({ answer });
     let parsed;
     try {
       parsed = JSON.parse(answer);
@@ -233,16 +233,15 @@ module.exports = {
       delivery_address: null,
     });
 
-   const insufficientCount = Array.isArray(orderRes.insufficient)
-     ? orderRes.insufficient.length
-     : 0;
+    const insufficientCount = Array.isArray(orderRes.insufficient)
+      ? orderRes.insufficient.length
+      : 0;
 
-   const notFoundEligibleCount = notFound.filter((nf) => {
-     const cat = (nf.category || "").trim();
-     const sub = (nf.sub_category || "").trim();
-     return !!cat || !!sub;
-   }).length;
-
+    const notFoundEligibleCount = notFound.filter((nf) => {
+      const cat = (nf.category || "").trim();
+      const sub = (nf.sub_category || "").trim();
+      return !!cat || !!sub;
+    }).length;
 
     const baseQuestionsCount = filteredModelQuestions.length;
     const forceShort =

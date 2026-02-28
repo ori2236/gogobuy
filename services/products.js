@@ -229,6 +229,11 @@ async function findBestProductForRequest(shop_id, req) {
     `;
     const params = [shop_id];
 
+    if (category) {
+      sql += ` AND category = ?`;
+      params.push(category);
+    }
+    
     for (const t of reqTokens) {
       sql += `
         AND (

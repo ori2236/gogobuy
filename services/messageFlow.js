@@ -162,25 +162,41 @@ async function processMessage(
 
     let typingTimer = null;
     let progressTimer = null;
+    let typingInterval = null;
 
     if (slow) {
       const elapsed = Date.now() - receivedAt;
 
-      if (waMessageId) {
-        const typingDelay = Math.max(0, 4000 - elapsed);
-        typingTimer = setTimeout(() => {
-          sendWhatsAppTypingIndicator(waMessageId).catch((e) =>
-            console.error("[wa typing]", e?.response?.data || e),
-          );
-        }, typingDelay);
-      }
+      const pokeTyping = () => {
+        if (!waMessageId) return;
+        sendWhatsAppTypingIndicator(waMessageId).catch((e) =>
+          console.error("[wa typing]", e?.response?.data || e),
+        );
+      };
+
+      const startTypingLoop = () => {
+        if (!waMessageId) return;
+        pokeTyping();
+
+        if (typingInterval) return;
+        typingInterval = setInterval(pokeTyping, 20000);
+      };
+
+      const typingDelay = Math.max(0, 3000 - elapsed);
+      typingTimer = setTimeout(startTypingLoop, typingDelay);
 
       const progressDelay = Math.max(0, 8000 - elapsed);
+
       progressTimer = setTimeout(() => {
         const progressText = pickProgressText(category, subcategory, isEnglish);
-        sendWhatsAppText(phone_number, progressText).catch((e) =>
-          console.error("[wa progress text]", e?.response?.data || e),
-        );
+
+        sendWhatsAppText(phone_number, progressText)
+          .catch((e) =>
+            console.error("[wa progress text]", e?.response?.data || e),
+          )
+          .finally(() => {
+            startTypingLoop();
+          });
       }, progressDelay);
     }
 
@@ -193,6 +209,7 @@ async function processMessage(
     } finally {
       if (typingTimer) clearTimeout(typingTimer);
       if (progressTimer) clearTimeout(progressTimer);
+      if (typingInterval) clearInterval(typingInterval);
     }
 
     if (botPayload == null) {

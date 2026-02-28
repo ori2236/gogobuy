@@ -43,9 +43,9 @@ function buildProductDeletedMsg({ orderId, productName, altNames, newTotal }) {
 
   if (Array.isArray(altNames) && altNames.length) {
     msg += `\n\nחלופות שאולי יתאימו:\n• ${altNames.join("\n• ")}`;
-    msg += `\n\nאם תרצה חלופה אחרת—כתוב מה אתה מעדיף.`;
+    msg += `\n\nאם תרצה חלופה אחרת כתוב מה אתה מעדיף.`;
   } else {
-    msg += `\n\nאם תרצה חלופה—כתוב מה אתה מחפש ונציע משהו מתאים.`;
+    msg += `\n\nאם תרצה חלופה כתוב מה אתה מחפש ונציע משהו מתאים.`;
   }
 
   return msg;
