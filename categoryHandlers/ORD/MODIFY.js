@@ -31,6 +31,39 @@ const {
 const PROMPT_CAT = "ORD";
 const PROMPT_SUB = "MODIFY";
 
+
+const MATCH_DEBUG = 1;
+
+function matchLog(label, payload = null) {
+  if (!MATCH_DEBUG) return;
+  if (payload === null || payload === undefined) {
+    console.log(`[MATCH] ${label}`);
+    return;
+  }
+  try {
+    console.log(`[MATCH] ${label}:`, JSON.stringify(payload, null, 2));
+  } catch {
+    console.log(`[MATCH] ${label}:`, payload);
+  }
+}
+
+function compactRows(rows = []) {
+  return rows.map((r) => ({
+    id: Number(r.id),
+    name: r.name,
+    display_name_en: r.display_name_en,
+    category: r.category,
+    sub_category: r.sub_category,
+    price: Number(r.price),
+    stock_amount:
+      r.stock_amount === null || r.stock_amount === undefined
+        ? null
+        : Number(r.stock_amount),
+  }));
+}
+
+
+
 async function repriceOrderItemsWithPromos(
   conn,
   { shop_id, order_id, orderItemIds },
@@ -411,6 +444,12 @@ async function applyOrderPatch({
 
     //ADD
     for (const p of ops.add || []) {
+
+      matchLog("applyOrderPatch.ops.add.start", {
+        order_id,
+        req: p,
+      });
+
       const rawAmount = Number(p.amount) || 0;
       if (!(rawAmount > 0)) continue;
 
@@ -433,6 +472,29 @@ async function applyOrderPatch({
       }
 
       const row = await findBestProductForRequest(shop_id, p);
+
+
+
+      matchLog("applyOrderPatch.ops.add.matchedRow", {
+        order_id,
+        req: p,
+        matchedRow: row
+          ? {
+              id: Number(row.id),
+              name: row.name,
+              display_name_en: row.display_name_en,
+              category: row.category,
+              sub_category: row.sub_category,
+              price: Number(row.price),
+              stock_amount:
+                row.stock_amount === null || row.stock_amount === undefined
+                  ? null
+                  : Number(row.stock_amount),
+            }
+          : null,
+      });
+
+
 
       // product not found in shop -> ask alternatives
       if (!row) {
@@ -971,6 +1033,22 @@ module.exports = {
 
     let combinedQuestions = [];
     let limitWarningsBlock = "";
+
+        console.log("[ORD-MODIFY] incoming", {
+          message,
+          customer_id,
+          shop_id,
+          order_id,
+          historyLength: Array.isArray(history) ? history.length : 0,
+          openQsCtxLength: Array.isArray(openQsCtx) ? openQsCtx.length : 0,
+        });
+
+        console.log(
+          "[ORD-MODIFY] model.parsed",
+          JSON.stringify(parsed, null, 2),
+        );
+        console.log("[ORD-MODIFY] patchOps", JSON.stringify(patchOps, null, 2));
+
 
     try {
       const txRes = await applyOrderPatch({

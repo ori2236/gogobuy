@@ -84,6 +84,20 @@ module.exports = {
     const reqProducts = Array.isArray(parsed?.products) ? parsed.products : [];
     const isEnglish = isEnglishMessage(message);
 
+    console.log("[ORD-CREATE] incoming", {
+      message,
+      customer_id,
+      shop_id,
+      historyLength: Array.isArray(history) ? history.length : 0,
+      openQsCtxLength: Array.isArray(openQsCtx) ? openQsCtx.length : 0,
+    });
+
+    console.log("[ORD-CREATE] model.parsed", JSON.stringify(parsed, null, 2));
+    console.log(
+      "[ORD-CREATE] reqProducts",
+      JSON.stringify(reqProducts, null, 2),
+    );
+
     if (!reqProducts.length) {
       const normalizedQs = normalizeIncomingQuestions(parsed?.questions, {
         preserveOptions: true,
@@ -145,6 +159,18 @@ module.exports = {
     }
 
     const { found, notFound } = await searchProducts(shop_id, reqProducts);
+
+    console.log(
+      "[ORD-CREATE] searchProducts.result",
+      JSON.stringify(
+        {
+          found,
+          notFound,
+        },
+        null,
+        2,
+      ),
+    );
 
     const modelQuestions = normalizeIncomingQuestions(parsed?.questions, {
       preserveOptions: true,

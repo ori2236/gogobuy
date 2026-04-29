@@ -5,6 +5,7 @@ const { askToCheckoutOrder } = require("./ORD/CHECKOUT");
 const { askToCancelOrder } = require("./ORD/CANCEL");
 const { checkAvailability } = require("./INV/AVAIL");
 const { answerPriceAndSales } = require("./INV/PRICE_AND_SALES");
+const { answerGeneralInfo } = require("./BUS/GENERAL_INFO");
 
 const CATEGORY_HANDLERS = {
   ORD: {
@@ -74,6 +75,15 @@ const CATEGORY_HANDLERS = {
         shop_id: ctx.shop_id,
         history: ctx.history,
         isEnglish: ctx.isEnglish,
+      }),
+  },
+  BUS: {
+    GENERAL_INFO: async (ctx) =>
+      answerGeneralInfo({
+        message: ctx.message,
+        customer_id: ctx.customer_id,
+        shop_id: ctx.shop_id,
+        history: ctx.history,
       }),
   },
 };

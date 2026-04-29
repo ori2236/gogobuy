@@ -7,9 +7,61 @@ const {
 } = require("../utilities/tokens");
 const { getSubCategoryCandidates } = require("../repositories/categories");
 
-async function pickBestWeighted({ shop_id, rows, reqTokens, excludeTokens }) {
+const MATCH_DEBUG = 1;
+
+function matchLog(label, payload = null) {
+  if (!MATCH_DEBUG) return;
+  if (payload === null || payload === undefined) {
+    console.log(`[MATCH] ${label}`);
+    return;
+  }
+  try {
+    console.log(`[MATCH] ${label}:`, JSON.stringify(payload, null, 2));
+  } catch {
+    console.log(`[MATCH] ${label}:`, payload);
+  }
+}
+
+function compactRows(rows = []) {
+  return rows.map((r) => ({
+    id: Number(r.id),
+    name: r.name,
+    display_name_en: r.display_name_en,
+    category: r.category,
+    sub_category: r.sub_category,
+    price: Number(r.price),
+    stock_amount:
+      r.stock_amount === null || r.stock_amount === undefined
+        ? null
+        : Number(r.stock_amount),
+  }));
+}
+
+async function pickBestWeighted({
+  shop_id,
+  rows,
+  reqTokens,
+  excludeTokens,
+  debugLabel = "",
+}) {
+  matchLog("pickBestWeighted.input", {
+    debugLabel,
+    reqTokens,
+    excludeTokens,
+    rows_before_filter: compactRows(rows || []),
+  });
+
   rows = filterRowsByExcludeTokens(rows, excludeTokens);
-  if (!rows || !rows.length) return null;
+
+  matchLog("pickBestWeighted.afterExcludeFilter", {
+    debugLabel,
+    rows_after_filter: compactRows(rows || []),
+  });
+
+  if (!rows || !rows.length) {
+    matchLog("pickBestWeighted.noRowsAfterFilter", { debugLabel });
+    return null;
+  }
 
   const reqSet = new Set(reqTokens);
 
@@ -25,6 +77,11 @@ async function pickBestWeighted({ shop_id, rows, reqTokens, excludeTokens }) {
 
   const invDfMap = await fetchInvDfMap(shop_id, allExtra);
 
+  matchLog("pickBestWeighted.invDfMap", {
+    debugLabel,
+    invDf: Object.fromEntries(invDfMap.entries()),
+  });
+
   const scored = [];
 
   for (const m of meta) {
@@ -34,19 +91,28 @@ async function pickBestWeighted({ shop_id, rows, reqTokens, excludeTokens }) {
     const priceScore = Number.isFinite(price) ? price : 999999;
 
     let extraScore = 0;
+    const extraBreakdown = [];
 
     for (const t of m.extra) {
-      const wRaw = invDfMap.has(t) ? invDfMap.get(t) : 1; // fallback
+      const wRaw = invDfMap.has(t) ? invDfMap.get(t) : 1;
       const inv = Number(wRaw) || 1;
-
-      const imp = tokenImportance(t); // *0.5 for numbers
+      const imp = tokenImportance(t);
       const add = inv * imp;
 
       extraScore += add;
+      extraBreakdown.push({
+        token: t,
+        inv_df: inv,
+        importance: imp,
+        contribution: add,
+      });
     }
 
     scored.push({
       row: m.r,
+      candTokens: m.candTokens,
+      extraTokens: m.extra,
+      extraBreakdown,
       extraScore,
       priceScore,
       wordCount,
@@ -62,8 +128,39 @@ async function pickBestWeighted({ shop_id, rows, reqTokens, excludeTokens }) {
       b.row.id - a.row.id,
   );
 
+  matchLog("pickBestWeighted.scored", {
+    debugLabel,
+    scored: scored.map((s) => ({
+      id: Number(s.row.id),
+      name: s.row.name,
+      display_name_en: s.row.display_name_en,
+      candTokens: s.candTokens,
+      extraTokens: s.extraTokens,
+      extraBreakdown: s.extraBreakdown,
+      extraScore: s.extraScore,
+      priceScore: s.priceScore,
+      wordCount: s.wordCount,
+      extraCount: s.extraCount,
+    })),
+  });
+
   const best = scored[0];
-  return best.row;
+
+  matchLog("pickBestWeighted.best", {
+    debugLabel,
+    chosen: best
+      ? {
+          id: Number(best.row.id),
+          name: best.row.name,
+          display_name_en: best.row.display_name_en,
+          extraScore: best.extraScore,
+          priceScore: best.priceScore,
+          wordCount: best.wordCount,
+        }
+      : null,
+  });
+
+  return best ? best.row : null;
 }
 
 async function findBestProductForRequest(shop_id, req) {
@@ -86,7 +183,30 @@ async function findBestProductForRequest(shop_id, req) {
   const reqTokens = tokenizeName(nameRaw);
   const excludeTokens = getExcludeTokensFromReq(req);
 
+  matchLog("findBestProductForRequest.start", {
+    shop_id,
+    req,
+    normalized: {
+      category,
+      subCategoryRaw,
+      nameRaw,
+      primarySub,
+      subCandidates,
+      otherSubs,
+      reqTokens,
+      excludeTokens,
+    },
+  });
+
   if (!reqTokens.length) {
+    matchLog("findBestProductForRequest.noReqTokens", {
+      shop_id,
+      req,
+      category,
+      primarySub,
+      otherSubs,
+    });
+
     if (category && primarySub) {
       const params = [shop_id, category, primarySub];
       let sql = `
@@ -112,8 +232,19 @@ async function findBestProductForRequest(shop_id, req) {
         LIMIT 1
       `;
 
+      matchLog("findBestProductForRequest.query.noTokens.primary", {
+        sql,
+        params,
+      });
+
       const [rows] = await db.query(sql, params);
+
+      matchLog("findBestProductForRequest.rows.noTokens.primary", {
+        rows: compactRows(rows),
+      });
+
       if (rows && rows.length) {
+        matchLog("findBestProductForRequest.return.noTokens.primary", rows[0]);
         return rows[0];
       }
 
@@ -142,18 +273,32 @@ async function findBestProductForRequest(shop_id, req) {
           LIMIT 1
         `;
 
+        matchLog("findBestProductForRequest.query.noTokens.otherSubs", {
+          sql: sql2,
+          params: params2,
+        });
+
         const [rows2] = await db.query(sql2, params2);
+
+        matchLog("findBestProductForRequest.rows.noTokens.otherSubs", {
+          rows: compactRows(rows2),
+        });
+
         if (rows2 && rows2.length) {
+          matchLog(
+            "findBestProductForRequest.return.noTokens.otherSubs",
+            rows2[0],
+          );
           return rows2[0];
         }
       }
     }
 
+    matchLog("findBestProductForRequest.return.noTokens.null", { req });
     return null;
   }
 
   if (category && primarySub) {
-    // 1) exact sub + token-filter -> pickBestWeighted
     {
       let sql = `
         SELECT id, name, display_name_en, price, stock_amount, category, sub_category
@@ -174,20 +319,31 @@ async function findBestProductForRequest(shop_id, req) {
         params.push(t, t);
       }
 
+      matchLog("findBestProductForRequest.query.primarySub", {
+        sql,
+        params,
+      });
+
       const [rows] = await db.query(sql, params);
+
+      matchLog("findBestProductForRequest.rows.primarySub", {
+        rows: compactRows(rows),
+      });
 
       const best = await pickBestWeighted({
         shop_id,
         rows,
         reqTokens,
         excludeTokens,
+        debugLabel: "primarySub",
       });
+
       if (best) {
+        matchLog("findBestProductForRequest.return.primarySub", best);
         return best;
       }
     }
 
-    // 2) other subs + token-filter -> pickBestWeighted
     if (otherSubs.length) {
       let sql = `
         SELECT id, name, display_name_en, price, stock_amount, category, sub_category
@@ -208,19 +364,32 @@ async function findBestProductForRequest(shop_id, req) {
         params.push(t, t);
       }
 
+      matchLog("findBestProductForRequest.query.otherSubs", {
+        sql,
+        params,
+      });
+
       const [rows] = await db.query(sql, params);
+
+      matchLog("findBestProductForRequest.rows.otherSubs", {
+        rows: compactRows(rows),
+      });
 
       const best = await pickBestWeighted({
         shop_id,
         rows,
         reqTokens,
         excludeTokens,
+        debugLabel: "otherSubs",
       });
+
       if (best) {
+        matchLog("findBestProductForRequest.return.otherSubs", best);
         return best;
       }
     }
   }
+
   {
     let sql = `
       SELECT id, name, display_name_en, price, stock_amount, category, sub_category
@@ -233,7 +402,7 @@ async function findBestProductForRequest(shop_id, req) {
       sql += ` AND category = ?`;
       params.push(category);
     }
-    
+
     for (const t of reqTokens) {
       sql += `
         AND (
@@ -244,9 +413,22 @@ async function findBestProductForRequest(shop_id, req) {
       params.push(t, t);
     }
 
+    matchLog("findBestProductForRequest.query.categoryWide", {
+      sql,
+      params,
+    });
+
     const [rowsAll] = await db.query(sql, params);
 
+    matchLog("findBestProductForRequest.rows.categoryWide.beforeExclude", {
+      rows: compactRows(rowsAll),
+    });
+
     const rows = filterRowsByExcludeTokens(rowsAll, excludeTokens);
+
+    matchLog("findBestProductForRequest.rows.categoryWide.afterExclude", {
+      rows: compactRows(rows),
+    });
 
     if (rows && rows.length) {
       const best = await pickBestWeighted({
@@ -254,19 +436,34 @@ async function findBestProductForRequest(shop_id, req) {
         rows,
         reqTokens,
         excludeTokens,
+        debugLabel: "categoryWide",
       });
+
       if (best) {
+        matchLog("findBestProductForRequest.return.categoryWide", best);
         return best;
       }
     }
   }
+
+  matchLog("findBestProductForRequest.return.null", {
+    req,
+    category,
+    primarySub,
+    reqTokens,
+    excludeTokens,
+  });
+
   return null;
 }
 
 async function fetchInvDfMap(shop_id, tokens) {
   const uniq = Array.from(new Set(tokens)).filter(Boolean);
 
-  if (!uniq.length) return new Map();
+  if (!uniq.length) {
+    matchLog("fetchInvDfMap.empty", { shop_id });
+    return new Map();
+  }
 
   const placeholders = uniq.map(() => "?").join(",");
   const [rows] = await db.query(
@@ -283,21 +480,38 @@ async function fetchInvDfMap(shop_id, tokens) {
   for (const r of rows || []) {
     map.set(String(r.token), Number(r.inv_df));
   }
+
+  matchLog("fetchInvDfMap.result", {
+    shop_id,
+    requestedTokens: uniq,
+    foundRows: rows,
+  });
+
   return map;
 }
 
 async function searchProducts(shop_id, products) {
+  matchLog("searchProducts.start", { shop_id, products });
+
   const found = [];
   const notFound = [];
 
   for (let i = 0; i < products.length; i++) {
     const req = products[i];
+
+    matchLog("searchProducts.item.start", {
+      index: i,
+      req,
+    });
+
     const row = await findBestProductForRequest(shop_id, req);
+
     if (row) {
       const n = Number(req?.amount);
       const u = Number(req?.units);
       const weightFlag = req?.sold_by_weight === true;
-      found.push({
+
+      const foundItem = {
         originalIndex: i,
         product_id: row.id,
         matched_name: row.name,
@@ -310,11 +524,15 @@ async function searchProducts(shop_id, products) {
         requested_units: Number.isFinite(u) && u > 0 ? u : null,
         sold_by_weight: weightFlag === true,
         matched_display_name_en: row.display_name_en,
-      });
+      };
+
+      matchLog("searchProducts.item.found", foundItem);
+      found.push(foundItem);
     } else {
       const n = Number(req?.amount);
       const excludeTokens = getExcludeTokensFromReq(req);
-      notFound.push({
+
+      const notFoundItem = {
         originalIndex: i,
         requested_name: req?.name || null,
         requested_output_name: req?.outputName || null,
@@ -322,9 +540,14 @@ async function searchProducts(shop_id, products) {
         category: req?.category || null,
         sub_category: req?.["sub-category"] || req?.sub_category || null,
         exclude_tokens: excludeTokens,
-      });
+      };
+
+      matchLog("searchProducts.item.notFound", notFoundItem);
+      notFound.push(notFoundItem);
     }
   }
+
+  matchLog("searchProducts.end", { found, notFound });
 
   return { found, notFound };
 }
