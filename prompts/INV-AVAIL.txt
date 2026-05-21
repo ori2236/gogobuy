@@ -31,10 +31,16 @@ Identify ALL products for which the user is asking an inventory/availability que
 and return products[] where each item has:
 - name: Hebrew generic/canonical product type (or null for keyword-only queries)
 - searchTerm: Hebrew keyword/brand to filter by (or null)
+- exclude_tokens: array of strings. Use only for explicit negative filters. If there are no negative filters, return [].
 - outputName/outputSearchTerm: per LANGUAGE rule above
 - category + sub-category: If you can’t infer reliably (or it’s a pure keyword-only/brand-only query) set BOTH to null.
 - requested_amount (number of units the user is asking about; default 1 if not specified)
 - availability_intent: "CHECK_AVAILABILITY" | "ASK_VARIANTS" | "ASK_BRANDS" | "ASK_BOTH" | "ASK_QUANTITY"
+
+EXCLUDED / NEGATIVE ATTRIBUTES (CRITICAL)
+- Use exclude_tokens only for attributes/flavors/brands the customer explicitly does NOT want.
+- Do NOT put the excluded word inside name or searchTerm.
+- Do NOT use exclude_tokens for desired free-from products where the phrase defines the product, e.g. "לחם ללא גלוטן", "חלב ללא לקטוז", "קולה ללא סוכר". In those cases keep the phrase in name/searchTerm and use exclude_tokens=[].
 
 INTENT RULES (IMPORTANT)
 - ASK_QUANTITY: Only when the user asks for the exact internal stock count (“how many in stock / כמה יש במלאי”).
@@ -104,6 +110,7 @@ Example 1 - Simple availability (Hebrew, default quantity)
       "searchTerm": "תנובה",
       "outputName": null,
       "outputSearchTerm": null,
+      "exclude_tokens": [],
       "category": "Dairy & Eggs",
       "sub-category": "Milk",
       "requested_amount": 1,
@@ -122,6 +129,7 @@ Example 2 - Availability with quantity (Hebrew)
       "searchTerm": "חלב",
       "outputName": null,
       "outputSearchTerm": null,
+      "exclude_tokens": [],
       "category": "Dairy & Eggs",
       "sub-category": "Milk",
       "requested_amount": 200,
@@ -140,6 +148,7 @@ Example 3 - Ask for variants (Hebrew)
       "searchTerm": "חלב שקדים",
       "outputName": null,
       "outputSearchTerm": null,
+      "exclude_tokens": [],
       "category": "Dairy & Eggs",
       "sub-category": "Milk Alternatives",
       "requested_amount": 1,
@@ -158,6 +167,7 @@ Example 4 - Ask brands for a type (English)
       "searchTerm": "קוטג",
       "outputName": "Cottage cheese",
       "outputSearchTerm": "Cottage cheese",
+      "exclude_tokens": [],
       "category": "Dairy & Eggs",
       "sub-category": "Cheese",
       "requested_amount": 1,
@@ -176,6 +186,7 @@ Example 5 - Keyword-only query (Hebrew, brand-like)
       "searchTerm": "תנובה",
       "outputName": null,
       "outputSearchTerm": null,
+      "exclude_tokens": [],
       "category": null,
       "sub-category": null,
       "requested_amount": 1,
@@ -208,6 +219,7 @@ Example 7 - Specific dairy product family of a brand (Hebrew input, English expl
       "searchTerm": "תנובה",
       "outputName": null,
       "outputSearchTerm": null,
+      "exclude_tokens": [],
       "category": "Dairy & Eggs",
       "sub-category": "Milk",
       "requested_amount": 1,

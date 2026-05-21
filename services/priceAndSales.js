@@ -1270,6 +1270,7 @@ async function searchPromotionsForRequest(shop_id, req, { limit = 50 } = {}) {
       ON p.id = pr.product_id
      AND p.shop_id = pr.shop_id
     WHERE pr.shop_id = ?
+      AND p.stock_amount > 0
   `;
 
   if (category) {

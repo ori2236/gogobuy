@@ -20,6 +20,10 @@ const COMMON_PROPS = {
 
   requested_amount: { type: "number", minimum: 1 },
   availability_intent: { type: "string", enum: AVAILABILITY_INTENT_ENUM },
+  exclude_tokens: {
+    type: "array",
+    items: { type: "string", minLength: 1 },
+  },
 };
 
 const COMMON_REQUIRED = [
@@ -29,6 +33,7 @@ const COMMON_REQUIRED = [
   "outputSearchTerm",
   "requested_amount",
   "availability_intent",
+  "exclude_tokens",
 ];
 
 async function buildInvAvailSchema() {
@@ -40,6 +45,7 @@ async function buildInvAvailSchema() {
       outputSearchTerm: COMMON_PROPS.outputSearchTerm,
       requested_amount: COMMON_PROPS.requested_amount,
       availability_intent: COMMON_PROPS.availability_intent,
+      exclude_tokens: COMMON_PROPS.exclude_tokens,
     },
     COMMON_REQUIRED,
   );
@@ -55,6 +61,7 @@ async function buildInvAvailSchema() {
       outputSearchTerm: COMMON_PROPS.outputSearchTerm,
       requested_amount: COMMON_PROPS.requested_amount,
       availability_intent: COMMON_PROPS.availability_intent,
+      exclude_tokens: COMMON_PROPS.exclude_tokens,
       category: { type: "null" },
       "sub-category": { type: "null" },
     },

@@ -836,7 +836,13 @@ async function buildAlternativeQuestions(
 
 async function searchVariants(
   shop_id,
-  { category = null, subCategory = null, searchTerm = null, limit = 50 } = {},
+  {
+    category = null,
+    subCategory = null,
+    searchTerm = null,
+    limit = 50,
+    excludeTokens = [],
+  } = {},
 ) {
   const tokens = tokenizeName(searchTerm || "");
 
@@ -871,6 +877,20 @@ async function searchVariants(
       `;
       params.push(t, t);
     }
+  }
+
+  const normalizedExcludeTokens = Array.isArray(excludeTokens)
+    ? excludeTokens.map((t) => String(t || "").trim()).filter(Boolean)
+    : [];
+
+  for (const t of normalizedExcludeTokens) {
+    sql += `
+      AND (
+        name COLLATE utf8mb4_general_ci NOT LIKE CONCAT('%', ?, '%')
+        AND display_name_en COLLATE utf8mb4_general_ci NOT LIKE CONCAT('%', ?, '%')
+      )
+    `;
+    params.push(t, t);
   }
 
   sql += `

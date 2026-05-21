@@ -12,6 +12,10 @@ const { saveOpenQuestions } = require("../../utilities/openQuestions");
 const { buildInvAvailSchema } = require("./schemas/avail.schema");
 const { parseModelAnswer } = require("../../utilities/jsonParse");
 const { buildQuestionsBlock } = require("../../utilities/messageBuilders");
+const {
+  getExcludeTokensFromReq,
+  filterRowsByExcludeTokens,
+} = require("../../utilities/tokens");
 
 const PROMPT_CAT = "INV";
 const PROMPT_SUB = "AVAIL";
@@ -29,11 +33,19 @@ function joinNames(names, isEnglish) {
   return isEnglish ? `${allButLast} and ${last}` : `${allButLast} ו${last}`;
 }
 
-async function fetchProductsByNameKeyword(shop_id, keyword, limit = 50) {
+async function fetchProductsByNameKeyword(
+  shop_id,
+  keyword,
+  limit = 50,
+  excludeTokens = [],
+) {
   if (!keyword || !keyword.trim()) return [];
 
   const raw = keyword.trim();
   const tokens = raw.split(/\s+/).filter(Boolean);
+  const normalizedExcludeTokens = getExcludeTokensFromReq({
+    exclude_tokens: excludeTokens,
+  });
 
   let sql = `
       SELECT id, name, display_name_en, stock_amount
@@ -48,6 +60,16 @@ async function fetchProductsByNameKeyword(shop_id, keyword, limit = 50) {
       AND (
         name COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
         OR display_name_en COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
+      )
+    `;
+    params.push(t, t);
+  }
+
+  for (const t of normalizedExcludeTokens) {
+    sql += `
+      AND (
+        name COLLATE utf8mb4_general_ci NOT LIKE CONCAT('%', ?, '%')
+        AND display_name_en COLLATE utf8mb4_general_ci NOT LIKE CONCAT('%', ?, '%')
       )
     `;
     params.push(t, t);
@@ -123,7 +145,7 @@ async function checkAvailability({
       const botPayload = isEnglish
         ? "Sorry, I couldn’t understand which products you want me to check. Can you please write again which product you’re asking about?"
         : "מצטערים, לא הבנו על איזה מוצר אתה שואל. תוכל לכתוב שוב בקצרה על איזה מוצר לבדוק מלאי?";
-      await saveFallbackOpenQuestion(botPayload, customer_id, shop_id);
+      await saveOpenQuestionsAvail(botPayload, customer_id, shop_id);
       return botPayload;
     }
   }
@@ -146,6 +168,7 @@ async function checkAvailability({
       category: p.category,
       subCategory: p["sub-category"] || p.sub_category,
       requested_amount: p.requested_amount,
+      exclude_tokens: p.exclude_tokens,
     })),
   );
 
@@ -278,11 +301,10 @@ async function checkAvailability({
       } else if (searchTerm) {
         displayLabel = searchTerm;
       } else {
-        displayLabel = displayName; // fallback
+        displayLabel = displayName;
       }
     }
 
-    // ASK_QUANTITY - user asks "how many units do you have in stock?"
     if (intent === "ASK_QUANTITY") {
       if (!heName && !searchTerm) {
         availabilityLines.push(
@@ -328,8 +350,6 @@ async function checkAvailability({
     }
 
     if (intent === "CHECK_AVAILABILITY") {
-      // Simple "do you have X?"
-
       if (!f) continue;
       const stock = Number.isFinite(Number(f.stock_amount))
         ? Number(f.stock_amount)
@@ -354,6 +374,7 @@ async function checkAvailability({
           requested_amount: requestedAmount,
           category: f.category,
           sub_category: f.sub_category,
+          exclude_tokens: getExcludeTokensFromReq(req),
         });
       } else if (requestedAmount > maxPerProduct) {
         availabilityLines.push(
@@ -362,7 +383,6 @@ async function checkAvailability({
             : `זו כמות גדולה. להזמנות של יותר מ-${maxPerProduct} יחידות עדיף לדבר עם נציג מהסופר כדי לבדוק את המלאי ולעזור לך.`,
         );
       } else if (requestedAmount <= 1) {
-        // Simple: "Do you have X?" → answer with product + price
         const price = Number.isFinite(Number(f.price)) ? Number(f.price) : null;
 
         const productNameForUser = isEnglish
@@ -410,7 +430,6 @@ async function checkAvailability({
           );
         }
       } else {
-        // Partial availability
         availabilityLines.push(
           isEnglish
             ? `Right now we only have ${stock} units of ${displayLabel} in stock, which is less than you asked for.`
@@ -424,6 +443,7 @@ async function checkAvailability({
           requested_amount: requestedAmount,
           category: f.category,
           sub_category: f.sub_category,
+          exclude_tokens: getExcludeTokensFromReq(req),
         });
       }
     } else if (
@@ -431,7 +451,6 @@ async function checkAvailability({
       intent === "ASK_BRANDS" ||
       intent === "ASK_BOTH"
     ) {
-      // "Which variants/brands/options do you have for X?"
       const cat = (req.category || (f && f.category) || "").trim();
       const subCategory = (
         req["sub-category"] ||
@@ -441,7 +460,12 @@ async function checkAvailability({
       ).trim();
 
       if (!cat && !subCategory && searchTerm && !heName) {
-        const rows = await fetchProductsByNameKeyword(shop_id, searchTerm, 50);
+        const rows = await fetchProductsByNameKeyword(
+          shop_id,
+          searchTerm,
+          50,
+          req.exclude_tokens,
+        );
 
         if (!rows || !rows.length) {
           variantLines.push(
@@ -504,12 +528,17 @@ async function checkAvailability({
           ? `${rawName} ${searchTerm}`
           : rawName || searchTerm || enNameCandidate || null;
 
-      const variantsRows = await searchVariants(shop_id, {
+      const variantsRowsRaw = await searchVariants(shop_id, {
         category: cat || null,
         subCategory: subCategory || null,
         searchTerm: effectiveSearchTerm,
         limit: 50,
       });
+
+      const variantsRows = filterRowsByExcludeTokens(
+        variantsRowsRaw || [],
+        getExcludeTokensFromReq(req),
+      );
 
       const norm = (s) =>
         String(s || "")
@@ -544,6 +573,7 @@ async function checkAvailability({
           requested_amount: 1,
           category: cat || null,
           sub_category: subCategory || null,
+          exclude_tokens: getExcludeTokensFromReq(req),
         });
       } else {
         const listNames = Array.from(

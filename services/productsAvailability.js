@@ -1,12 +1,19 @@
 const db = require("../config/db");
-const {
-  findBestProductForRequest,
-} = require("./products");
+const { findBestProductForRequest } = require("./products");
 const { getExcludeTokensFromReq } = require("../utilities/tokens");
 
 function isHebrewOrNumberToken(t) {
   const s = String(t || "");
   return /[\u0590-\u05FF]/.test(s) || /\d/.test(s);
+}
+
+function tokenizeSimple(str) {
+  return String(str || "")
+    .toLowerCase()
+    .replace(/[^\w\u0590-\u05FF]+/g, " ")
+    .split(/\s+/)
+    .map((t) => t.trim())
+    .filter(Boolean);
 }
 
 function tokenizeHebrewOnly(str) {
@@ -20,14 +27,6 @@ function sameTokenSet(a, b) {
   const setB = new Set(B);
   return A.every((t) => setB.has(t));
 }
-function tokenizeSimple(str) {
-  return String(str || "")
-    .toLowerCase()
-    .replace(/[^\w\u0590-\u05FF]+/g, " ")
-    .split(/\s+/)
-    .map((t) => t.trim())
-    .filter(Boolean);
-}
 
 function rowContainsAllTokens(row, tokens) {
   if (!tokens || !tokens.length) return true;
@@ -39,7 +38,7 @@ async function fallbackFindRowWithSearchTerm(shop_id, req) {
   const nameRaw = String(req?.name || "").trim();
   const category = String(req?.category || "").trim();
   const subCategory = String(
-    req?.["sub-category"] || req?.sub_category || ""
+    req?.["sub-category"] || req?.sub_category || "",
   ).trim();
 
   const stHeb = String(req?.searchTerm || "").trim();
@@ -71,7 +70,7 @@ async function fallbackFindRowWithSearchTerm(shop_id, req) {
     sql += `
       AND (
         name COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
-        )
+      )
     `;
     params.push(t);
   }
@@ -80,7 +79,7 @@ async function fallbackFindRowWithSearchTerm(shop_id, req) {
     sql += `
       AND (
         name COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
-        )
+      )
     `;
     params.push(t);
   }
@@ -88,10 +87,11 @@ async function fallbackFindRowWithSearchTerm(shop_id, req) {
   for (const t of excludeTokens) {
     sql += `
       AND (
-  name COLLATE utf8mb4_general_ci NOT LIKE CONCAT('%', ?, '%')
-)
+        name COLLATE utf8mb4_general_ci NOT LIKE CONCAT('%', ?, '%')
+        AND display_name_en COLLATE utf8mb4_general_ci NOT LIKE CONCAT('%', ?, '%')
+      )
     `;
-    params.push(t);
+    params.push(t, t);
   }
 
   sql += `
