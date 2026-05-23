@@ -7,11 +7,13 @@ const {
   answerBudgetPickFlow,
   buildQuestionsTextSmart,
   buildFoundProductLine,
+  fetchActivePromotionForProduct,
   buildAltBlockAndQuestion,
   getSubjectForAlt,
   isOutOfStockFromFound,
   saveFallbackOpenQuestion,
   answerPromotionFlow,
+  answerPromotionListFlow,
 } = require("../../services/priceAndSales");
 const { saveOpenQuestions } = require("../../utilities/openQuestions");
 const { normalizeIncomingQuestions } = require("../../utilities/normalize");
@@ -23,7 +25,18 @@ const { parseModelAnswer } = require("../../utilities/jsonParse");
 const PROMPT_CAT = "INV";
 const PROMPT_SUB = "PRICE_AND_SALES";
 
-const DEBUG = process.env.DEBUG_PRICE_AND_SALES !== "0";
+const PROMOTION_LIST_PROMPT_APPENDIX = `
+
+PROMOTION LIST INTENT APPENDIX
+- These rules override any earlier fallback instruction about asking for a product/category when the customer asks for all/current promotions.
+- If the customer asks to see all current promotions/deals, or asks generally what promotions/deals the store currently has, return one product object with price_intent="PROMOTION_LIST".
+- For a store-wide promotions list, set name=null, outputName=null, category=null, sub-category=null.
+- Do not ask a clarification question for broad store-wide requests like "איזה מבצעים יש לכם?", "כל המבצעים", "what deals do you have?".
+- Use price_intent="PROMOTION_LIST" only for store-wide promotion list requests where the customer did not mention a product, product type, category, or group.
+- If the customer mentions a product, product type, category, or group (for example "מוצרי חלב", "חטיפים", "קולה"), use price_intent="PROMOTION", not "PROMOTION_LIST".
+`;
+
+const DEBUG = process.env.DEBUG_PRICE_AND_SALES === "1";
 function dlog(...args) {
   if (DEBUG) console.log("[INV-PRICE]", ...args);
 }
@@ -41,7 +54,11 @@ async function answerPriceAndSales({
     );
   }
 
-  const systemPrompt = await getPromptFromDB(PROMPT_CAT, PROMPT_SUB);
+  const dbPrompt = await getPromptFromDB(PROMPT_CAT, PROMPT_SUB);
+  const systemPrompt = [dbPrompt, PROMOTION_LIST_PROMPT_APPENDIX]
+    .filter(Boolean)
+    .join("\n\n");
+
   const answer = await chat({
     message,
     history,
@@ -50,7 +67,7 @@ async function answerPriceAndSales({
       type: "json_schema",
       json_schema: await buildInvPriceAndSalesSchema(),
     },
-    prompt_cache_key: "inv_price_and_sales_v1",
+    prompt_cache_key: "inv_price_and_sales_v2",
   });
 
   let parsed;
@@ -108,6 +125,23 @@ async function answerPriceAndSales({
       customer_id,
       isEnglish,
       compareReqs,
+      baseQuestions,
+    });
+  }
+
+  const promotionListReqs = productRequests.filter(
+    (p) =>
+      String(p?.price_intent || "")
+        .trim()
+        .toUpperCase() === "PROMOTION_LIST",
+  );
+
+  if (promotionListReqs.length) {
+    return await answerPromotionListFlow({
+      shop_id,
+      customer_id,
+      isEnglish,
+      promotionListReqs,
       baseQuestions,
     });
   }
@@ -218,7 +252,19 @@ async function answerPriceAndSales({
     const blockLines = [];
 
     if (f) {
-      blockLines.push(buildFoundProductLine({ req, foundRow: f, isEnglish }));
+      const productId = Number(f?.product_id || f?.id);
+      const activePromo = Number.isFinite(productId)
+        ? await fetchActivePromotionForProduct(shop_id, productId)
+        : null;
+
+      blockLines.push(
+        buildFoundProductLine({
+          req,
+          foundRow: f,
+          isEnglish,
+          promo: activePromo,
+        }),
+      );
 
       if (isOutOfStockFromFound(f)) {
         const category = (f.category || req.category || "").trim() || null;

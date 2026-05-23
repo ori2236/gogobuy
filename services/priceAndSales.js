@@ -322,7 +322,142 @@ async function buildAltBlockAndQuestion({
   return { blockText: q.question, questionObj: q, altIds };
 }
 
-function buildFoundProductLine({ req, foundRow, isEnglish }) {
+
+function buildPriceLineWithActivePromotion({
+  displayName,
+  promo,
+  unitPrice,
+  hasPrice,
+  soldByWeight,
+  amount,
+  units,
+  isEnglish,
+}) {
+  if (!promo || !hasPrice) return null;
+
+  const status = promotionStatus(promo);
+  if (status !== "ACTIVE") return null;
+
+  const kind = String(promo?.kind || "").toUpperCase();
+
+  const unitLabel = soldByWeight
+    ? isEnglish
+      ? `${formatILS(unitPrice)} per kg`
+      : `${formatILS(unitPrice)} לק״ג`
+    : isEnglish
+      ? `${formatILS(unitPrice)} each`
+      : `${formatILS(unitPrice)} ליח׳`;
+
+  if (kind === "BUNDLE") {
+    const buyQty = Number(promo?.bundle_buy_qty);
+    const pay = Number(promo?.bundle_pay_price);
+
+    if (
+      Number.isFinite(buyQty) &&
+      buyQty >= 2 &&
+      Number.isFinite(pay) &&
+      pay >= 0
+    ) {
+      const effectiveUnit = pay / buyQty;
+      const intro = isEnglish
+        ? `The product we found is: ${displayName}.`
+        : `המוצר שמצאנו אצלנו הוא: ${displayName}.`;
+
+      const dealLine = isEnglish
+        ? `${intro} Regular price: ${unitLabel}. Promotion price: ${buyQty} for ${formatILS(
+            pay,
+          )} (${formatILS(effectiveUnit)} each).`
+        : `${intro} מחיר רגיל: ${unitLabel}. מחיר מבצע: ${buyQty} יח׳ ב-${formatILS(
+            pay,
+          )} (${formatILS(effectiveUnit)} ליח׳).`;
+
+      const pricing = calcPromotionPricing({
+        promo,
+        baseUnitPrice: unitPrice,
+        reqAmount: amount,
+        soldByWeight,
+      });
+
+      const hasTotals =
+        pricing?.baseTotal !== null &&
+        pricing?.newTotal !== null &&
+        Number.isFinite(Number(pricing?.baseTotal)) &&
+        Number.isFinite(Number(pricing?.newTotal)) &&
+        Number.isFinite(Number(pricing?.amount)) &&
+        Number(pricing.amount) > 1;
+
+      if (!hasTotals) return dealLine;
+
+      const totalsLine = isEnglish
+        ? `Total for ${pricing.amount} units: ${formatILS(
+            pricing.newTotal,
+          )} instead of ${formatILS(pricing.baseTotal)}.`
+        : `סה״כ ל-${pricing.amount} יח׳: ${formatILS(
+            pricing.newTotal,
+          )} במקום ${formatILS(pricing.baseTotal)}.`;
+
+      return `${dealLine} ${totalsLine}`;
+    }
+  }
+
+  const pricing = calcPromotionPricing({
+    promo,
+    baseUnitPrice: unitPrice,
+    reqAmount: amount,
+    soldByWeight,
+  });
+
+  const newUnit = Number(pricing?.newUnit);
+  if (!Number.isFinite(newUnit)) return null;
+
+  const promoText = humanKindLine(promo, isEnglish);
+  const promoSuffix = promoText ? ` (${promoText})` : "";
+
+  const saleUnitLabel = soldByWeight
+    ? isEnglish
+      ? `${formatILS(newUnit)} per kg`
+      : `${formatILS(newUnit)} לק״ג`
+    : isEnglish
+      ? `${formatILS(newUnit)} each`
+      : `${formatILS(newUnit)} ליח׳`;
+
+  const intro = isEnglish
+    ? `The product we found is: ${displayName}.`
+    : `המוצר שמצאנו אצלנו הוא: ${displayName}.`;
+
+  const amountNum = Number(pricing?.amount ?? amount ?? 1);
+  const shouldShowTotals =
+    pricing?.baseTotal !== null &&
+    pricing?.newTotal !== null &&
+    Number.isFinite(Number(pricing?.baseTotal)) &&
+    Number.isFinite(Number(pricing?.newTotal)) &&
+    Number.isFinite(amountNum) &&
+    (soldByWeight ? Math.abs(amountNum - 1) > 1e-9 : amountNum !== 1);
+
+  if (!shouldShowTotals) {
+    return isEnglish
+      ? `${intro} Regular price: ${unitLabel}. Promotion price: ${saleUnitLabel}${promoSuffix}.`
+      : `${intro} מחיר רגיל: ${unitLabel}. מחיר מבצע: ${saleUnitLabel}${promoSuffix}.`;
+  }
+
+  const qtyLabel = soldByWeight
+    ? isEnglish
+      ? `~${fmtQty(amountNum)} kg${units ? ` (about ${units} units)` : ""}`
+      : `~${fmtQty(amountNum)} ק״ג${units ? ` (בערך ${units} יח׳)` : ""}`
+    : isEnglish
+      ? `${amountNum} units`
+      : `${amountNum} יח׳`;
+
+  return isEnglish
+    ? `${intro} Regular price: ${unitLabel}. Promotion price: ${saleUnitLabel}${promoSuffix}. Total for ${qtyLabel}: ${formatILS(
+        pricing.newTotal,
+      )} instead of ${formatILS(pricing.baseTotal)}.`
+    : `${intro} מחיר רגיל: ${unitLabel}. מחיר מבצע: ${saleUnitLabel}${promoSuffix}. סה״כ ל-${qtyLabel}: ${formatILS(
+        pricing.newTotal,
+      )} במקום ${formatILS(pricing.baseTotal)}.`;
+}
+
+function buildFoundProductLine({ req, foundRow, isEnglish, promo = null }) {
   const reqName = String(req?.name || "").trim();
 
   const matchedNameHe = String(foundRow?.matched_name || "").trim();
@@ -349,6 +484,18 @@ function buildFoundProductLine({ req, foundRow, isEnglish }) {
   const unitsNum = Number(unitsRaw);
   const units =
     soldByWeight && Number.isFinite(unitsNum) && unitsNum > 0 ? unitsNum : null;
+
+  const activePromotionLine = buildPriceLineWithActivePromotion({
+    displayName,
+    promo,
+    unitPrice,
+    hasPrice,
+    soldByWeight,
+    amount,
+    units,
+    isEnglish,
+  });
+  if (activePromotionLine) return activePromotionLine;
 
   if (isEnglish) {
     if (!hasPrice)
@@ -1348,6 +1495,42 @@ async function searchPromotionsForRequest(shop_id, req, { limit = 50 } = {}) {
   return { rows: rows || [], total: (rows || []).length };
 }
 
+async function fetchActivePromotionForProduct(shop_id, product_id) {
+  const productId = Number(product_id);
+  if (!shop_id || !Number.isFinite(productId)) return null;
+
+  const [rows] = await db.query(
+    `
+      SELECT
+        id,
+        shop_id,
+        product_id,
+        kind,
+        percent_off,
+        amount_off,
+        fixed_price,
+        bundle_buy_qty,
+        bundle_pay_price,
+        description,
+        start_at,
+        end_at
+      FROM promotion
+      WHERE shop_id = ?
+        AND product_id = ?
+        AND (start_at IS NULL OR start_at <= NOW())
+        AND (end_at IS NULL OR end_at >= NOW())
+      ORDER BY
+        CASE WHEN end_at IS NULL THEN 1 ELSE 0 END ASC,
+        end_at ASC,
+        id DESC
+      LIMIT 1
+    `,
+    [shop_id, productId],
+  );
+
+  return rows?.[0] || null;
+}
+
 function promotionStatus(promo, now = new Date()) {
   const start = promo?.start_at ? new Date(promo.start_at) : null;
   const end = promo?.end_at ? new Date(promo.end_at) : null;
@@ -1852,6 +2035,343 @@ function buildPromotionBlock({ req, foundRow, promo, isEnglish }) {
   return `${line1}\n${statusLine}`;
 }
 
+
+
+function getPromotionListSubject(req, isEnglish) {
+  const nameHe = nullify(req?.name);
+  const nameEn = nullify(req?.outputName);
+  const sub = nullify(req?.["sub-category"] || req?.sub_category);
+  const cat = nullify(req?.category);
+
+  if (isEnglish) {
+    if (nameEn) return nameEn;
+    if (nameHe) return nameHe;
+    if (sub || cat) return "that category";
+    return "the store";
+  }
+
+  if (nameHe) return nameHe;
+  if (nameEn) return nameEn;
+  if (sub || cat) return "הקטגוריה שביקשת";
+  return "החנות";
+}
+
+async function fetchActivePromotionsOverview({
+  shop_id,
+  category,
+  sub_category,
+  limit = 500,
+}) {
+  const params = [shop_id];
+  let sql = `
+    SELECT
+      pr.id            AS promo_id,
+      pr.kind          AS kind,
+      pr.percent_off   AS percent_off,
+      pr.amount_off    AS amount_off,
+      pr.fixed_price   AS fixed_price,
+      pr.bundle_buy_qty AS bundle_buy_qty,
+      pr.bundle_pay_price AS bundle_pay_price,
+      pr.description   AS description,
+      pr.start_at      AS start_at,
+      pr.end_at        AS end_at,
+      pr.product_id    AS product_id,
+
+      p.id             AS product_id2,
+      p.name           AS name,
+      p.display_name_en AS display_name_en,
+      p.price          AS price,
+      p.stock_amount   AS stock_amount,
+      p.category       AS category,
+      p.sub_category   AS sub_category
+    FROM promotion pr
+    JOIN product p
+      ON p.id = pr.product_id
+     AND p.shop_id = pr.shop_id
+    WHERE pr.shop_id = ?
+      AND p.stock_amount > 0
+      AND (pr.start_at IS NULL OR pr.start_at <= NOW())
+      AND (pr.end_at IS NULL OR pr.end_at >= NOW())
+  `;
+
+  if (category) {
+    sql += ` AND p.category = ?`;
+    params.push(category);
+  }
+
+  if (sub_category) {
+    sql += ` AND p.sub_category = ?`;
+    params.push(sub_category);
+  }
+
+  const safeLimit = Math.min(Math.max(Number(limit) || 500, 1), 1000);
+
+  sql += `
+    ORDER BY
+      CASE WHEN pr.end_at IS NULL THEN 1 ELSE 0 END ASC,
+      pr.end_at ASC,
+      pr.id DESC
+    LIMIT ${safeLimit}
+  `;
+
+  const [rows] = await db.query(sql, params);
+  return Array.isArray(rows) ? rows : [];
+}
+
+function isPromotionEndingWithinDays(row, days, now = new Date()) {
+  if (!row?.end_at) return false;
+
+  const end = row.end_at instanceof Date ? row.end_at : new Date(row.end_at);
+  if (Number.isNaN(end.getTime())) return false;
+
+  const from = now.getTime();
+  const to = from + Number(days || 0) * 24 * 60 * 60 * 1000;
+
+  return end.getTime() >= from && end.getTime() <= to;
+}
+
+function selectPromotionOverviewRows(rows, now = new Date()) {
+  const activeRows = Array.isArray(rows) ? rows : [];
+
+  if (activeRows.length <= 5) {
+    return {
+      selectedRows: activeRows,
+      mode: "ALL_ACTIVE",
+      activeCount: activeRows.length,
+      expiringThisWeekCount: activeRows.filter((r) =>
+        isPromotionEndingWithinDays(r, 7, now),
+      ).length,
+    };
+  }
+
+  const expiringThisWeek = activeRows
+    .filter((r) => isPromotionEndingWithinDays(r, 7, now))
+    .sort((a, b) => new Date(a.end_at).getTime() - new Date(b.end_at).getTime());
+
+  if (expiringThisWeek.length > 5) {
+    return {
+      selectedRows: expiringThisWeek,
+      mode: "ALL_EXPIRING_THIS_WEEK",
+      activeCount: activeRows.length,
+      expiringThisWeekCount: expiringThisWeek.length,
+    };
+  }
+
+  const finiteEnding = activeRows
+    .filter((r) => r?.end_at)
+    .sort((a, b) => new Date(a.end_at).getTime() - new Date(b.end_at).getTime());
+
+  const selectedRows = finiteEnding.slice(0, 5);
+
+  if (selectedRows.length < 5) {
+    const selectedIds = new Set(selectedRows.map((r) => Number(r.promo_id)));
+    const noEndRows = activeRows.filter(
+      (r) => !r?.end_at && !selectedIds.has(Number(r.promo_id)),
+    );
+    selectedRows.push(...noEndRows.slice(0, 5 - selectedRows.length));
+  }
+
+  return {
+    selectedRows,
+    mode: "TOP_5_ENDING_SOON",
+    activeCount: activeRows.length,
+    expiringThisWeekCount: expiringThisWeek.length,
+  };
+}
+
+function buildPromotionOverviewHeader({
+  mode,
+  activeCount,
+  selectedCount,
+  expiringThisWeekCount,
+  subject,
+  isEnglish,
+}) {
+  if (isEnglish) {
+    if (mode === "ALL_ACTIVE") {
+      return activeCount === 1
+        ? `There is 1 active promotion for ${subject}:`
+        : `There are ${activeCount} active promotions for ${subject}, here they are:`;
+    }
+
+    if (mode === "ALL_EXPIRING_THIS_WEEK") {
+      return `There are ${activeCount} active promotions for ${subject}. ${expiringThisWeekCount} of them end within the next 7 days, so here are all the promotions ending this week:`;
+    }
+
+    return `There are ${activeCount} active promotions for ${subject}. Here are the ${selectedCount} promotions ending the soonest:`;
+  }
+
+  if (mode === "ALL_ACTIVE") {
+    return activeCount === 1
+      ? `יש מבצע פעיל אחד עבור ${subject}:`
+      : `יש ${activeCount} מבצעים פעילים עבור ${subject}, הנה כולם:`;
+  }
+
+  if (mode === "ALL_EXPIRING_THIS_WEEK") {
+    return `יש ${activeCount} מבצעים פעילים עבור ${subject}. ${expiringThisWeekCount} מתוכם מסתיימים בשבוע הקרוב, אז הנה כל המבצעים שמסתיימים השבוע:`;
+  }
+
+  return `יש ${activeCount} מבצעים פעילים עבור ${subject}. הנה ${selectedCount} המבצעים שהכי קרובים להסתיים:`;
+}
+
+
+function buildPromotionOverviewDealText(row, isEnglish) {
+  const kind = String(row?.kind || "").toUpperCase();
+  const basePrice = Number(row?.price);
+
+  if (kind === "PERCENT_OFF") {
+    const p = Number(row?.percent_off);
+    if (!Number.isFinite(p)) return humanKindLine(row, isEnglish);
+
+    const pText = pct(p);
+    if (!Number.isFinite(basePrice)) {
+      return isEnglish ? `${pText}% off` : `${pText}% הנחה`;
+    }
+
+    const salePrice = basePrice * (1 - p / 100);
+    return isEnglish
+      ? `${pText}% off (sale price ${formatILS(salePrice)})`
+      : `${pText}% הנחה (מחיר אחרי הנחה ${formatILS(salePrice)})`;
+  }
+
+  if (kind === "AMOUNT_OFF") {
+    const off = Number(row?.amount_off);
+    if (!Number.isFinite(off)) return humanKindLine(row, isEnglish);
+
+    if (!Number.isFinite(basePrice)) {
+      return isEnglish
+        ? `${formatILS(off)} off each`
+        : `הנחה ${formatILS(off)} ליח׳`;
+    }
+
+    const salePrice = Math.max(0, basePrice - off);
+    return isEnglish
+      ? `${formatILS(off)} off each (sale price ${formatILS(salePrice)})`
+      : `הנחה ${formatILS(off)} ליח׳ (מחיר אחרי הנחה ${formatILS(salePrice)})`;
+  }
+
+  return humanKindLine(row, isEnglish);
+}
+
+function formatPromotionOverviewLine(row, isEnglish) {
+  const name = isEnglish
+    ? String(row?.display_name_en || row?.name || "").trim()
+    : String(row?.name || row?.display_name_en || "").trim();
+
+  if (!name) return null;
+
+  const deal = buildPromotionOverviewDealText(row, isEnglish);
+  const endTxt = row?.end_at ? fmtDateTime(row.end_at, isEnglish) : null;
+  const endPart = endTxt
+    ? isEnglish
+      ? `valid until ${endTxt}`
+      : `בתוקף עד ${endTxt}`
+    : isEnglish
+      ? "no end date"
+      : "ללא תאריך סיום";
+
+  const price = Number(row?.price);
+  const pricePart = Number.isFinite(price)
+    ? isEnglish
+      ? `regular price ${formatILS(price)}`
+      : `מחיר רגיל ${formatILS(price)}`
+    : null;
+
+  return [name, deal, pricePart, endPart].filter(Boolean).join(" - ");
+}
+
+async function answerPromotionListFlow({
+  shop_id,
+  customer_id,
+  isEnglish,
+  promotionListReqs,
+  baseQuestions,
+}) {
+  const reqs = Array.isArray(promotionListReqs) && promotionListReqs.length
+    ? promotionListReqs
+    : [
+        {
+          name: null,
+          outputName: null,
+          category: null,
+          "sub-category": null,
+          price_intent: "PROMOTION_LIST",
+        },
+      ];
+
+  const blocks = [];
+
+  for (const rawReq of reqs) {
+    const req = { ...(rawReq || {}) };
+    req.name = nullify(req.name);
+    req.outputName = nullify(req.outputName);
+    req["sub-category"] = nullify(req["sub-category"]);
+    req.sub_category = nullify(req.sub_category);
+    req.category = nullify(req.category);
+
+    const subject = getPromotionListSubject(req, isEnglish);
+
+    const rows = await fetchActivePromotionsOverview({
+      shop_id,
+      category: req.category,
+      sub_category: req["sub-category"] || req.sub_category,
+      limit: 1000,
+    });
+
+    if (!rows.length) {
+      blocks.push(
+        isEnglish
+          ? `I couldn't find active promotions for ${subject} right now.`
+          : `לא מצאתי כרגע מבצעים פעילים עבור ${subject}.`,
+      );
+      continue;
+    }
+
+    const selection = selectPromotionOverviewRows(rows);
+    const selectedRows = selection.selectedRows || [];
+
+    const header = buildPromotionOverviewHeader({
+      mode: selection.mode,
+      activeCount: selection.activeCount,
+      selectedCount: selectedRows.length,
+      expiringThisWeekCount: selection.expiringThisWeekCount,
+      subject,
+      isEnglish,
+    });
+
+    const lines = selectedRows
+      .map((row) => formatPromotionOverviewLine(row, isEnglish))
+      .filter(Boolean)
+      .map((line) => `• ${line}`);
+
+    blocks.push([header, ...lines].join("\n"));
+  }
+
+  const allQuestions = normalizeIncomingQuestions(baseQuestions || [], {
+    preserveOptions: true,
+  });
+
+  if (allQuestions.length) {
+    await saveOpenQuestions({
+      customer_id,
+      shop_id,
+      order_id: null,
+      questions: allQuestions,
+    });
+  }
+
+  const body = blocks.filter(Boolean).join("\n\n");
+  const tail = buildQuestionsTextSmart({ questions: baseQuestions, isEnglish });
+
+  const finalMsg = [body, tail].filter((x) => x && x.trim()).join("\n\n");
+
+  return finalMsg && finalMsg.trim()
+    ? finalMsg
+    : isEnglish
+      ? "I couldn't find active promotions right now."
+      : "לא מצאתי כרגע מבצעים פעילים.";
+}
+
 async function answerPromotionFlow({
   shop_id,
   customer_id,
@@ -2194,11 +2714,13 @@ module.exports = {
   answerPriceCompareFlow,
   buildQuestionsTextSmart,
   buildFoundProductLine,
+  fetchActivePromotionForProduct,
   buildAltBlockAndQuestion,
   getSubjectForAlt,
   isOutOfStockFromFound,
   saveFallbackOpenQuestion,
   answerPromotionFlow,
+  answerPromotionListFlow,
   searchPromotionsForRequest,
   answerCheaperAltFlow,
   answerBudgetPickFlow,

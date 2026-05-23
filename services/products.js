@@ -7,7 +7,7 @@ const {
 } = require("../utilities/tokens");
 const { getSubCategoryCandidates } = require("../repositories/categories");
 
-const MATCH_DEBUG = 1;
+const MATCH_DEBUG = process.env.DEBUG_PRODUCT_MATCH === "1";
 
 function matchLog(label, payload = null) {
   if (!MATCH_DEBUG) return;

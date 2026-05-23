@@ -2,11 +2,13 @@ const {
   buildCategorySubcategoryItemSchemas,
   buildNullableSubcategorySchemas,
 } = require("../../productCategories");
+const { fetchCategoriesMap } = require("../../../repositories/categories");
 
 const PRICE_INTENT_ENUM = [
   "PRICE",
   "PRICE_COMPARE",
   "PROMOTION",
+  "PROMOTION_LIST",
   "CHEAPER_ALT",
   "BUDGET_PICK",
 ];
@@ -37,6 +39,53 @@ const COMMON_PRODUCT_REQUIRED = [
   "price_intent",
 ];
 
+async function buildPromotionListNullableCategorySchemas() {
+  const categoryMap = await fetchCategoriesMap();
+  const CATEGORY_ENUM = Object.keys(categoryMap).sort();
+
+  return CATEGORY_ENUM.map((cat) => ({
+    type: "object",
+    additionalProperties: false,
+    required: [...COMMON_PRODUCT_REQUIRED, "category", "sub-category"],
+    properties: {
+      ...COMMON_PRODUCT_PROPS,
+      price_intent: { type: "string", const: "PROMOTION_LIST" },
+      category: { type: "string", const: cat },
+      "sub-category": {
+        anyOf: [
+          { type: "string", enum: [...categoryMap[cat]].sort() },
+          { type: "null" },
+        ],
+      },
+    },
+  }));
+}
+
+function buildAllPromotionsSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: [...COMMON_PRODUCT_REQUIRED, "category", "sub-category"],
+    properties: {
+      ...COMMON_PRODUCT_PROPS,
+      name: { type: "null" },
+      outputName: { type: "null" },
+      amount: { type: "number", const: 1 },
+      units: { type: "null" },
+      sold_by_weight: { type: "boolean", const: false },
+      exclude_tokens: {
+        type: "array",
+        items: { type: "string", minLength: 1 },
+      },
+      compare_group: { type: "null" },
+      budget_ils: { type: "null" },
+      price_intent: { type: "string", const: "PROMOTION_LIST" },
+      category: { type: "null" },
+      "sub-category": { type: "null" },
+    },
+  };
+}
+
 async function buildInvPriceAndSalesSchema() {
   const categorySchemas = await buildCategorySubcategoryItemSchemas(
     COMMON_PRODUCT_PROPS,
@@ -48,7 +97,15 @@ async function buildInvPriceAndSalesSchema() {
     COMMON_PRODUCT_REQUIRED,
   );
 
-  const CATEGORY_SUBCATEGORY_ANYOF = [...categorySchemas, ...nullableSchemas];
+  const promotionListNullableCategorySchemas =
+    await buildPromotionListNullableCategorySchemas();
+
+  const CATEGORY_SUBCATEGORY_ANYOF = [
+    ...categorySchemas,
+    ...nullableSchemas,
+    ...promotionListNullableCategorySchemas,
+    buildAllPromotionsSchema(),
+  ];
 
   return {
     name: "inv_price_and_sales_extract",

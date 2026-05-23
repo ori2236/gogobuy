@@ -23,11 +23,12 @@ Return products[] where each item has:
 - name (Hebrew):
   * MUST be a short generic product-type name, ALWAYS in Hebrew, as it would appear in a supermarket DB (no full sentence fragments).
   * Strip descriptive/context words like "לסלט", "לא גדולים", "טעים", "פשוט", "לילדים", "במבצע", "כמו תמיד" and similar.
-  * Do NOT invent or guess a brand, manufacturer, flavor, size, package, weight, or volume if the user did not clearly mention it.
+  * Do NOT invent or guess a brand, manufacturer, flavor, size, package, weight, or volume if the user DID not clearly mention it.
     If the user just says "בקבוק קולה" or "פסטה" without a number, keep the name generic without any numeric volume.
   * If price_intent = "PROMOTION" or "BUDGET_PICK":
     - You MAY set name = null ONLY when the user asks about a broad category/group-level promotion AND they did NOT mention a specific product type.
     - If the user mentions ANY product type (even generic) like "שוקולד" you MUST set name to that product type (Hebrew), and fill the category and sub category.
+  * If price_intent = "PROMOTION_LIST" set name=null.
   * If the user didn’t specify a brand/size, use a generic name like "מיץ אפרסק", "אפרסק", "חלב 3%", etc.
   * Never turn a generic request like "מיץ אפרסק" into a specific branded SKU like "פריגת מיץ אפרסק 1 ליטר" unless the user explicitly wrote that brand and size.
   * The "name" should not include context words like "for salad" or "not too big", only the core product type.
@@ -51,10 +52,10 @@ Return products[] where each item has:
   • Treat a product as "sold by weight" when it is a loose, unpackaged fruit or vegetable, fresh herb, potato, onion, or fresh meat/fish/deli salad/cheese that is typically weighed at checkout.
   • Pre-packed items like "bag of frozen peas 800g", "pack of 4 schnitzels", "tray of 6 apples" are NOT weight-based: for them you MUST set sold_by_weight = false and you MUST set "units" field to null.
   • If you are unsure default is sold_by_weight = false.
-- category (English): MUST be one of the allowed categories (never null).
+- category (English): MUST be one of the allowed categories, except when price_intent="PROMOTION_LIST" and the user asks for all store-wide promotions.
 - sub-category (English):
-  • if price_intent is not "PROMOTION" or "BUDGET_PICK", MUST be one of the allowed sub-categories for that category.
-  • You MAY set sub-category = null only when intent="PROMOTION" or "BUDGET_PICK" and:
+  • if price_intent is not "PROMOTION", "PROMOTION_LIST", or "BUDGET_PICK", MUST be one of the allowed sub-categories for that category.
+  • You MAY set sub-category = null only when intent="PROMOTION", "PROMOTION_LIST" or "BUDGET_PICK" and:
     - The user’s request is too broad/ambiguous to pick a single sub-category confidently, OR
     - name is null (group promotion) and you only confidently know the category.
 - exclude_tokens (optional array of strings):
@@ -65,12 +66,14 @@ Return products[] where each item has:
   • null if intent is not "PRICE_COMPARE"
   • for united a group of products for comapring, string or null (use same value for all products participating in the same comparison)
 - budget_ils: number or null (e.g., "עד 20 ש\"ח" => 20)
-- price_intent: "PRICE" | "PRICE_COMPARE" | "PROMOTION" | "CHEAPER_ALT" | "BUDGET_PICK"
+- price_intent: "PRICE" | "PRICE_COMPARE" | "PROMOTION" | "PROMOTION_LIST" | "CHEAPER_ALT" | "BUDGET_PICK"
 
 INTENT RULES (IMPORTANT)
 - PRICE: "כמה עולה X?" / "כמה יעלה 3 X?" / "כמה עולה קילו עגבניות?"
 - PRICE_COMPARE: compares products/variants/sizes: "מה יותר זול X או Y?"
-- PROMOTION: asking about promotion on a product: "יש מבצע על X?" / "עד מתי ההנחה?" / "מה בדיוק המבצע?" / "זה כולל גם ...?"
+- PROMOTION: asking about promotion on a specific product/product type: "יש מבצע על X?" / "עד מתי ההנחה?" / "מה בדיוק המבצע?" / "זה כולל גם ...?" / "איזה מבצעים יש על מוצרי חלב?"
+- PROMOTION_LIST: asking to list current store-wide promotions/deals without specifying a product, product type, category, or group: "איזה מבצעים יש לכם?" / "תראה לי את כל המבצעים" / "what deals do you have?"
+  This overrides the fallback rule: do not ask which product/category when the user asks for all/current promotions.
 - CHEAPER_ALT: asking for cheaper alternatives: "יש חלופה זולה יותר ל-X?"
 - BUDGET_PICK: "משהו עד ₪X" (can be tied to a product type or a category/group like "מוצרי חלב". If neither type nor category is mentioned, ask a clarification question).
 
@@ -78,6 +81,11 @@ NAMING RULES (CRITICAL)
 - Do NOT invent brand/flavor/size/weight/volume/package if not explicitly mentioned.
 - name MUST be a short generic Hebrew product name (DB-like), not a sentence,
   EXCEPT: when price_intent = "PROMOTION" or "BUDGET_PICK" and the user asks about a group/category-level promotion, name MAY be null.
+  EXCEPT: when price_intent = "PROMOTION", "PROMOTION_LIST", or "BUDGET_PICK" and the user asks about a group/category-level or store-wide request, name MAY be null.
+- For category/group promotion requests such as "כל המבצעים על מוצרי חלב" or "איזה מבצעים יש על חטיפים":
+  set price_intent="PROMOTION". Fill category and sub-category when confident; sub-category may be null for broad groups.
+- For category/group promotion list requests such as "כל המבצעים על מוצרי חלב":
+  set price_intent="PROMOTION_LIST", name=null unless a specific product type was mentioned, and fill category/sub-category only when confident.
 
 CLARIFICATION QUESTIONS (ONLY WHEN NEEDED)
 - Add questions[] entries ONLY if you cannot identify a product TYPE well enough to output:
@@ -90,9 +98,10 @@ FALLBACK
 - If you cannot identify any product TYPE with reasonable confidence:
   return products: [] and add EXACTLY ONE clarification question in questions[].
 - In every response, at least one of products[] or questions[] must be non-empty.
-- If the user asks about a promotion/price but does not mention any product type or category
-  (e.g., "יש מבצע?"), return products: [] and ask exactly one clarification question asking 
-  what product/category they mean.
+- If the user asks a broad/current/all promotions question without mentioning a product type or category,
+  return price_intent="PROMOTION_LIST".
+- If the user asks about a specific promotion but the target is unclear from context,
+  return products: [] and ask exactly one clarification question asking what product/category they mean.
 
 EXAMPLES
 
@@ -172,7 +181,7 @@ Example 3
 "questions": []
 }
 
-Example 4 - Group promotion too broad
+Example 4 - Group promotion
 "יש מבצעים על מוצרי חלב?"
 {
 "products": [
@@ -187,6 +196,27 @@ Example 4 - Group promotion too broad
   "budget_ils": null,
   "price_intent": "PROMOTION",
   "category": "Dairy & Eggs",
+  "sub-category": null
+}
+],
+"questions": []
+}
+
+Example 5 - Store-wide current promotion list
+"איזה מבצעים יש לכם?"
+{
+"products": [
+{
+  "name": null,
+  "outputName": null,
+  "amount": 1,
+  "units": null,
+  "sold_by_weight": false,
+  "exclude_tokens": [],
+  "compare_group": null,
+  "budget_ils": null,
+  "price_intent": "PROMOTION_LIST",
+  "category": null,
   "sub-category": null
 }
 ],

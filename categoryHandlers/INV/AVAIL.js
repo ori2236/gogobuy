@@ -20,6 +20,12 @@ const {
 const PROMPT_CAT = "INV";
 const PROMPT_SUB = "AVAIL";
 
+const DEBUG = process.env.DEBUG_INV_AVAIL === "1";
+function dlog(...args) {
+  if (DEBUG) console.log("[INV.AVAIL]", ...args);
+}
+
+
 function joinNames(names, isEnglish) {
   if (!names || !names.length) return "";
   if (names.length === 1) return names[0];
@@ -150,15 +156,15 @@ async function checkAvailability({
     }
   }
 
-  console.log("[INV.AVAIL] parsed answer:", JSON.stringify(parsed, null, 2));
+  dlog("parsed answer:", JSON.stringify(parsed, null, 2));
 
   const productRequests = Array.isArray(parsed.products) ? parsed.products : [];
   const clarifyQuestionsFromModel = Array.isArray(parsed.questions)
     ? parsed.questions
     : [];
 
-  console.log(
-    "[INV.AVAIL] productRequests:",
+  dlog(
+    "productRequests:",
     productRequests.map((p, idx) => ({
       idx,
       name: p.name,
@@ -172,8 +178,8 @@ async function checkAvailability({
     })),
   );
 
-  console.log(
-    "[INV.AVAIL] clarifyQuestionsFromModel:",
+  dlog(
+    "clarifyQuestionsFromModel:",
     clarifyQuestionsFromModel,
   );
 
@@ -205,9 +211,9 @@ async function checkAvailability({
 
     found = res.found || [];
     notFound = res.notFound || [];
-    console.log("[INV.AVAIL] found:", found);
-    console.log("[INV.AVAIL] notFound:", notFound);
-    console.log("[INV.AVAIL] searchProducts result:", {
+    dlog("found:", found);
+    dlog("notFound:", notFound);
+    dlog("searchProducts result:", {
       found: found.length,
       notFound: notFound.length,
     });
