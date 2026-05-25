@@ -1,5 +1,5 @@
 const db = require("../config/db");
-const { findBestProductForRequest, searchVariants } = require("./products");
+const { findBestProductForRequest } = require("./products");
 const { getExcludeTokensFromReq } = require("../utilities/tokens");
 
 function isHebrewOrNumberToken(t) {
@@ -32,81 +32,6 @@ function rowContainsAllTokens(row, tokens) {
   if (!tokens || !tokens.length) return true;
   const hay = String(row?.name || "").toLowerCase();
   return tokens.every((t) => hay.includes(t));
-}
-
-function buildUniqueSearchTerm(...values) {
-  const out = [];
-  const seen = new Set();
-
-  for (const value of values) {
-    for (const token of tokenizeSimple(value)) {
-      if (seen.has(token)) continue;
-      seen.add(token);
-      out.push(token);
-    }
-  }
-
-  return out.join(" ");
-}
-
-function pickBestAvailabilityVariant(rows = []) {
-  if (!rows || !rows.length) return null;
-
-  const sorted = [...rows].sort((a, b) => {
-    const aStock = Number(a.stock_amount);
-    const bStock = Number(b.stock_amount);
-
-    const aInStock = !Number.isFinite(aStock) || aStock > 0 ? 1 : 0;
-    const bInStock = !Number.isFinite(bStock) || bStock > 0 ? 1 : 0;
-
-    const aWords = tokenizeSimple(a.name || "").length || 9999;
-    const bWords = tokenizeSimple(b.name || "").length || 9999;
-
-    const aPrice = Number.isFinite(Number(a.price)) ? Number(a.price) : 999999;
-    const bPrice = Number.isFinite(Number(b.price)) ? Number(b.price) : 999999;
-
-    return (
-      bInStock - aInStock ||
-      aWords - bWords ||
-      aPrice - bPrice ||
-      Number(b.id || 0) - Number(a.id || 0)
-    );
-  });
-
-  return sorted[0] || null;
-}
-
-async function fallbackFindRowFromVariants(shop_id, req) {
-  const nameRaw = String(req?.name || "").trim();
-  const searchTermRaw = String(req?.searchTerm || "").trim();
-  const category = String(req?.category || "").trim();
-  const subCategory = String(
-    req?.["sub-category"] || req?.sub_category || "",
-  ).trim();
-
-  const effectiveSearchTerm = buildUniqueSearchTerm(nameRaw, searchTermRaw);
-  const effectiveTokens = tokenizeHebrewOnly(effectiveSearchTerm);
-  const searchTermTokens = tokenizeHebrewOnly(searchTermRaw);
-
-  /*
-    Conservative rescue before returning NOT_FOUND:
-    - Try this only when there is a specific searchTerm, usually a brand/type.
-    - Or when the product name itself has at least 2 tokens, like "בירה טובורג".
-    - Do not run it for very general questions like "יש בירה?".
-  */
-  const shouldTry = searchTermTokens.length > 0 || effectiveTokens.length >= 2;
-
-  if (!shouldTry || !effectiveSearchTerm) return null;
-
-  const rows = await searchVariants(shop_id, {
-    category: category || null,
-    subCategory: subCategory || null,
-    searchTerm: effectiveSearchTerm,
-    limit: 10,
-    excludeTokens: getExcludeTokensFromReq(req),
-  });
-
-  return pickBestAvailabilityVariant(rows || []);
 }
 
 async function fallbackFindRowWithSearchTerm(shop_id, req) {
@@ -198,21 +123,13 @@ async function findBestProductForAvailability(shop_id, req) {
   }
 
   const row = await findBestProductForRequest(shop_id, req);
+  if (!row) return null;
 
-  if (row && (!stTokens.length || rowContainsAllTokens(row, stTokens))) {
-    return row;
+  if (stTokens.length && !rowContainsAllTokens(row, stTokens)) {
+    return null;
   }
 
-  /*
-    Last small rescue before NOT_FOUND:
-    use the same broader search used by ASK_VARIANTS.
-    This fixes cases like "בירה טובורג" where variants search can find Tuborg,
-    while the single-product matcher failed.
-  */
-  const variantRow = await fallbackFindRowFromVariants(shop_id, req);
-  if (variantRow) return variantRow;
-
-  return null;
+  return row;
 }
 
 async function searchProductsAvailability(shop_id, products) {
