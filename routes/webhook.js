@@ -7,6 +7,7 @@ const {
   runProductRecommendationsAndSend,
   shouldStartProductRecommendations,
 } = require("../services/orderSuggestions");
+const { sendDeferredCheckoutNudge } = require("../utilities/checkoutNudge");
 
 const VERIFY_TOKEN = (process.env.WHATSAPP_VERIFY_TOKEN || "").trim();
 
@@ -112,11 +113,30 @@ router.post("/webhooks", async (req, res) => {
           await sendWhatsAppText(from, text);
         }
 
+        const deferredCheckoutNudge = botResp?.deferredCheckoutNudge || null;
+
         if (shouldStartProductRecommendations(botResp)) {
           const ctx = botResp.productRecommendationContext;
-          setImmediate(() => {
-            runProductRecommendationsAndSend({
+          setImmediate(async () => {
+            const didSendRecommendation = await runProductRecommendationsAndSend({
               ...ctx,
+              phone_number: from,
+            });
+
+            // Checkout nudges should come only after async recommendations finish.
+            // If a recommendation was sent, it is already an open question, so do not stack
+            // a checkout question immediately after it.
+            if (!didSendRecommendation && deferredCheckoutNudge) {
+              await sendDeferredCheckoutNudge({
+                checkoutNudge: deferredCheckoutNudge,
+                phone_number: from,
+              });
+            }
+          });
+        } else if (deferredCheckoutNudge) {
+          setImmediate(() => {
+            sendDeferredCheckoutNudge({
+              checkoutNudge: deferredCheckoutNudge,
               phone_number: from,
             });
           });

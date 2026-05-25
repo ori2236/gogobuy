@@ -22,6 +22,10 @@ const { checkIfToCheckoutOrder } = require("../categoryHandlers/ORD/CHECKOUT");
 const { sendWhatsAppMarkAsRead } = require("../utilities/whatsapp");
 const { startSlowProgression } = require("./sendProgressionMessage");
 const { handleSuggestionReply } = require("./orderSuggestions");
+const {
+  handleCheckoutNudgeReply,
+  attachCheckoutNudgeIfNeeded,
+} = require("../utilities/checkoutNudge");
 
 const maxPerProduct = 10;
 
@@ -72,7 +76,18 @@ async function processMessage(
 
   if (cancelReply) return cancelReply;
 
-  const openQs = await fetchOpenQuestions(customer_id, shop_id, 7);
+  const openQs = await fetchOpenQuestions(customer_id, shop_id, 20);
+
+  const checkoutNudgeReply = await handleCheckoutNudgeReply({
+    message,
+    customer_id,
+    shop_id,
+    activeOrder,
+    openQs,
+    saveChat,
+  });
+
+  if (checkoutNudgeReply) return checkoutNudgeReply;
 
   const suggestionReply = await handleSuggestionReply({
     message,
@@ -215,6 +230,15 @@ async function processMessage(
       const fallback = "כרגע אין לנו תמיכה בבקשות מסוג זה";
       return fallback;
     }
+
+    botPayload = await attachCheckoutNudgeIfNeeded({
+      botPayload,
+      category,
+      subcategory,
+      customer_id,
+      shop_id,
+      isEnglish,
+    });
 
     const botText = normalizeOutboundMessage(botPayload);
     await saveChat({

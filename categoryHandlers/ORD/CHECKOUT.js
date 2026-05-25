@@ -5,11 +5,41 @@ const {
 } = require("../../utilities/openQuestions");
 const { detectIsEnglish } = require("../../utilities/lang");
 
-function parseOrderIdOnly(msg) {
-  const m = String(msg || "")
+function parseCheckoutConfirmation(msg) {
+  const raw = String(msg || "").trim();
+  const m = raw.match(/^#?\s*(\d+)(?:(?:\s+|\s*[-–—:,.]\s*)(.+))?$/s);
+  if (!m) return { orderId: null, note: null };
+
+  const note = String(m[2] || "")
     .trim()
-    .match(/^#?\s*(\d+)\s*$/);
-  return m ? Number(m[1]) : null;
+    .replace(/^[-–—:,.]+\s*/, "")
+    .trim()
+    .slice(0, 1000);
+
+  return {
+    orderId: Number(m[1]),
+    note: note || null,
+  };
+}
+
+function buildCheckoutInstruction({ orderId, isEnglish }) {
+  if (isEnglish) {
+    return [
+      `To confirm your order (#${orderId}), reply with:`,
+      String(orderId),
+      "",
+      "If you’d like to add a note for the picker, write it after the number.",
+      `For example: ${orderId} Please choose ripe bananas`,
+    ].join("\n");
+  }
+
+  return [
+    `כדי לסיים את ההזמנה שלך (#${orderId}), השב עם:`,
+    String(orderId),
+    "",
+    "אם תרצה להוסיף הערה למלקט, אפשר לכתוב אותה אחרי המספר.",
+    `לדוגמה: ${orderId} בלי שקיות בבקשה`,
+  ].join("\n");
 }
 
 async function checkIfToCheckoutOrder({
@@ -30,19 +60,33 @@ async function checkIfToCheckoutOrder({
   });
 
   const isEnglish = detectIsEnglish(message);
-  const sentOrderId = parseOrderIdOnly(message);
+  const checkoutConfirmation = parseCheckoutConfirmation(message);
+  const sentOrderId = checkoutConfirmation.orderId;
+  const customerNoteToPicker = checkoutConfirmation.note;
   const isConfirm = Number(sentOrderId) === Number(activeOrder.id);
 
   let botText;
 
   if (isConfirm) {
+    const sets = [
+      "status = 'confirmed'",
+      "prev_status = NULL",
+      "updated_at = NOW()",
+    ];
+    const params = [];
+
+    if (customerNoteToPicker) {
+      sets.push("customer_note_to_picker = ?");
+      params.push(customerNoteToPicker);
+    }
+
+    params.push(activeOrder.id, shop_id);
+
     const [res] = await db.query(
       `UPDATE orders
-         SET status = 'confirmed',
-             prev_status = NULL,
-             updated_at = NOW()
+         SET ${sets.join(", ")}
        WHERE id = ? AND shop_id = ? AND status = 'checkout_pending'`,
-      [activeOrder.id, shop_id]
+      params
     );
 
     if (res.affectedRows === 0) {
@@ -52,9 +96,15 @@ async function checkIfToCheckoutOrder({
     } else {
       await deleteOpenQuestionsByOrderId(activeOrder.id, shop_id);
 
+      const noteSuffix = customerNoteToPicker
+        ? isEnglish
+          ? "\nI also saved your note for the picker."
+          : "\nשמרתי גם את ההערה שלך למלקט."
+        : "";
+
       botText = isEnglish
-        ? `Your order (#${activeOrder.id}) has been confirmed and sent to the shop.`
-        : `ההזמנה שלך (#${activeOrder.id}) אושרה ונשלחה לחנות.`;
+        ? `Your order (#${activeOrder.id}) has been confirmed and sent to the shop.${noteSuffix}`
+        : `ההזמנה שלך (#${activeOrder.id}) אושרה ונשלחה לחנות.${noteSuffix}`;
     }
   } else {
     await db.query(
@@ -131,9 +181,10 @@ async function askToCheckoutOrder(
       : `אי אפשר לסיים את ההזמנה (#${activeOrder.id}) בשלב הזה.`;
   }
 
-  return isEnglish
-    ? `To checkout your order (#${activeOrder.id}), reply with the order number only: ${activeOrder.id}`
-    : `כדי לסיים את ההזמנה שלך (#${activeOrder.id}), השב עם מספר ההזמנה בלבד: ${activeOrder.id}`;
+  return buildCheckoutInstruction({
+    orderId: activeOrder.id,
+    isEnglish,
+  });
 }
 
 module.exports = {

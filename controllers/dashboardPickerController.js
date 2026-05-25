@@ -29,22 +29,36 @@ function parseStatusList(statusParam) {
   return statuses.length ? statuses : ["confirmed", "preparing"];
 }
 
-let HAS_PICKER_NOTE_COL = null;
+const ORDER_COLUMN_CACHE = new Map();
 
-async function hasOrdersPickerNoteColumn(conn) {
-  if (HAS_PICKER_NOTE_COL !== null) return HAS_PICKER_NOTE_COL;
+async function hasOrdersColumn(conn, columnName) {
+  const key = String(columnName || "").trim();
+  if (!key) return false;
+  if (ORDER_COLUMN_CACHE.has(key)) return ORDER_COLUMN_CACHE.get(key);
+
   const [rows] = await conn.query(
     `
     SELECT 1
     FROM INFORMATION_SCHEMA.COLUMNS
     WHERE TABLE_SCHEMA = DATABASE()
       AND TABLE_NAME = 'orders'
-      AND COLUMN_NAME = 'picker_note'
+      AND COLUMN_NAME = ?
     LIMIT 1
     `,
+    [key],
   );
-  HAS_PICKER_NOTE_COL = rows.length > 0;
-  return HAS_PICKER_NOTE_COL;
+
+  const exists = rows.length > 0;
+  ORDER_COLUMN_CACHE.set(key, exists);
+  return exists;
+}
+
+async function hasOrdersPickerNoteColumn(conn) {
+  return hasOrdersColumn(conn, "picker_note");
+}
+
+async function hasOrdersCustomerNoteToPickerColumn(conn) {
+  return hasOrdersColumn(conn, "customer_note_to_picker");
 }
 
 function buildPreparingMsg(orderId) {
@@ -174,9 +188,14 @@ exports.getPickerOrders = async (req, res) => {
     
     const placeholders = statuses.map(() => "?").join(",");
     const hasPickerNoteCol = await hasOrdersPickerNoteColumn(conn);
+    const hasCustomerNoteToPickerCol =
+      await hasOrdersCustomerNoteToPickerColumn(conn);
     const pickerNoteSelect = hasPickerNoteCol
       ? "o.picker_note"
       : "NULL AS picker_note";
+    const customerNoteToPickerSelect = hasCustomerNoteToPickerCol
+      ? "o.customer_note_to_picker"
+      : "NULL AS customer_note_to_picker";
 
     const [ordersRows] = await conn.query(
       `
@@ -191,6 +210,7 @@ exports.getPickerOrders = async (req, res) => {
         o.created_at,
         o.updated_at,
         ${pickerNoteSelect},
+        ${customerNoteToPickerSelect},
         c.name  AS customer_name,
         c.phone AS customer_phone
       FROM orders o
@@ -253,6 +273,7 @@ exports.getPickerOrders = async (req, res) => {
       created_at: o.created_at,
       updated_at: o.updated_at,
       picker_note: o.picker_note ?? null,
+      customer_note_to_picker: o.customer_note_to_picker ?? null,
       customer_name: o.customer_name ?? null,
       customer_phone: o.customer_phone ?? null,
       delivery_address: o.delivery_address ?? null,

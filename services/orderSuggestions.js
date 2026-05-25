@@ -36,6 +36,28 @@ const MAX_BUNDLE_NUDGES_PER_MESSAGE = 3;
 const PRODUCT_RECOMMENDATION_PROMPT_CAT = "ORD";
 const PRODUCT_RECOMMENDATION_PROMPT_SUB = "PRODUCT_RECOMMENDATIONS";
 
+const PRODUCT_RECOMMENDATION_MESSAGE_TEMPLATES = {
+  he: [
+    "רוצה שאוסיף גם {productName} להזמנה?",
+    "אפשר להוסיף גם {productName}. תרצה שאוסיף אחד?",
+    "להוסיף לך גם {productName}?",
+    "רוצה שאצרף להזמנה גם {productName}?",
+    "בא לך שאוסיף גם {productName} להזמנה?",
+  ],
+  en: [
+    "Would you like me to add {productName} to your order?",
+    "Want me to add {productName} as well?",
+    "Should I add {productName} to the order?",
+    "I can add {productName} for you. Want me to add one?",
+    "Would you like to include {productName}?",
+  ],
+};
+
+const lastProductRecommendationTemplateIndex = {
+  he: null,
+  en: null,
+};
+
 const DEFAULT_REPLY_CONFIG = {
   positive: [
     "כן",
@@ -93,6 +115,31 @@ function qtyText(n) {
   const x = Number(n);
   if (!Number.isFinite(x)) return "";
   return x.toFixed(3).replace(/\.?0+$/, "");
+}
+
+function pickProductRecommendationTemplate(isEnglish) {
+  const lang = isEnglish ? "en" : "he";
+  const templates = PRODUCT_RECOMMENDATION_MESSAGE_TEMPLATES[lang] || [];
+  if (!templates.length) return "{productName}";
+
+  if (templates.length === 1) return templates[0];
+
+  const lastIndex = lastProductRecommendationTemplateIndex[lang];
+  let nextIndex = Math.floor(Math.random() * templates.length);
+
+  if (nextIndex === lastIndex) {
+    nextIndex = (nextIndex + 1) % templates.length;
+  }
+
+  lastProductRecommendationTemplateIndex[lang] = nextIndex;
+  return templates[nextIndex];
+}
+
+function buildProductRecommendationMessage({ productName, isEnglish }) {
+  return pickProductRecommendationTemplate(isEnglish).replace(
+    /\{productName\}/g,
+    productName,
+  );
 }
 
 function normalizeReplyConfig(options) {
@@ -724,9 +771,9 @@ async function runProductRecommendationsAndSend({
   isEnglish,
 }) {
   try {
-    if (!customer_id || !shop_id || !order_id || !phone_number) return;
+    if (!customer_id || !shop_id || !order_id || !phone_number) return false;
     const cartItems = await getCurrentCartItems({ order_id, shop_id });
-    if (!cartItems.length) return;
+    if (!cartItems.length) return false;
 
     const systemPrompt = await getPromptFromDB(
       PRODUCT_RECOMMENDATION_PROMPT_CAT,
@@ -737,7 +784,7 @@ async function runProductRecommendationsAndSend({
       console.warn(
         `[product recommendations] Missing DB prompt ${PRODUCT_RECOMMENDATION_PROMPT_CAT}.${PRODUCT_RECOMMENDATION_PROMPT_SUB}`,
       );
-      return;
+      return false;
     }
 
     const answer = await chat({
@@ -760,12 +807,12 @@ async function runProductRecommendationsAndSend({
         parsed = parseModelAnswer(answer);
       } catch (e2) {
         console.error("[product recommendations] Failed to parse JSON", e2?.message, answer);
-        return;
+        return false;
       }
     }
 
     const suggestions = Array.isArray(parsed?.suggestions) ? parsed.suggestions : [];
-    if (!suggestions.length) return;
+    if (!suggestions.length) return false;
 
     const existingIds = await getExistingProductIdsInOrder({ order_id });
     const chosen = [];
@@ -790,16 +837,14 @@ async function runProductRecommendationsAndSend({
       chosen.push({ suggestion: s, row });
     }
 
-    if (!chosen.length) return;
+    if (!chosen.length) return false;
 
     const first = chosen[0];
     const productName = displayName(first.row, isEnglish);
-    const cartNames = cartItems.map((it) => displayName(it, isEnglish)).filter(Boolean);
-    const contextNames = cartNames.slice(0, 2).join(isEnglish ? " and " : " ו");
-
-    const message = isEnglish
-      ? `By the way, I noticed you have ${contextNames}. ${productName} could fit well with that. Want me to add one?`
-      : `אגב, ראיתי שלקחת ${contextNames}. יכול להתאים גם ${productName}. להוסיף לך אחד להזמנה?`;
+    const message = buildProductRecommendationMessage({
+      productName,
+      isEnglish,
+    });
 
     await recordShownSuggestion({
       customer_id,
@@ -847,8 +892,11 @@ async function runProductRecommendationsAndSend({
       status: "classified",
       message,
     });
+
+    return true;
   } catch (err) {
     console.error("[product recommendations async]", err?.response?.data || err);
+    return false;
   }
 }
 

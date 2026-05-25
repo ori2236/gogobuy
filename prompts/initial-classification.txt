@@ -13,7 +13,7 @@ INV.AVAIL - questions about current inventory: whether the store has certain pro
 INV.PRICE_AND_SALES - price or promotion of product(s), any questions on cheaper and pricing
 
 BUS - Business info & policies:
-BUS.GENERAL_INFO - store address, phone, WhatsApp, email, Google Maps link, opening hours, special/holiday hours, delivery support, pickup support, or store kashrut or anything general aboat the business
+BUS.GENERAL_INFO - store address, phone, WhatsApp, email, Google Maps link, opening hours, special/holiday hours, delivery support, pickup support, or store kashrut or anything general about the business
 
 Output MUST be exactly one line:
 - "1, <SUB-CATEGORY>"
