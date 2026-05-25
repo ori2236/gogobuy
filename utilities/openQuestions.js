@@ -26,6 +26,8 @@ async function saveOpenQuestions({
       if (Array.isArray(q.options)) {
         optionsArr = q.options.map((s) => String(s).trim()).filter(Boolean);
         if (!optionsArr.length) optionsArr = null;
+      } else if (q.options && typeof q.options === "object") {
+        optionsArr = q.options;
       }
     }
 
@@ -55,7 +57,7 @@ async function saveOpenQuestions({
 async function getOpenQuestions(
   customer_id,
   shop_id,
-  { hours = 48, limit = 7 } = {}
+  { hours = 48, limit = 7 } = {},
 ) {
   const [rows] = await db.query(
     `SELECT id, order_id, product_name, question_text, option_set, asked_at
@@ -66,7 +68,7 @@ async function getOpenQuestions(
         AND asked_at >= (NOW() - INTERVAL ? HOUR)
       ORDER BY asked_at DESC, id DESC
       LIMIT ?`,
-    [customer_id, shop_id, hours, limit]
+    [customer_id, shop_id, hours, limit],
   );
 
   return (rows || []).map((r) => ({
@@ -91,7 +93,7 @@ async function fetchOpenQuestions(customer_id, shop_id, limit = 7) {
         AND asked_at >= (NOW() - INTERVAL 48 HOUR)
       ORDER BY asked_at DESC, id DESC
       LIMIT ?`,
-    [customer_id, shop_id, Number(limit)]
+    [customer_id, shop_id, Number(limit)],
   );
   return rows || [];
 }
@@ -105,7 +107,7 @@ async function fetchRecentClosedQuestions(customer_id, shop_id, limit = 7) {
         AND asked_at >= (NOW() - INTERVAL 48 HOUR)
       ORDER BY asked_at DESC, id DESC
       LIMIT ?`,
-    [customer_id, shop_id, Number(limit)]
+    [customer_id, shop_id, Number(limit)],
   );
   return rows || [];
 }
@@ -116,7 +118,7 @@ async function closeQuestionsByIds(ids = []) {
     `UPDATE chat_open_question
         SET status = 'close'
       WHERE id IN (${ids.map(() => "?").join(",")})`,
-    ids
+    ids,
   );
   return res?.affectedRows || 0;
 }
@@ -126,14 +128,12 @@ async function deleteQuestionsByIds(ids = []) {
   const [res] = await db.query(
     `DELETE FROM chat_open_question
       WHERE id IN (${ids.map(() => "?").join(",")})`,
-    ids
+    ids,
   );
   return res?.affectedRows || 0;
 }
 
-function buildOpenQuestionsContextForPrompt(
-  openQuestions = []
-) {
+function buildOpenQuestionsContextForPrompt(openQuestions = []) {
   const lite = (qs) =>
     qs.map((q) => ({
       id: q.id,
@@ -167,7 +167,7 @@ async function deleteOpenQuestionsByOrderId(order_id, shop_id) {
   const [res] = await db.query(
     `DELETE FROM chat_open_question
       WHERE order_id = ? AND shop_id = ? AND status = 'open'`,
-    [order_id, shop_id]
+    [order_id, shop_id],
   );
   return res?.affectedRows || 0;
 }

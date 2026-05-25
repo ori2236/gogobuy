@@ -20,6 +20,9 @@ const {
   buildItemsBlock,
   buildQuestionsBlock,
 } = require("../../utilities/messageBuilders");
+const {
+  buildBundlePromotionFollowUps,
+} = require("../../services/orderSuggestions");
 
 const PROMPT_CAT = "ORD";
 const PROMPT_SUB = "CREATE";
@@ -563,6 +566,30 @@ module.exports = {
       "[ORD-CREATE] Not found (no product matched):",
       JSON.stringify(notFound, null, 2),
     );
-    return finalMessage;
+
+    const productIdsForSuggestions = rows
+      .map((r) => Number(r.product_id))
+      .filter(Boolean);
+
+    const followUpMessages = await buildBundlePromotionFollowUps({
+      customer_id,
+      shop_id,
+      order_id: orderRes.order_id,
+      productIds: productIdsForSuggestions,
+      isEnglish,
+      maxPerProduct,
+    });
+
+    return {
+      message: finalMessage,
+      followUpMessages,
+      productRecommendationContext: {
+        customer_id,
+        shop_id,
+        order_id: orderRes.order_id,
+        isEnglish,
+        hasOpenQuestions: hasQuestions,
+      },
+    };
   },
 };

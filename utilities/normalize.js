@@ -17,6 +17,12 @@ function normalizeIncomingQuestions(qs, { preserveOptions = false } = {}) {
       };
       if (preserveOptions && Array.isArray(q.options)) {
         item.options = q.options.map((s) => String(s).trim()).filter(Boolean);
+      } else if (
+        preserveOptions &&
+        q.options &&
+        typeof q.options === "object"
+      ) {
+        item.options = q.options;
       }
       out.push(item);
     }

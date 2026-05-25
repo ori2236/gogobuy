@@ -21,6 +21,7 @@ const { checkIfToCancelOrder } = require("../categoryHandlers/ORD/CANCEL");
 const { checkIfToCheckoutOrder } = require("../categoryHandlers/ORD/CHECKOUT");
 const { sendWhatsAppMarkAsRead } = require("../utilities/whatsapp");
 const { startSlowProgression } = require("./sendProgressionMessage");
+const { handleSuggestionReply } = require("./orderSuggestions");
 
 const maxPerProduct = 10;
 
@@ -72,6 +73,36 @@ async function processMessage(
   if (cancelReply) return cancelReply;
 
   const openQs = await fetchOpenQuestions(customer_id, shop_id, 7);
+
+  const suggestionReply = await handleSuggestionReply({
+    message,
+    customer_id,
+    shop_id,
+    activeOrder,
+    openQs,
+    maxPerProduct,
+  });
+
+  if (suggestionReply) {
+    await saveChat({
+      customer_id,
+      shop_id,
+      sender: "customer",
+      status: "classified",
+      message,
+    });
+
+    await saveChat({
+      customer_id,
+      shop_id,
+      sender: "bot",
+      status: "classified",
+      message: suggestionReply,
+    });
+
+    return suggestionReply;
+  }
+
   const closedQs = await fetchRecentClosedQuestions(customer_id, shop_id, 5);
 
   const { parsed, replyText, history } = await classifyIncoming({
@@ -193,6 +224,20 @@ async function processMessage(
       status: "classified",
       message: botText,
     });
+
+    if (botPayload && Array.isArray(botPayload.followUpMessages)) {
+      for (const followUp of botPayload.followUpMessages) {
+        const msg = typeof followUp === "string" ? followUp.trim() : "";
+        if (!msg) continue;
+        await saveChat({
+          customer_id,
+          shop_id,
+          sender: "bot",
+          status: "classified",
+          message: msg,
+        });
+      }
+    }
 
     return botPayload;
   } else {

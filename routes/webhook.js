@@ -3,6 +3,10 @@ const router = express.Router();
 const db = require("../config/db");
 const { sendWhatsAppText } = require("../utilities/whatsapp");
 const { processMessage } = require("../services/messageFlow");
+const {
+  runProductRecommendationsAndSend,
+  shouldStartProductRecommendations,
+} = require("../services/orderSuggestions");
 
 const VERIFY_TOKEN = (process.env.WHATSAPP_VERIFY_TOKEN || "").trim();
 
@@ -72,9 +76,10 @@ router.post("/webhooks", async (req, res) => {
     (async () => {
       try {
         let reply = "תודה";
+        let botResp = null;
 
         if (messageText) {
-          const botResp = await processMessage(
+          botResp = await processMessage(
             messageText,
             from,
             SHOP_ID,
@@ -96,6 +101,27 @@ router.post("/webhooks", async (req, res) => {
         }
 
         await sendWhatsAppText(from, reply);
+
+        const followUpMessages = Array.isArray(botResp?.followUpMessages)
+          ? botResp.followUpMessages
+          : [];
+
+        for (const followUp of followUpMessages) {
+          const text = typeof followUp === "string" ? followUp.trim() : "";
+          if (!text) continue;
+          await sendWhatsAppText(from, text);
+        }
+
+        if (shouldStartProductRecommendations(botResp)) {
+          const ctx = botResp.productRecommendationContext;
+          setImmediate(() => {
+            runProductRecommendationsAndSend({
+              ...ctx,
+              phone_number: from,
+            });
+          });
+        }
+
         console.log("Bot replied to", from, "for waMessageId", waMessageId);
       } catch (err) {
         console.error(

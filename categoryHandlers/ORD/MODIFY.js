@@ -27,6 +27,7 @@ const {
   buildItemsBlock,
   buildQuestionsBlock,
 } = require("../../utilities/messageBuilders");
+const { buildBundlePromotionFollowUps } = require("../../services/orderSuggestions");
 
 const PROMPT_CAT = "ORD";
 const PROMPT_SUB = "MODIFY";
@@ -1170,7 +1171,7 @@ module.exports = {
         isEnglish,
       });
 
-      return [
+      const finalMessage = [
         summaryLine,
         limitWarningsBlock,
         itemsBlock,
@@ -1180,6 +1181,34 @@ module.exports = {
       ]
         .filter(Boolean)
         .join("\n");
+
+      const touchedProductIdsForSuggestions = [
+        ...((txRes.meta && txRes.meta.qtyIncreased) || []).map((x) => x.product_id),
+        ...((txRes.meta && txRes.meta.addedApplied) || []).map((x) => x.product_id),
+      ]
+        .map(Number)
+        .filter(Boolean);
+
+      const followUpMessages = await buildBundlePromotionFollowUps({
+        customer_id,
+        shop_id,
+        order_id: order.id,
+        productIds: touchedProductIdsForSuggestions,
+        isEnglish,
+        maxPerProduct,
+      });
+
+      return {
+        message: finalMessage,
+        followUpMessages,
+        productRecommendationContext: {
+          customer_id,
+          shop_id,
+          order_id: order.id,
+          isEnglish,
+          hasOpenQuestions: hasQuestions,
+        },
+      };
     } catch (e) {
       console.error("[ORD-MODIFY] Fatal apply error:", e);
       console.error("[ORD-MODIFY] Error context:", {
