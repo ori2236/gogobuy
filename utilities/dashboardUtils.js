@@ -9,6 +9,9 @@ function clampInt(n, min, max, fallback) {
 }
 
 function parseShopId(req) {
+  const authShopId = Number(req.dashboardUser?.shop_id);
+  if (Number.isFinite(authShopId) && authShopId > 0) return authShopId;
+
   const q = Number(req.query.shop_id);
   const b = Number(req.body?.shop_id);
   const shopId =

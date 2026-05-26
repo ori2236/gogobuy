@@ -3,6 +3,17 @@ const router = express.Router();
 const picker = require("../controllers/dashboardPickerController");
 const stock = require("../controllers/dashboardStockController");
 const promotions = require("../controllers/dashboardPromotionsController");
+const auth = require("../controllers/dashboardAuthController");
+const settings = require("../controllers/dashboardSettingsController");
+const { requireDashboardAuth } = require("../middleware/dashboardAuth");
+
+router.post("/auth/login", auth.login);
+router.get("/auth/me", requireDashboardAuth, auth.me);
+
+router.use(requireDashboardAuth);
+
+router.get("/settings/business", settings.getBusinessSettings);
+router.patch("/settings/business", settings.updateBusinessSettings);
 
 router.get("/picker/orders", picker.getPickerOrders);
 
