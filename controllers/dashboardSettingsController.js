@@ -8,6 +8,10 @@ const SHOP_EXTRA_COLUMNS = {
   supports_pickup: "TINYINT(1) NOT NULL DEFAULT 1",
   kashrut: "VARCHAR(120) DEFAULT NULL",
   about: "TEXT DEFAULT NULL",
+  min_order_amount: "DECIMAL(10,2) NOT NULL DEFAULT 0.00",
+  delivery_fee: "DECIMAL(10,2) NOT NULL DEFAULT 0.00",
+  cart_empty_reminder_minutes: "INT UNSIGNED NOT NULL DEFAULT 0",
+  stock_release_after_inactive_minutes: "INT UNSIGNED NOT NULL DEFAULT 0",
 };
 
 const DAYS = [0, 1, 2, 3, 4, 5, 6];
@@ -44,6 +48,20 @@ function cleanTime(value) {
   const min = Number(m[2]);
   if (!Number.isInteger(h) || !Number.isInteger(min) || h < 0 || h > 23 || min < 0 || min > 59) return null;
   return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}:00`;
+}
+
+function cleanMoney(value, fallback = 0) {
+  if (value === null || value === undefined || value === "") return fallback;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return fallback;
+  return Math.round(n * 100) / 100;
+}
+
+function cleanMinutes(value, fallback = 0) {
+  if (value === null || value === undefined || value === "") return fallback;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return fallback;
+  return Math.floor(n);
 }
 
 function cleanDate(value) {
@@ -197,7 +215,11 @@ exports.getBusinessSettings = async (req, res) => {
         supports_delivery,
         supports_pickup,
         kashrut,
-        about
+        about,
+        min_order_amount,
+        delivery_fee,
+        cart_empty_reminder_minutes,
+        stock_release_after_inactive_minutes
       FROM shop
       WHERE id = ?
       LIMIT 1
@@ -298,7 +320,11 @@ exports.updateBusinessSettings = async (req, res) => {
         supports_delivery = ?,
         supports_pickup = ?,
         kashrut = ?,
-        about = ?
+        about = ?,
+        min_order_amount = ?,
+        delivery_fee = ?,
+        cart_empty_reminder_minutes = ?,
+        stock_release_after_inactive_minutes = ?
       WHERE id = ?
       `,
       [
@@ -312,6 +338,10 @@ exports.updateBusinessSettings = async (req, res) => {
         toBool(info.supports_pickup) ? 1 : 0,
         cleanText(info.kashrut, 120),
         cleanText(info.about, 4000),
+        cleanMoney(info.min_order_amount, 0),
+        cleanMoney(info.delivery_fee, 0),
+        cleanMinutes(info.cart_empty_reminder_minutes, 0),
+        cleanMinutes(info.stock_release_after_inactive_minutes, 0),
         shopId,
       ],
     );

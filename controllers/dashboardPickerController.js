@@ -61,6 +61,47 @@ async function hasOrdersCustomerNoteToPickerColumn(conn) {
   return hasOrdersColumn(conn, "customer_note_to_picker");
 }
 
+
+const ORDER_ITEM_COLUMN_CACHE = new Map();
+
+async function hasOrderItemColumn(conn, columnName) {
+  const key = String(columnName || "").trim();
+  if (!key) return false;
+  if (ORDER_ITEM_COLUMN_CACHE.has(key)) return ORDER_ITEM_COLUMN_CACHE.get(key);
+
+  const [rows] = await conn.query(
+    `
+    SELECT 1
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = 'order_item'
+      AND COLUMN_NAME = ?
+    LIMIT 1
+    `,
+    [key],
+  );
+
+  const exists = rows.length > 0;
+  ORDER_ITEM_COLUMN_CACHE.set(key, exists);
+  return exists;
+}
+
+async function ensureOrderItemPickerColumns(conn) {
+  if (!(await hasOrderItemColumn(conn, "supplied_amount"))) {
+    await conn.query(
+      "ALTER TABLE order_item ADD COLUMN supplied_amount DECIMAL(10,3) DEFAULT NULL AFTER requested_units",
+    );
+    ORDER_ITEM_COLUMN_CACHE.set("supplied_amount", true);
+  }
+
+  if (!(await hasOrderItemColumn(conn, "picker_note"))) {
+    await conn.query(
+      "ALTER TABLE order_item ADD COLUMN picker_note TEXT DEFAULT NULL AFTER supplied_amount",
+    );
+    ORDER_ITEM_COLUMN_CACHE.set("picker_note", true);
+  }
+}
+
 function buildPreparingMsg(orderId) {
   return `ההזמנה שלך (#${orderId}) התחילה להילקט\nנעדכן אותך כשהיא תהיה מוכנה.`;
 }
@@ -197,6 +238,8 @@ exports.getPickerOrders = async (req, res) => {
       ? "o.customer_note_to_picker"
       : "NULL AS customer_note_to_picker";
 
+    await ensureOrderItemPickerColumns(conn);
+
     const [ordersRows] = await conn.query(
       `
       SELECT
@@ -239,6 +282,8 @@ exports.getPickerOrders = async (req, res) => {
         oi.amount     AS amount,
         oi.sold_by_weight AS sold_by_weight,
         oi.requested_units AS requested_units,
+        oi.supplied_amount AS supplied_amount,
+        oi.picker_note AS item_picker_note,
         COALESCE(p.name, dp.name, CONCAT('מוצר שנמחק (#', oi.product_id, ')')) AS product_name
       FROM order_item oi
       LEFT JOIN product p
@@ -262,6 +307,9 @@ exports.getPickerOrders = async (req, res) => {
         sold_by_weight: Boolean(r.sold_by_weight),
         requested_units:
           r.requested_units == null ? null : Number(r.requested_units),
+        supplied_amount:
+          r.supplied_amount == null ? null : Number(r.supplied_amount),
+        picker_note: r.item_picker_note ?? null,
         unit_label: Boolean(r.sold_by_weight) ? 'ק"ג' : "יח'",
       });
     }
@@ -291,17 +339,133 @@ exports.getPickerOrders = async (req, res) => {
   }
 };
 
+
+function normalizeSuppliedAmount(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) {
+    const err = new Error("Invalid supplied_amount");
+    err.status = 400;
+    throw err;
+  }
+  return Math.round(n * 1000) / 1000;
+}
+
+function cleanItemPickerNote(value) {
+  const s = String(value ?? "").trim();
+  return s ? s.slice(0, 1000) : null;
+}
+
+exports.updateOrderItemPickerDetails = async (req, res) => {
+  const conn = await db.getConnection();
+  try {
+    const shopId = parseShopId(req);
+    const orderId = Number(req.params.orderId);
+    const itemId = Number(req.params.itemId);
+
+    if (!Number.isFinite(shopId) || shopId <= 0) {
+      return res.status(400).json({ ok: false, message: "Invalid shop_id" });
+    }
+    if (!Number.isFinite(orderId) || orderId <= 0) {
+      return res.status(400).json({ ok: false, message: "Invalid orderId" });
+    }
+    if (!Number.isFinite(itemId) || itemId <= 0) {
+      return res.status(400).json({ ok: false, message: "Invalid itemId" });
+    }
+
+    const suppliedAmount = normalizeSuppliedAmount(req.body?.supplied_amount);
+    const itemPickerNote = cleanItemPickerNote(req.body?.picker_note);
+
+    await ensureOrderItemPickerColumns(conn);
+    await conn.beginTransaction();
+
+    const [[row]] = await conn.query(
+      `
+      SELECT
+        oi.id,
+        oi.order_id,
+        oi.amount,
+        o.status,
+        o.shop_id
+      FROM order_item oi
+      JOIN orders o ON o.id = oi.order_id
+      WHERE oi.id = ?
+        AND oi.order_id = ?
+        AND o.shop_id = ?
+      FOR UPDATE
+      `,
+      [itemId, orderId, shopId],
+    );
+
+    if (!row) {
+      await conn.rollback();
+      return res.status(404).json({ ok: false, message: "Order item not found" });
+    }
+
+    if (row.status !== "preparing") {
+      await conn.rollback();
+      return res.status(409).json({
+        ok: false,
+        message: "אפשר לעדכן כמות שסופקה והערות מוצר רק כשההזמנה בסטטוס בליקוט",
+      });
+    }
+
+    const amount = Number(row.amount);
+    const storedSuppliedAmount =
+      suppliedAmount === null || Math.abs(suppliedAmount - amount) < 0.0005
+        ? null
+        : suppliedAmount;
+
+    await conn.query(
+      `
+      UPDATE order_item
+      SET supplied_amount = ?, picker_note = ?
+      WHERE id = ?
+      `,
+      [storedSuppliedAmount, itemPickerNote, itemId],
+    );
+
+    await conn.commit();
+
+    return res.json({
+      ok: true,
+      item: {
+        id: itemId,
+        order_id: orderId,
+        supplied_amount: storedSuppliedAmount,
+        picker_note: itemPickerNote,
+      },
+    });
+  } catch (err) {
+    try {
+      await conn.rollback();
+    } catch {}
+    console.error("[dashboard.updateOrderItemPickerDetails]", err);
+    return res.status(err.status || 500).json({
+      ok: false,
+      message: err.status ? err.message : "Server error",
+    });
+  } finally {
+    conn.release();
+  }
+};
+
 exports.updateOrderStatus = async (req, res) => {
   const conn = await db.getConnection();
   try {
+    const shopId = parseShopId(req);
     const orderId = Number(req.params.orderId);
     const nextStatus = String(req.body?.status || "").trim();
+
+    if (!Number.isFinite(shopId) || shopId <= 0) {
+      return res.status(400).json({ ok: false, message: "Invalid shop_id" });
+    }
 
     if (!Number.isFinite(orderId) || orderId <= 0) {
       return res.status(400).json({ ok: false, message: "Invalid orderId" });
     }
 
-    if (!["preparing", "ready"].includes(nextStatus)) {
+    if (!["preparing", "ready", "completed"].includes(nextStatus)) {
       return res.status(400).json({ ok: false, message: "Invalid status" });
     }
 
@@ -331,9 +495,10 @@ exports.updateOrderStatus = async (req, res) => {
       FROM orders o
       JOIN customer c ON c.id = o.customer_id
       WHERE o.id = ?
+        AND o.shop_id = ?
       FOR UPDATE
       `,
-      [orderId],
+      [orderId, shopId],
     );
 
     if (!rows.length) {
@@ -348,6 +513,7 @@ exports.updateOrderStatus = async (req, res) => {
     // rules:
     // confirmed -> preparing
     // preparing -> ready
+    // ready -> completed
     // idempotent allowed
     if (nextStatus === "preparing") {
       if (current !== "confirmed" && current !== "preparing") {
@@ -365,6 +531,16 @@ exports.updateOrderStatus = async (req, res) => {
         return res.status(409).json({
           ok: false,
           message: `Cannot move from ${current} to ready`,
+        });
+      }
+    }
+
+    if (nextStatus === "completed") {
+      if (current !== "ready" && current !== "completed") {
+        await conn.rollback();
+        return res.status(409).json({
+          ok: false,
+          message: `Cannot move from ${current} to completed`,
         });
       }
     }
@@ -396,7 +572,7 @@ exports.updateOrderStatus = async (req, res) => {
 
     res.json({ ok: true, order: { id: orderId, status: nextStatus } });
 
-    if (statusChanged && customerPhone) {
+    if (statusChanged && customerPhone && nextStatus !== "completed") {
       const noteToSend =
         nextStatus === "ready"
           ? hasNoteInBody

@@ -18,6 +18,7 @@ router.patch("/settings/business", settings.updateBusinessSettings);
 router.get("/picker/orders", picker.getPickerOrders);
 
 router.patch("/picker/orders/:orderId/status", picker.updateOrderStatus);
+router.patch("/picker/orders/:orderId/items/:itemId", picker.updateOrderItemPickerDetails);
 
 router.get("/stock/categories", stock.getStockCategories);
 

@@ -7,6 +7,10 @@ const SHOP_EXTRA_COLUMNS = {
   supports_pickup: "TINYINT(1) NOT NULL DEFAULT 1",
   kashrut: "VARCHAR(120) DEFAULT NULL",
   about: "TEXT DEFAULT NULL",
+  min_order_amount: "DECIMAL(10,2) NOT NULL DEFAULT 0.00",
+  delivery_fee: "DECIMAL(10,2) NOT NULL DEFAULT 0.00",
+  cart_empty_reminder_minutes: "INT UNSIGNED NOT NULL DEFAULT 0",
+  stock_release_after_inactive_minutes: "INT UNSIGNED NOT NULL DEFAULT 0",
 };
 
 let schemaReadyPromise = null;
@@ -91,7 +95,11 @@ async function getShopInfo(shop_id) {
       s.supports_delivery,
       s.supports_pickup,
       s.kashrut,
-      s.about
+      s.about,
+      s.min_order_amount,
+      s.delivery_fee,
+      s.cart_empty_reminder_minutes,
+      s.stock_release_after_inactive_minutes
     FROM shop s
     WHERE s.id = ?
     LIMIT 1

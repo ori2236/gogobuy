@@ -18,6 +18,111 @@ const DELETE_FROM_ORDER_STATUSES = [
   "cancel_pending",
 ];
 
+const PRODUCT_EMOJI_COLUMNS = {
+  product: "VARCHAR(32) DEFAULT NULL",
+  product_subcategory: "VARCHAR(32) DEFAULT NULL",
+};
+
+let productEmojiSchemaReadyPromise = null;
+
+async function hasColumn(tableName, columnName, conn = db) {
+  const [rows] = await conn.query(
+    `
+    SELECT 1
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = ?
+      AND COLUMN_NAME = ?
+    LIMIT 1
+    `,
+    [tableName, columnName],
+  );
+  return rows.length > 0;
+}
+
+async function ensureProductEmojiSchemaNow(conn = db) {
+  if (!(await hasColumn("product", "emoji", conn))) {
+    await conn.query(`ALTER TABLE product ADD COLUMN emoji ${PRODUCT_EMOJI_COLUMNS.product} AFTER image`);
+  }
+  if (!(await hasColumn("product_subcategory", "emoji", conn))) {
+    await conn.query(`ALTER TABLE product_subcategory ADD COLUMN emoji ${PRODUCT_EMOJI_COLUMNS.product_subcategory} AFTER name`);
+  }
+  await conn.query(
+    `
+    UPDATE product p
+    JOIN product_category c ON c.name = p.category
+    JOIN product_subcategory s ON s.category_id = c.id AND s.name = p.sub_category
+    SET p.emoji = s.emoji
+    WHERE (p.emoji IS NULL OR p.emoji = '')
+      AND s.emoji IS NOT NULL
+      AND s.emoji <> ''
+    `,
+  );
+}
+
+async function ensureProductEmojiSchema(conn = db) {
+  if (conn !== db) {
+    await ensureProductEmojiSchemaNow(conn);
+    return;
+  }
+
+  if (!productEmojiSchemaReadyPromise) {
+    productEmojiSchemaReadyPromise = ensureProductEmojiSchemaNow(db).catch((err) => {
+      productEmojiSchemaReadyPromise = null;
+      throw err;
+    });
+  }
+
+  return productEmojiSchemaReadyPromise;
+}
+
+function cleanEmoji(value) {
+  const s = String(value ?? "").trim();
+  return s ? s.slice(0, 32) : null;
+}
+
+async function getSubcategoryEmoji(category, subCategory, conn = db) {
+  const c = String(category ?? "").trim();
+  const s = String(subCategory ?? "").trim();
+  if (!c || !s) return null;
+
+  const [[row]] = await conn.query(
+    `
+    SELECT ps.emoji
+    FROM product_category pc
+    JOIN product_subcategory ps ON ps.category_id = pc.id
+    WHERE pc.name = ? AND ps.name = ?
+    LIMIT 1
+    `,
+    [c, s],
+  );
+
+  return cleanEmoji(row?.emoji);
+}
+
+async function resolveProductEmoji({ category, subCategory, emoji }, conn = db) {
+  const explicit = cleanEmoji(emoji);
+  if (explicit) return explicit;
+  return (await getSubcategoryEmoji(category, subCategory, conn)) || null;
+}
+
+function normalizeProductRow(r) {
+  return {
+    id: Number(r.id),
+    shop_id: Number(r.shop_id),
+    name: r.name ?? "",
+    display_name_en: r.display_name_en ?? "",
+    price: r.price == null ? null : Number(r.price),
+    stock_amount: r.stock_amount == null ? null : Number(r.stock_amount),
+    emoji: cleanEmoji(r.emoji || r.subcategory_emoji),
+    subcategory_emoji: cleanEmoji(r.subcategory_emoji),
+    category: r.category ?? null,
+    sub_category: r.sub_category ?? null,
+    created_at: r.created_at ?? null,
+    updated_at: r.updated_at ?? null,
+  };
+}
+
 function validateCategory(category, categoryMap) {
   return Object.prototype.hasOwnProperty.call(categoryMap, category);
 }
@@ -58,8 +163,33 @@ exports.getStockCategories = async (req, res) => {
       return res.status(400).json({ ok: false, message: "Invalid shop_id" });
     }
 
-    const categoryMap = await fetchCategoriesMap();
-    const categories = Object.entries(categoryMap).map(([category, subs]) => ({
+    await ensureProductEmojiSchema();
+
+    const [rows] = await db.query(
+      `
+      SELECT
+        c.name AS category,
+        s.name AS subcategory,
+        s.emoji AS emoji
+      FROM product_category c
+      JOIN product_subcategory s ON s.category_id = c.id
+      ORDER BY c.sort_order, s.sort_order
+      `,
+    );
+
+    const byCategory = new Map();
+    for (const row of rows || []) {
+      const category = String(row.category || "").trim();
+      const subcategory = String(row.subcategory || "").trim();
+      if (!category || !subcategory) continue;
+      if (!byCategory.has(category)) byCategory.set(category, []);
+      byCategory.get(category).push({
+        name: subcategory,
+        emoji: cleanEmoji(row.emoji) || "",
+      });
+    }
+
+    const categories = Array.from(byCategory.entries()).map(([category, subs]) => ({
       category,
       sub_categories: subs,
     }));
@@ -77,6 +207,8 @@ exports.listStockProducts = async (req, res) => {
     if (!Number.isFinite(shopId) || shopId <= 0) {
       return res.status(400).json({ ok: false, message: "Invalid shop_id" });
     }
+
+    await ensureProductEmojiSchema();
 
     const q = String(req.query.q ?? "").trim();
     const category = isNonEmptyString(req.query.category)
@@ -170,11 +302,15 @@ exports.listStockProducts = async (req, res) => {
         p.display_name_en,
         p.price,
         p.stock_amount,
+        p.emoji,
+        ps.emoji AS subcategory_emoji,
         p.category,
         p.sub_category,
         p.created_at,
         p.updated_at
       FROM product p
+      LEFT JOIN product_category pc ON pc.name = p.category
+      LEFT JOIN product_subcategory ps ON ps.category_id = pc.id AND ps.name = p.sub_category
       WHERE ${where.join(" AND ")}
       ORDER BY p.id DESC
       LIMIT ?
@@ -182,18 +318,7 @@ exports.listStockProducts = async (req, res) => {
       [...params, limit],
     );
 
-    const products = (rows || []).map((r) => ({
-      id: Number(r.id),
-      shop_id: Number(r.shop_id),
-      name: r.name ?? "",
-      display_name_en: r.display_name_en ?? "",
-      price: r.price == null ? null : Number(r.price),
-      stock_amount: r.stock_amount == null ? null : Number(r.stock_amount),
-      category: r.category ?? null,
-      sub_category: r.sub_category ?? null,
-      created_at: r.created_at ?? null,
-      updated_at: r.updated_at ?? null,
-    }));
+    const products = (rows || []).map(normalizeProductRow);
 
     const next_cursor =
       products.length === limit ? products[products.length - 1].id : null;
@@ -211,6 +336,8 @@ exports.createStockProduct = async (req, res) => {
     if (!Number.isFinite(shopId) || shopId <= 0) {
       return res.status(400).json({ ok: false, message: "Invalid shop_id" });
     }
+
+    await ensureProductEmojiSchema();
 
     const name = String(req.body?.name ?? "").trim();
     const display_name_en = String(req.body?.display_name_en ?? "").trim();
@@ -245,12 +372,18 @@ exports.createStockProduct = async (req, res) => {
         .status(400)
         .json({ ok: false, message: "Invalid sub_category for category" });
 
+    const emoji = await resolveProductEmoji({
+      category,
+      subCategory: sub_category,
+      emoji: req.body?.emoji,
+    });
+
     const [ins] = await db.query(
       `
       INSERT INTO product
-        (shop_id, name, display_name_en, price, stock_amount, category, sub_category, created_at, updated_at)
+        (shop_id, name, display_name_en, price, stock_amount, category, sub_category, emoji, created_at, updated_at)
       VALUES
-        (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       `,
       [
         shopId,
@@ -260,6 +393,7 @@ exports.createStockProduct = async (req, res) => {
         stock_amount,
         category,
         sub_category,
+        emoji,
       ],
     );
 
@@ -267,9 +401,14 @@ exports.createStockProduct = async (req, res) => {
 
     const [rows] = await db.query(
       `
-      SELECT id, shop_id, name, display_name_en, price, stock_amount, category, sub_category, created_at, updated_at
-      FROM product
-      WHERE id = ? AND shop_id = ?
+      SELECT
+        p.id, p.shop_id, p.name, p.display_name_en, p.price, p.stock_amount,
+        p.emoji, ps.emoji AS subcategory_emoji,
+        p.category, p.sub_category, p.created_at, p.updated_at
+      FROM product p
+      LEFT JOIN product_category pc ON pc.name = p.category
+      LEFT JOIN product_subcategory ps ON ps.category_id = pc.id AND ps.name = p.sub_category
+      WHERE p.id = ? AND p.shop_id = ?
       LIMIT 1
       `,
       [id, shopId],
@@ -277,7 +416,7 @@ exports.createStockProduct = async (req, res) => {
     rebuildTokenWeightsForShop(shopId).catch((e) =>
       console.error("[tokens.rebuild] failed", e?.message || e),
     );
-    return res.status(201).json({ ok: true, product: rows[0] || { id } });
+    return res.status(201).json({ ok: true, product: rows[0] ? normalizeProductRow(rows[0]) : { id } });
   } catch (err) {
     console.error("[stock.createStockProduct]", err);
     return res.status(500).json({ ok: false, message: "Server error" });
@@ -297,11 +436,12 @@ exports.updateStockProduct = async (req, res) => {
       return res.status(400).json({ ok: false, message: "Invalid product id" });
     }
 
+    await ensureProductEmojiSchema(conn);
     await conn.beginTransaction();
 
     const [existingRows] = await conn.query(
       `
-      SELECT id, shop_id, name, category, sub_category
+      SELECT id, shop_id, name, category, sub_category, emoji
       FROM product
       WHERE id = ? AND shop_id = ?
       FOR UPDATE
@@ -410,6 +550,24 @@ exports.updateStockProduct = async (req, res) => {
       params.push(nextSub);
     }
 
+    const hasEmoji = Object.prototype.hasOwnProperty.call(
+      req.body || {},
+      "emoji",
+    );
+
+    if (hasEmoji || hasCat || hasSub) {
+      const nextEmoji = await resolveProductEmoji(
+        {
+          category: nextCategory,
+          subCategory: nextSub,
+          emoji: hasEmoji ? req.body.emoji : existing.emoji,
+        },
+        conn,
+      );
+      sets.push("emoji = ?");
+      params.push(nextEmoji);
+    }
+
     if (!sets.length) {
       await conn.rollback();
       return res
@@ -429,9 +587,14 @@ exports.updateStockProduct = async (req, res) => {
 
     const [rows] = await db.query(
       `
-      SELECT id, shop_id, name, display_name_en, price, stock_amount, category, sub_category, created_at, updated_at
-      FROM product
-      WHERE id = ? AND shop_id = ?
+      SELECT
+        p.id, p.shop_id, p.name, p.display_name_en, p.price, p.stock_amount,
+        p.emoji, ps.emoji AS subcategory_emoji,
+        p.category, p.sub_category, p.created_at, p.updated_at
+      FROM product p
+      LEFT JOIN product_category pc ON pc.name = p.category
+      LEFT JOIN product_subcategory ps ON ps.category_id = pc.id AND ps.name = p.sub_category
+      WHERE p.id = ? AND p.shop_id = ?
       LIMIT 1
       `,
       [id, shopId],
@@ -443,7 +606,7 @@ exports.updateStockProduct = async (req, res) => {
       );
     }
 
-    return res.json({ ok: true, product: rows[0] || { id } });
+    return res.json({ ok: true, product: rows[0] ? normalizeProductRow(rows[0]) : { id } });
   } catch (err) {
     try {
       await conn.rollback();
