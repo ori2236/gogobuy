@@ -19,8 +19,8 @@ const DELETE_FROM_ORDER_STATUSES = [
 ];
 
 const PRODUCT_EMOJI_COLUMNS = {
-  product: "VARCHAR(32) DEFAULT NULL",
-  product_subcategory: "VARCHAR(32) DEFAULT NULL",
+  product: "VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL",
+  product_subcategory: "VARCHAR(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci DEFAULT NULL",
 };
 
 let productEmojiSchemaReadyPromise = null;
@@ -43,19 +43,26 @@ async function hasColumn(tableName, columnName, conn = db) {
 async function ensureProductEmojiSchemaNow(conn = db) {
   if (!(await hasColumn("product", "emoji", conn))) {
     await conn.query(`ALTER TABLE product ADD COLUMN emoji ${PRODUCT_EMOJI_COLUMNS.product} AFTER image`);
+  } else {
+    await conn.query(`ALTER TABLE product MODIFY COLUMN emoji ${PRODUCT_EMOJI_COLUMNS.product}`);
   }
+
   if (!(await hasColumn("product_subcategory", "emoji", conn))) {
     await conn.query(`ALTER TABLE product_subcategory ADD COLUMN emoji ${PRODUCT_EMOJI_COLUMNS.product_subcategory} AFTER name`);
+  } else {
+    await conn.query(`ALTER TABLE product_subcategory MODIFY COLUMN emoji ${PRODUCT_EMOJI_COLUMNS.product_subcategory}`);
   }
+
   await conn.query(
     `
     UPDATE product p
     JOIN product_category c ON c.name = p.category
     JOIN product_subcategory s ON s.category_id = c.id AND s.name = p.sub_category
     SET p.emoji = s.emoji
-    WHERE (p.emoji IS NULL OR p.emoji = '')
+    WHERE (p.emoji IS NULL OR TRIM(p.emoji) = '' OR TRIM(p.emoji) REGEXP '^[?]+$')
       AND s.emoji IS NOT NULL
-      AND s.emoji <> ''
+      AND TRIM(s.emoji) <> ''
+      AND TRIM(s.emoji) NOT REGEXP '^[?]+$'
     `,
   );
 }
@@ -78,7 +85,8 @@ async function ensureProductEmojiSchema(conn = db) {
 
 function cleanEmoji(value) {
   const s = String(value ?? "").trim();
-  return s ? s.slice(0, 32) : null;
+  if (!s || /^[?\uFFFD\s]+$/u.test(s)) return null;
+  return Array.from(s).slice(0, 8).join("");
 }
 
 async function getSubcategoryEmoji(category, subCategory, conn = db) {
@@ -114,7 +122,7 @@ function normalizeProductRow(r) {
     display_name_en: r.display_name_en ?? "",
     price: r.price == null ? null : Number(r.price),
     stock_amount: r.stock_amount == null ? null : Number(r.stock_amount),
-    emoji: cleanEmoji(r.emoji || r.subcategory_emoji),
+    emoji: cleanEmoji(r.emoji) || cleanEmoji(r.subcategory_emoji),
     subcategory_emoji: cleanEmoji(r.subcategory_emoji),
     category: r.category ?? null,
     sub_category: r.sub_category ?? null,
