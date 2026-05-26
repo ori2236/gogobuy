@@ -775,6 +775,14 @@ async function runProductRecommendationsAndSend({
     const cartItems = await getCurrentCartItems({ order_id, shop_id });
     if (!cartItems.length) return false;
 
+    const distinctCartProductCount = new Set(
+      cartItems.map((item) => Number(item.product_id)).filter(Boolean),
+    ).size;
+
+    // Avoid annoying upsells: with only one distinct product in the cart there is
+    // not enough context for a high-confidence complementary recommendation.
+    if (distinctCartProductCount < 2) return false;
+
     const systemPrompt = await getPromptFromDB(
       PRODUCT_RECOMMENDATION_PROMPT_CAT,
       PRODUCT_RECOMMENDATION_PROMPT_SUB,
@@ -796,7 +804,7 @@ async function runProductRecommendationsAndSend({
         type: "json_schema",
         json_schema: await buildProductRecommendationSchema(),
       },
-      prompt_cache_key: "ord_product_recommendations_v2",
+      prompt_cache_key: "ord_product_recommendations_v3",
     });
 
     let parsed;

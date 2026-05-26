@@ -5,7 +5,6 @@ const {
   getOrder,
   fetchActivePromotionsMap,
   calcLineTotalWithPromo,
-  formatOrderStatus,
 } = require("../../utilities/orders");
 const { addMoney, roundTo } = require("../../utilities/decimal");
 const { isEnglishMessage } = require("../../utilities/lang");
@@ -23,15 +22,16 @@ const { normalizeIncomingQuestions } = require("../../utilities/normalize");
 const { buildModifyOrderSchema } = require("./schemas/modify.schema");
 const { getExcludeTokensFromReq } = require("../../utilities/tokens");
 const { parseModelAnswer } = require("../../utilities/jsonParse");
+const { buildQuestionsBlock } = require("../../utilities/messageBuilders");
 const {
-  buildItemsBlock,
-  buildQuestionsBlock,
-} = require("../../utilities/messageBuilders");
-const { buildBundlePromotionFollowUps } = require("../../services/orderSuggestions");
+  buildOrderSummaryMessage,
+} = require("../../utilities/orderSummaryMessage");
+const {
+  buildBundlePromotionFollowUps,
+} = require("../../services/orderSuggestions");
 
 const PROMPT_CAT = "ORD";
 const PROMPT_SUB = "MODIFY";
-
 
 const MATCH_DEBUG = 1;
 
@@ -62,8 +62,6 @@ function compactRows(rows = []) {
         : Number(r.stock_amount),
   }));
 }
-
-
 
 async function repriceOrderItemsWithPromos(
   conn,
@@ -445,7 +443,6 @@ async function applyOrderPatch({
 
     //ADD
     for (const p of ops.add || []) {
-
       matchLog("applyOrderPatch.ops.add.start", {
         order_id,
         req: p,
@@ -474,8 +471,6 @@ async function applyOrderPatch({
 
       const row = await findBestProductForRequest(shop_id, p);
 
-
-
       matchLog("applyOrderPatch.ops.add.matchedRow", {
         order_id,
         req: p,
@@ -494,8 +489,6 @@ async function applyOrderPatch({
             }
           : null,
       });
-
-
 
       // product not found in shop -> ask alternatives
       if (!row) {
@@ -786,7 +779,8 @@ async function applyOrderPatch({
 
         p.price AS unit_price,
         p.name,
-        p.display_name_en
+        p.display_name_en,
+        p.emoji
       FROM order_item oi
       JOIN product p ON p.id = oi.product_id
       LEFT JOIN promotion pr ON pr.id = oi.promo_id
@@ -811,6 +805,7 @@ async function applyOrderPatch({
         return {
           name: displayName,
           amount: Number(it.amount),
+          emoji: it.emoji,
           price: Number(it.unit_price),
           line_total: Number(it.line_total),
           promo_id: it.promo_id ? Number(it.promo_id) : null,
@@ -1035,21 +1030,17 @@ module.exports = {
     let combinedQuestions = [];
     let limitWarningsBlock = "";
 
-        console.log("[ORD-MODIFY] incoming", {
-          message,
-          customer_id,
-          shop_id,
-          order_id,
-          historyLength: Array.isArray(history) ? history.length : 0,
-          openQsCtxLength: Array.isArray(openQsCtx) ? openQsCtx.length : 0,
-        });
+    console.log("[ORD-MODIFY] incoming", {
+      message,
+      customer_id,
+      shop_id,
+      order_id,
+      historyLength: Array.isArray(history) ? history.length : 0,
+      openQsCtxLength: Array.isArray(openQsCtx) ? openQsCtx.length : 0,
+    });
 
-        console.log(
-          "[ORD-MODIFY] model.parsed",
-          JSON.stringify(parsed, null, 2),
-        );
-        console.log("[ORD-MODIFY] patchOps", JSON.stringify(patchOps, null, 2));
-
+    console.log("[ORD-MODIFY] model.parsed", JSON.stringify(parsed, null, 2));
+    console.log("[ORD-MODIFY] patchOps", JSON.stringify(patchOps, null, 2));
 
     try {
       const txRes = await applyOrderPatch({
@@ -1107,17 +1098,9 @@ module.exports = {
       }
 
       //there is items in the order
-      const itemsBlock = buildItemsBlock({ items: txRes.items, isEnglish });
-      const summaryLine =
-        typeof parsed?.summary_line === "string" && parsed.summary_line.trim()
-          ? parsed.summary_line.trim()
-          : isEnglish
-            ? "Here is your updated order:"
-            : "זוהי ההזמנה המעודכנת שלך:";
-
       let totalNoPromos = 0;
       for (const it of txRes.items || []) {
-        const unit = Number(it.price);
+        const unit = Number(it.unit_price ?? it.price);
         const qty = Number(it.amount);
         if (!Number.isFinite(unit) || !Number.isFinite(qty)) continue;
         totalNoPromos = addMoney(totalNoPromos, roundTo(unit * qty, 2));
@@ -1125,29 +1108,6 @@ module.exports = {
 
       const totalWithPromos = Number(txRes.total || 0);
       const savings = roundTo(totalNoPromos - totalWithPromos, 2);
-      const hasSavings = Number.isFinite(savings) && savings >= 0.01;
-
-      const statusText = formatOrderStatus(order.status, isEnglish);
-
-      const headerBlock = isEnglish
-        ? [
-            `Order: #${order.id}`,
-            `Status: ${statusText}`,
-            hasSavings
-              ? `Subtotal: *₪${totalWithPromos.toFixed(
-                  2,
-                )}* instead of ₪${totalNoPromos.toFixed(2)}`
-              : `Subtotal: *₪${totalWithPromos.toFixed(2)}*`,
-          ].join("\n")
-        : [
-            `מספר הזמנה: #${order.id}`,
-            `סטטוס: ${statusText}`,
-            hasSavings
-              ? `סה״כ ביניים: *₪${totalWithPromos.toFixed(
-                  2,
-                )}* במקום ₪${totalNoPromos.toFixed(2)}`
-              : `סה״כ ביניים: *₪${totalWithPromos.toFixed(2)}*`,
-          ].join("\n");
 
       console.log(
         "[ORD-MODIFY] Qty decreased:",
@@ -1166,25 +1126,36 @@ module.exports = {
         JSON.stringify(txRes.meta.insufficientNewAdds, null, 2),
       );
 
+      const orderSummaryBlock = buildOrderSummaryMessage({
+        orderId: order.id,
+        status: order.status,
+        items: txRes.items,
+        isEnglish,
+        totalWithPromos,
+        totalNoPromos,
+        savings,
+      });
+
       const questionsBlock = buildQuestionsBlock({
         questions: combinedQuestions,
         isEnglish,
       });
 
       const finalMessage = [
-        summaryLine,
+        orderSummaryBlock,
         limitWarningsBlock,
-        itemsBlock,
-        " ",
-        headerBlock,
         questionsBlock,
       ]
         .filter(Boolean)
         .join("\n");
 
       const touchedProductIdsForSuggestions = [
-        ...((txRes.meta && txRes.meta.qtyIncreased) || []).map((x) => x.product_id),
-        ...((txRes.meta && txRes.meta.addedApplied) || []).map((x) => x.product_id),
+        ...((txRes.meta && txRes.meta.qtyIncreased) || []).map(
+          (x) => x.product_id,
+        ),
+        ...((txRes.meta && txRes.meta.addedApplied) || []).map(
+          (x) => x.product_id,
+        ),
       ]
         .map(Number)
         .filter(Boolean);
@@ -1226,31 +1197,65 @@ module.exports = {
           oi.requested_units,
           oi.price AS line_total,
           oi.promo_id,
+
+          pr.kind AS promo_kind,
+          pr.percent_off,
+          pr.amount_off,
+          pr.fixed_price,
+          pr.bundle_buy_qty,
+          pr.bundle_pay_price,
+
           p.price AS unit_price,
           p.name,
-          p.display_name_en
+          p.display_name_en,
+          p.emoji
         FROM order_item oi
         JOIN product p ON p.id = oi.product_id
+        LEFT JOIN promotion pr ON pr.id = oi.promo_id
         WHERE oi.order_id = ?`,
         [order.id],
       );
 
-      const itemsForView = (curItems || []).map((it) => ({
-        name: isEnglish
-          ? (it.display_name_en && it.display_name_en.trim()) || it.name
-          : it.name,
-        amount: Number(it.amount),
-        price: Number(it.unit_price),
-        ...(it.sold_by_weight ? { sold_by_weight: true } : {}),
-        ...(Number.isFinite(Number(it.requested_units)) &&
-        Number(it.requested_units) > 0
-          ? { units: Number(it.requested_units) }
-          : {}),
-      }));
+      const itemsForView = (curItems || []).map((it) => {
+        const promoId = it.promo_id ? Number(it.promo_id) : null;
+        const units = Number(it.requested_units);
+        const hasUnits = Number.isFinite(units) && units > 0;
 
-      const summaryLine = isEnglish
-        ? "To complete your order, I need a few clarifications:"
-        : "כדי להשלים את ההזמנה חסרות כמה הבהרות:";
+        return {
+          name: isEnglish
+            ? (it.display_name_en && it.display_name_en.trim()) || it.name
+            : it.name,
+          amount: Number(it.amount),
+          emoji: it.emoji,
+          unit_price: Number(it.unit_price),
+          line_total: Number(it.line_total),
+          promo_id: promoId,
+          promo:
+            promoId && it.promo_kind
+              ? {
+                  kind: it.promo_kind,
+                  percent_off: it.percent_off,
+                  amount_off: it.amount_off,
+                  fixed_price: it.fixed_price,
+                  bundle_buy_qty: it.bundle_buy_qty,
+                  bundle_pay_price: it.bundle_pay_price,
+                }
+              : null,
+          ...(it.sold_by_weight ? { sold_by_weight: true } : {}),
+          ...(hasUnits ? { units } : {}),
+        };
+      });
+
+      let total = 0;
+      let totalNoPromos = 0;
+      for (const it of itemsForView || []) {
+        total = addMoney(total, Number(it.line_total));
+        const unit = Number(it.unit_price);
+        const qty = Number(it.amount);
+        if (Number.isFinite(unit) && Number.isFinite(qty)) {
+          totalNoPromos = addMoney(totalNoPromos, roundTo(unit * qty, 2));
+        }
+      }
 
       const techQuestion = {
         name: null,
@@ -1260,38 +1265,24 @@ module.exports = {
         options: [],
       };
 
-      const itemsBlock = buildItemsBlock({ items: itemsForView, isEnglish });
-
-      let total = 0;
-      for (const it of curItems || []) {
-        total = addMoney(total, Number(it.line_total));
-      }
-
-      const headerBlock = isEnglish
-        ? [
-            `Order: #${order.id}`,
-            `Subtotal: *₪${Number(total || 0).toFixed(2)}*`,
-          ].join("\n")
-        : [
-            `מספר הזמנה: #${order.id}`,
-            `סה״כ ביניים: *₪${Number(total || 0).toFixed(2)}*`,
-          ].join("\n");
-
       combinedQuestions = [...combinedQuestions, techQuestion];
+
+      const orderSummaryBlock = buildOrderSummaryMessage({
+        orderId: order.id,
+        status: order.status,
+        items: itemsForView,
+        isEnglish,
+        totalWithPromos: total,
+        totalNoPromos,
+        savings: roundTo(totalNoPromos - total, 2),
+      });
 
       const questionsBlock = buildQuestionsBlock({
         questions: combinedQuestions,
         isEnglish,
       });
 
-      return [
-        summaryLine,
-        itemsBlock,
-        " ",
-        headerBlock,
-        limitWarningsBlock,
-        questionsBlock,
-      ]
+      return [orderSummaryBlock, limitWarningsBlock, questionsBlock]
         .filter(Boolean)
         .join("\n");
     }

@@ -460,6 +460,7 @@ async function getOrderItems(order_id) {
 
       COALESCE(p.name, dp.name, CONCAT('מוצר שנמחק (#', oi.product_id, ')')) AS name,
       COALESCE(p.display_name_en, dp.display_name_en, NULL) AS display_name_en,
+      p.emoji AS emoji,
       COALESCE(p.category, dp.category, NULL) AS category,
       COALESCE(p.sub_category, dp.sub_category, NULL) AS 'sub-category',
 

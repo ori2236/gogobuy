@@ -16,10 +16,10 @@ const {
 const { normalizeIncomingQuestions } = require("../../utilities/normalize");
 const { buildCreateOrderSchema } = require("./schemas/create.schema");
 const { parseModelAnswer } = require("../../utilities/jsonParse");
+const { buildQuestionsBlock } = require("../../utilities/messageBuilders");
 const {
-  buildItemsBlock,
-  buildQuestionsBlock,
-} = require("../../utilities/messageBuilders");
+  buildOrderSummaryMessage,
+} = require("../../utilities/orderSummaryMessage");
 const {
   buildBundlePromotionFollowUps,
 } = require("../../services/orderSuggestions");
@@ -423,7 +423,8 @@ module.exports = {
 
      p.price AS unit_price,
      p.name AS name_he,
-     p.display_name_en
+     p.display_name_en,
+     p.emoji
       FROM order_item oi
       JOIN product p ON p.id = oi.product_id
       LEFT JOIN promotion pr ON pr.id = oi.promo_id
@@ -454,6 +455,7 @@ module.exports = {
           ? (r.display_name_en && r.display_name_en.trim()) || r.name_he
           : r.name_he,
         amount: Number(r.amount),
+        emoji: r.emoji,
 
         unit_price: Number(r.unit_price),
         line_total: Number(r.line_total),
@@ -478,36 +480,6 @@ module.exports = {
 
     const hasQuestions =
       Array.isArray(combinedQuestions) && combinedQuestions.length > 0;
-
-    const summaryLine = hasQuestions
-      ? isEnglish
-        ? "To complete your order, I need a few clarifications:"
-        : "כדי להשלים את ההזמנה חסרות כמה הבהרות:"
-      : isEnglish
-        ? "Great, here’s the order I understood from you:"
-        : "יופי, זאת ההזמנה שהבנתי ממך:";
-
-    const headerBlock = isEnglish
-      ? [
-          orderRes?.order_id ? `Order: #${orderRes.order_id}` : null,
-          hasSavings
-            ? `Subtotal: *₪${totalWithPromos.toFixed(
-                2,
-              )}* instead of ₪${totalNoPromos.toFixed(2)}`
-            : `Subtotal: *₪${totalWithPromos.toFixed(2)}*`,
-        ]
-          .filter(Boolean)
-          .join("\n")
-      : [
-          orderRes?.order_id ? `מספר הזמנה: #${orderRes.order_id}` : null,
-          hasSavings
-            ? `סה״כ ביניים: *₪${totalWithPromos.toFixed(
-                2,
-              )}* במקום ₪${totalNoPromos.toFixed(2)}`
-            : `סה״כ ביניים: *₪${totalWithPromos.toFixed(2)}*`,
-        ]
-          .filter(Boolean)
-          .join("\n");
 
     let limitWarningsBlock = "";
     if (cappedWarnings.length) {
@@ -535,23 +507,25 @@ module.exports = {
       }
     }
 
-    const itemsBlock = buildItemsBlock({
+    const orderSummaryBlock = buildOrderSummaryMessage({
+      orderId: orderRes.order_id,
+      status: "pending",
       items: productsForDisplay,
       isEnglish,
-      mode: "create",
+      totalWithPromos,
+      totalNoPromos,
+      savings,
     });
+
     const questionsBlock = buildQuestionsBlock({
       questions: combinedQuestions,
       isEnglish,
     });
 
     const finalMessage = [
-      summaryLine,
+      orderSummaryBlock,
       limitWarningsBlock,
       fractionalWarningsBlock,
-      itemsBlock,
-      " ",
-      headerBlock,
       questionsBlock,
     ]
       .filter(Boolean)

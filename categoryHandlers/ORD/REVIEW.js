@@ -1,7 +1,5 @@
-const { addMoney, roundTo } = require("../../utilities/decimal");
 const { saveOpenQuestions } = require("../../utilities/openQuestions");
-const { formatOrderStatus } = require("../../utilities/orders");
-const { buildItemsBlock } = require("../../utilities/messageBuilders");
+const { buildOrderSummaryMessage } = require("../../utilities/orderSummaryMessage");
 
 async function orderReview(order, items, isEnglish, customer_id, shop_id) {
   // no open order
@@ -10,7 +8,9 @@ async function orderReview(order, items, isEnglish, customer_id, shop_id) {
       ? "You don't have any open orders at the moment. Would you like to start a new order?"
       : "אין לך הזמנה פתוחה כרגע. תרצה לפתוח הזמנה חדשה?";
 
-    const question = botPayload.split(". ")[1];
+    const question = isEnglish
+      ? "Would you like to start a new order?"
+      : "תרצה לפתוח הזמנה חדשה?";
 
     await saveOpenQuestions({
       customer_id,
@@ -50,9 +50,11 @@ async function orderReview(order, items, isEnglish, customer_id, shop_id) {
     return {
       name: displayName,
       amount: Number(it.amount),
+      emoji: it.emoji,
 
       // unit price (from product)
       price: Number(it.unit_price),
+      unit_price: Number(it.unit_price),
 
       // line total (stored in order_item.price)
       line_total: Number(it.price),
@@ -74,52 +76,12 @@ async function orderReview(order, items, isEnglish, customer_id, shop_id) {
     };
   });
 
-  const itemsBlock = buildItemsBlock({
+  return buildOrderSummaryMessage({
+    orderId: order.id,
+    status: order.status,
     items: itemsForView,
     isEnglish,
-    mode: "review",
   });
-
-  let subtotal = 0;
-  for (const it of itemsForView) {
-    subtotal = addMoney(subtotal, Number(it.line_total || 0));
-  }
-
-  let totalNoPromos = 0;
-  for (const it of itemsForView || []) {
-    const unit = Number(it.price);
-    const qty = Number(it.amount);
-    if (!Number.isFinite(unit) || !Number.isFinite(qty)) continue;
-    totalNoPromos = addMoney(totalNoPromos, roundTo(unit * qty, 2));
-  }
-
-  const totalWithPromos = Number(subtotal || 0);
-  const savings = roundTo(totalNoPromos - totalWithPromos, 2);
-  const hasSavings = Number.isFinite(savings) && savings >= 0.01;
-
-  const statusText = formatOrderStatus(order.status, isEnglish);
-
-  const headerBlock = isEnglish
-    ? [
-        `Order: #${order.id}`,
-        `Status: ${statusText}`,
-        hasSavings
-          ? `Subtotal: *₪${totalWithPromos.toFixed(
-              2,
-            )}* instead of ₪${totalNoPromos.toFixed(2)}`
-          : `Subtotal: *₪${totalWithPromos.toFixed(2)}*`,
-      ].join("\n")
-    : [
-        `מספר הזמנה: #${order.id}`,
-        `סטטוס: ${statusText}`,
-        hasSavings
-          ? `סה״כ ביניים: *₪${totalWithPromos.toFixed(
-              2,
-            )}* במקום ₪${totalNoPromos.toFixed(2)}`
-          : `סה״כ ביניים: *₪${totalWithPromos.toFixed(2)}*`,
-      ].join("\n");
-
-  return [itemsBlock, " ", headerBlock].filter(Boolean).join("\n");
 }
 
 module.exports = { orderReview };
