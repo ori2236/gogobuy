@@ -10,6 +10,8 @@ const {
 const {
   fetchActivePromotionsMap,
   calcLineTotalWithPromo,
+  getOrder,
+  getOrderItems,
 } = require("../utilities/orders");
 const {
   findBestProductForRequest,
@@ -18,6 +20,7 @@ const { buildProductRecommendationSchema } = require("../categoryHandlers/ORD/sc
 const { parseModelAnswer } = require("../utilities/jsonParse");
 const { roundTo } = require("../utilities/decimal");
 const { getPromptFromDB } = require("../repositories/prompt");
+const { buildOrderSummaryMessage } = require("../utilities/orderSummaryMessage");
 
 const SUGGESTION_SOURCE = {
   GPT: "GPT_RECOMMENDATION",
@@ -260,6 +263,53 @@ function buildActionLabel({ action, isEnglish }) {
   const addQty = qtyText(action.amount_to_add || action.amount || 1);
   if (isEnglish) return `${addQty} × ${name}`;
   return `${name} × ${addQty}`;
+}
+
+function mapOrderItemsForSummary(items, isEnglish) {
+  return (items || []).map((it) => {
+    const displayName = isEnglish
+      ? (it.display_name_en && String(it.display_name_en).trim()) || it.name
+      : it.name;
+
+    const isWeight = it.sold_by_weight === 1 || it.sold_by_weight === true;
+    const unitsRaw = Number(it.requested_units);
+    const units = Number.isFinite(unitsRaw) && unitsRaw > 0 ? unitsRaw : null;
+    const promoId = it.promo_id ? Number(it.promo_id) : null;
+
+    return {
+      name: displayName,
+      amount: Number(it.amount),
+      unit_price: Number(it.unit_price),
+      line_total: Number(it.price),
+      emoji: it.emoji,
+      promo_id: promoId,
+      promo: promoId
+        ? {
+            kind: it.promo_kind,
+            percent_off: it.percent_off,
+            amount_off: it.amount_off,
+            fixed_price: it.fixed_price,
+            bundle_buy_qty: it.bundle_buy_qty,
+            bundle_pay_price: it.bundle_pay_price,
+          }
+        : null,
+      ...(isWeight ? { sold_by_weight: true } : {}),
+      ...(isWeight && units ? { units } : {}),
+    };
+  });
+}
+
+async function buildUpdatedOrderSummaryMessage({ order_id, isEnglish }) {
+  const order = await getOrder(order_id);
+  const items = await getOrderItems(order_id);
+
+  return buildOrderSummaryMessage({
+    orderId: order?.id || order_id,
+    status: order?.status || "pending",
+    items: mapOrderItemsForSummary(items, isEnglish),
+    isEnglish,
+    totalWithPromos: order?.price,
+  });
 }
 
 async function addSuggestionActionsToOrder({
@@ -543,10 +593,18 @@ async function handleSuggestionReply({
       : "ניסיתי להוסיף, אבל כרגע זה לא זמין במלאי.";
   }
 
-  const addedText = res.added.map((a) => buildActionLabel({ action: a, isEnglish })).join("\n• ");
-  return isEnglish
-    ? `Added to your order:\n• ${addedText}`
-    : `הוספתי להזמנה:\n• ${addedText}`;
+  try {
+    return await buildUpdatedOrderSummaryMessage({
+      order_id: activeOrder.id,
+      isEnglish,
+    });
+  } catch (err) {
+    console.error("[suggestions summary after add]", err);
+    const addedText = res.added.map((a) => buildActionLabel({ action: a, isEnglish })).join("\n• ");
+    return isEnglish
+      ? `Added to your order:\n• ${addedText}`
+      : `הוספתי להזמנה:\n• ${addedText}`;
+  }
 }
 
 async function fetchBundleRowsForOrderItems({ shop_id, order_id, productIds }) {
@@ -775,14 +833,6 @@ async function runProductRecommendationsAndSend({
     const cartItems = await getCurrentCartItems({ order_id, shop_id });
     if (!cartItems.length) return false;
 
-    const distinctCartProductCount = new Set(
-      cartItems.map((item) => Number(item.product_id)).filter(Boolean),
-    ).size;
-
-    // Avoid annoying upsells: with only one distinct product in the cart there is
-    // not enough context for a high-confidence complementary recommendation.
-    if (distinctCartProductCount < 2) return false;
-
     const systemPrompt = await getPromptFromDB(
       PRODUCT_RECOMMENDATION_PROMPT_CAT,
       PRODUCT_RECOMMENDATION_PROMPT_SUB,
@@ -804,7 +854,7 @@ async function runProductRecommendationsAndSend({
         type: "json_schema",
         json_schema: await buildProductRecommendationSchema(),
       },
-      prompt_cache_key: "ord_product_recommendations_v3",
+      prompt_cache_key: "ord_product_recommendations_v2",
     });
 
     let parsed;

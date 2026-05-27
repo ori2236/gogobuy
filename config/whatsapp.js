@@ -1,18 +1,30 @@
-const axios = require("axios");
+const ACCESS_TOKEN = String(process.env.WHATSAPP_TOKEN || "").trim();
+const DEFAULT_PHONE_ID = String(process.env.WHATSAPP_PHONE_ID || "").trim();
+const GRAPH_VERSION = String(
+  process.env.WHATSAPP_GRAPH_VERSION || "v18.0",
+).trim();
 
-const PHONE_ID = process.env.WHATSAPP_PHONE_ID.trim();
-const ACCESS_TOKEN = process.env.WHATSAPP_TOKEN.trim();
+function getWhatsAppConfig(phoneNumberId = DEFAULT_PHONE_ID) {
+  const cleanPhoneNumberId = String(
+    phoneNumberId || DEFAULT_PHONE_ID || "",
+  ).trim();
 
-function getWhatsAppConfig() {
-  if (!PHONE_ID || !ACCESS_TOKEN) {
-    throw new Error("Missing WHATSAPP_PHONE_ID or WHATSAPP_TOKEN in env");
+  if (!cleanPhoneNumberId) {
+    throw new Error("Missing WhatsApp phone number id");
   }
-  const url = `https://graph.facebook.com/v18.0/${PHONE_ID}/messages`;
-  const headers = {
-    Authorization: `Bearer ${ACCESS_TOKEN}`,
-    "Content-Type": "application/json",
+
+  if (!ACCESS_TOKEN) {
+    throw new Error("Missing WHATSAPP_TOKEN");
+  }
+
+  return {
+    url: `https://graph.facebook.com/${GRAPH_VERSION}/${cleanPhoneNumberId}/messages`,
+    headers: {
+      Authorization: `Bearer ${ACCESS_TOKEN}`,
+      "Content-Type": "application/json",
+    },
+    phoneNumberId: cleanPhoneNumberId,
   };
-  return { url, headers };
 }
 
 module.exports = {

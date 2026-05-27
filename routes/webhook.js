@@ -8,6 +8,9 @@ const {
   shouldStartProductRecommendations,
 } = require("../services/orderSuggestions");
 const { sendDeferredCheckoutNudge } = require("../utilities/checkoutNudge");
+const {
+  getShopByIncomingPhoneId,
+} = require("../repositories/shopWhatsappPhone");
 
 const VERIFY_TOKEN = (process.env.WHATSAPP_VERIFY_TOKEN || "").trim();
 
@@ -32,6 +35,32 @@ router.post("/webhooks", async (req, res) => {
     const msg = change?.messages?.[0];
 
     if (!msg) return res.sendStatus(200);
+
+    const incomingPhoneNumberId = String(
+      change?.metadata?.phone_number_id || "",
+    ).trim();
+
+    let SHOP_ID = 1;
+
+    if (incomingPhoneNumberId) {
+      const phoneMapping = await getShopByIncomingPhoneId(
+        incomingPhoneNumberId,
+      );
+
+      if (phoneMapping?.shop_id) {
+        SHOP_ID = Number(phoneMapping.shop_id);
+      } else {
+        console.warn(
+          "[webhook] No shop mapping for WhatsApp phone_number_id:",
+          incomingPhoneNumberId,
+          "falling back to shop_id=1",
+        );
+      }
+    } else {
+      console.warn(
+        "[webhook] Missing metadata.phone_number_id, falling back to shop_id=1",
+      );
+    }
 
     const waMessageId = msg.id;
     const from = msg.from;
@@ -86,6 +115,7 @@ router.post("/webhooks", async (req, res) => {
             SHOP_ID,
             waMessageId,
             receivedAt,
+            incomingPhoneNumberId,
           );
 
           if (botResp && botResp.skipSend) {
@@ -101,7 +131,7 @@ router.post("/webhooks", async (req, res) => {
           else if (botResp?.reply) reply = String(botResp.reply);
         }
 
-        await sendWhatsAppText(from, reply);
+        await sendWhatsAppText(from, reply, incomingPhoneNumberId);
 
         const followUpMessages = Array.isArray(botResp?.followUpMessages)
           ? botResp.followUpMessages
@@ -110,7 +140,7 @@ router.post("/webhooks", async (req, res) => {
         for (const followUp of followUpMessages) {
           const text = typeof followUp === "string" ? followUp.trim() : "";
           if (!text) continue;
-          await sendWhatsAppText(from, text);
+          await sendWhatsAppText(from, reply, incomingPhoneNumberId);
         }
 
         const deferredCheckoutNudge = botResp?.deferredCheckoutNudge || null;

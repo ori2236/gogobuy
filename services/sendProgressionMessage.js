@@ -151,8 +151,8 @@ function startSlowProgression({
     if (typingDelay < firstProgressDelay) {
       typingTimer = setTimeout(() => {
         if (cancelled) return;
-        sendWhatsAppTypingIndicator(waMessageId).catch((e) =>
-          console.error(`[wa typing]`, e?.response?.data || e),
+        sendWhatsAppTypingIndicator(waMessageId, businessPhoneNumberId).catch(
+          (e) => console.error(`[wa typing]`, e?.response?.data || e),
         );
       }, typingDelay);
     }
@@ -167,7 +167,7 @@ function startSlowProgression({
     sent++;
 
     const text = nextProgress();
-    sendWhatsAppText(phone_number, text).catch((e) =>
+    sendWhatsAppText(phone_number, text, businessPhoneNumberId).catch((e) =>
       console.error(`[wa progress]`, e?.response?.data || e),
     );
   };

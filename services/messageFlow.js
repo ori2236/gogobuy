@@ -35,6 +35,7 @@ async function processMessage(
   shop_id,
   waMessageId = "",
   receivedAt = Date.now(),
+  businessPhoneNumberId = "",
 ) {
   const customer_id = await ensureCustomer(shop_id, phone_number);
 
@@ -45,7 +46,7 @@ async function processMessage(
 
   if (waMessageId) {
     setTimeout(() => {
-      sendWhatsAppMarkAsRead(waMessageId).catch((e) =>
+      sendWhatsAppMarkAsRead(waMessageId, businessPhoneNumberId).catch((e) =>
         console.error("[wa markAsRead]", e?.response?.data || e),
       );
     }, 800);
@@ -206,6 +207,7 @@ async function processMessage(
       receivedAt,
       typingAtMs: 2000,
       progressEveryMs: 8000,
+      businessPhoneNumberId,
     });
 
     let botPayload = null;

@@ -1,13 +1,12 @@
-
 const axios = require("axios");
 const { getWhatsAppConfig } = require("../config/whatsapp");
 
-async function sendWhatsAppText(to, body) {
-  const { url, headers } = getWhatsAppConfig();
+async function sendWhatsAppText(to, body, phoneNumberId = null) {
+  const { url, headers } = getWhatsAppConfig(phoneNumberId);
 
   const payload = {
     messaging_product: "whatsapp",
-    to, // מספר בפורמט E.164 ללא +
+    to,
     type: "text",
     text: { body },
   };
@@ -16,10 +15,11 @@ async function sendWhatsAppText(to, body) {
   return data;
 }
 
-async function sendWhatsAppMarkAsRead(message_id) {
+async function sendWhatsAppMarkAsRead(message_id, phoneNumberId = null) {
   if (!message_id) return null;
 
-  const { url, headers } = getWhatsAppConfig();
+  const { url, headers } = getWhatsAppConfig(phoneNumberId);
+
   const payload = {
     messaging_product: "whatsapp",
     status: "read",
@@ -30,10 +30,11 @@ async function sendWhatsAppMarkAsRead(message_id) {
   return data;
 }
 
-async function sendWhatsAppTypingIndicator(message_id) {
+async function sendWhatsAppTypingIndicator(message_id, phoneNumberId = null) {
   if (!message_id) return null;
 
-  const { url, headers } = getWhatsAppConfig();
+  const { url, headers } = getWhatsAppConfig(phoneNumberId);
+
   const payload = {
     messaging_product: "whatsapp",
     status: "read",
@@ -50,9 +51,6 @@ module.exports = {
   sendWhatsAppMarkAsRead,
   sendWhatsAppTypingIndicator,
 };
-
-
-
 
 /*
 const axios = require("axios");
