@@ -30,7 +30,6 @@ router.post("/webhooks", async (req, res) => {
   try {
     const receivedAt = Date.now();
 
-    const SHOP_ID = 1;
     const change = req.body?.entry?.[0]?.changes?.[0]?.value;
     const msg = change?.messages?.[0];
 

@@ -124,6 +124,7 @@ function startSlowProgression({
   phone_number,
   waMessageId,
   receivedAt,
+  businessPhoneNumberId = "",
   typingAtMs = 2000,
   progressEveryMs = 8000,
 }) {
