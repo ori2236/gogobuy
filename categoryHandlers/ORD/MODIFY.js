@@ -1135,7 +1135,6 @@ module.exports = {
         fulfillmentMethod: order.fulfillment_method,
         deliveryAddress: order.delivery_address,
         deliveryFee: order.delivery_fee,
-        deliveryNotes: order.delivery_notes,
       });
 
       const questionsBlock = buildQuestionsBlock({
@@ -1281,7 +1280,6 @@ module.exports = {
         fulfillmentMethod: order.fulfillment_method,
         deliveryAddress: order.delivery_address,
         deliveryFee: order.delivery_fee,
-        deliveryNotes: order.delivery_notes,
       });
 
       const questionsBlock = buildQuestionsBlock({

@@ -9,9 +9,8 @@ const QUESTION_TYPES = {
 };
 
 const FULFILLMENT_QUESTION_NAMES = new Set(Object.values(QUESTION_TYPES));
-
-let schemaReadyPromise = null;
 const ORDERS_COLUMN_CACHE = new Map();
+let schemaReadyPromise = null;
 
 function toBool(v) {
   return v === true || v === 1 || v === "1" || String(v).toLowerCase() === "true";
@@ -28,8 +27,25 @@ function fmtMoney(value) {
 }
 
 function cleanText(value, limit = 2000) {
-  const s = String(value ?? "").trim().replace(/\s+\n/g, "\n");
+  const s = String(value ?? "").trim().replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n");
   return s ? s.slice(0, limit) : null;
+}
+
+function stripAddressPrefix(value) {
+  let s = String(value || "").trim();
+  s = s.replace(/^כתובת\s*[:：-]\s*/i, "").trim();
+  s = s.replace(/^address\s*[:：-]\s*/i, "").trim();
+  s = s.replace(/^(אני\s+רוצה\s+(?:משלוח\s+)?ל)/i, "").trim();
+  s = s.replace(/^(תשלחו\s+לי\s+ל|שלחו\s+ל|משלוח\s+ל)/i, "").trim();
+  return s;
+}
+
+function isAddressUpdateMessage(message) {
+  return /^\s*(כתובת|address)\s*[:：-]\s*\S+/i.test(String(message || ""));
+}
+
+function extractAddressUpdateText(message) {
+  return stripAddressPrefix(String(message || "").replace(/^\s*(כתובת|address)\s*[:：-]\s*/i, ""));
 }
 
 async function hasOrdersColumn(conn, columnName) {
@@ -115,18 +131,7 @@ async function ensureFulfillmentSchema(conn = db) {
       throw err;
     });
   }
-
   return schemaReadyPromise;
-}
-
-function parseQuestionOptions(raw) {
-  if (!raw) return null;
-  if (typeof raw === "object") return raw;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
 }
 
 function isFulfillmentQuestion(q) {
@@ -137,18 +142,18 @@ function getLatestFulfillmentQuestion(openQs = []) {
   return (openQs || []).find(isFulfillmentQuestion) || null;
 }
 
+async function getCustomer(customer_id) {
+  const [[row]] = await db.query(
+    `SELECT id, name, phone, chain_id FROM customer WHERE id = ? LIMIT 1`,
+    [customer_id],
+  );
+  return row || null;
+}
+
 function looksLikePhoneName(name, phone) {
   const n = String(name || "").trim().replace(/\D/g, "");
   const p = String(phone || "").trim().replace(/\D/g, "");
   return !!n && !!p && n === p;
-}
-
-async function getCustomer(customer_id) {
-  const [[row]] = await db.query(
-    `SELECT id, name, phone FROM customer WHERE id = ? LIMIT 1`,
-    [customer_id],
-  );
-  return row || null;
 }
 
 function getCustomerFirstName(customer) {
@@ -160,17 +165,7 @@ function getCustomerFirstName(customer) {
 async function getShopFulfillment(shop_id) {
   await ensureFulfillmentSchema();
   const [[row]] = await db.query(
-    `
-    SELECT
-      id,
-      name,
-      supports_delivery,
-      supports_pickup,
-      delivery_fee
-    FROM shop
-    WHERE id = ?
-    LIMIT 1
-    `,
+    `SELECT id, name, supports_delivery, supports_pickup, delivery_fee FROM shop WHERE id = ? LIMIT 1`,
     [shop_id],
   );
   return row || null;
@@ -205,23 +200,21 @@ async function getDefaultCustomerAddress(customer_id, shop_id) {
   return row || null;
 }
 
-function formatZonesList(zones, isEnglish) {
-  if (!zones || !zones.length) return "";
-  return zones
+function formatZonesList(zones) {
+  return (zones || [])
     .map((z, idx) => `${idx + 1}. ${String(z.settlement_name || "").trim()}`)
     .filter(Boolean)
     .join("\n");
 }
 
-function customerPrefix(firstName, isEnglish) {
-  if (!firstName) return "";
-  return isEnglish ? `${firstName}, ` : `${firstName}, `;
+function customerPrefix(firstName) {
+  return firstName ? `${firstName}, ` : "";
 }
 
 function buildFulfillmentMethodQuestion({ firstName, isEnglish }) {
   if (isEnglish) {
     return [
-      `${customerPrefix(firstName, true)}we're just about ready to close the order 🛒`,
+      `${customerPrefix(firstName)}we're just about ready to close the order 🛒`,
       "How would you like to receive it?",
       "",
       "📦 1. Home delivery",
@@ -242,14 +235,34 @@ function buildFulfillmentMethodQuestion({ firstName, isEnglish }) {
   ].join("\n");
 }
 
+function buildInvalidFulfillmentChoiceMessage({ isEnglish }) {
+  if (isEnglish) {
+    return [
+      "It looks like the answer wasn't in the format we asked for 🙂",
+      "To continue, please reply with just one number:",
+      "",
+      "📦 1 - Home delivery",
+      "🛍️ 2 - Store pickup",
+    ].join("\n");
+  }
+
+  return [
+    "נשמע שלא ענית בפורמט שביקשנו 🙂",
+    "כדי שנדע איך להמשיך, השב רק עם מספר:",
+    "",
+    "📦 1 - משלוח עד הבית",
+    "🛍️ 2 - איסוף עצמי מהחנות",
+  ].join("\n");
+}
+
 function buildAddressPrompt({ firstName, zones, isEnglish }) {
-  const zonesText = formatZonesList(zones, isEnglish);
+  const zonesText = formatZonesList(zones);
   if (isEnglish) {
     return [
       "Great, we'll prepare a home delivery! 🏍️",
       "",
-      `${customerPrefix(firstName, true)}please send your full delivery address: settlement, street and house number.`,
-      "If it's a building, add apartment/floor/entrance. You can also add a courier note.",
+      `${customerPrefix(firstName)}please send your full delivery address: settlement, street and house number.`,
+      "If it's a building, add apartment/floor/entrance.",
       zonesText ? `\nWe currently deliver to:\n${zonesText}` : "",
       "",
       "Send the full address and we'll continue 👇",
@@ -259,47 +272,61 @@ function buildAddressPrompt({ firstName, zones, isEnglish }) {
   return [
     "מעולה, נעשה לך משלוח עד הבית! 🏍️",
     "",
-    `${customerPrefix(firstName, false)}שלח לנו בבקשה את הכתובת המלאה שלך: יישוב, רחוב ומספר בית.`,
-    "אם זה בניין, אפשר להוסיף דירה/קומה/כניסה. אפשר גם להוסיף הערה לשליח.",
+    `${customerPrefix(firstName)}שלח לנו בבקשה את הכתובת המלאה שלך: יישוב, רחוב ומספר בית.`,
+    "אם זה בניין, אפשר להוסיף דירה/קומה/כניסה.",
     zonesText ? `\nאנחנו מגיעים כרגע ל:\n${zonesText}` : "",
     "",
     "שלח לנו את הכתובת המלאה ומיד נתקדם לסגירת ההזמנה 👇",
   ].filter(Boolean).join("\n");
 }
 
-function buildAddressReminder({ firstName, zones, isEnglish }) {
-  const zonesText = formatZonesList(zones, isEnglish);
+function buildAddressReminder({ firstName, zones, isEnglish, reason }) {
+  const zonesText = formatZonesList(zones);
   if (isEnglish) {
+    const reasonLine =
+      reason === "multiple_zones"
+        ? "I found more than one delivery area in the address, so I need one clear settlement."
+        : reason === "unsupported_zone"
+          ? "The settlement must be one of our supported delivery areas."
+          : reason === "missing_house_number"
+            ? "Please include a house/building number."
+            : "Without settlement, street and house number we can't close the order for delivery.";
     return [
-      `${customerPrefix(firstName, true)}we really want to send the delivery out, but we need an exact address 🗺️`,
+      `${customerPrefix(firstName)}we really want to send the delivery out, but we need an exact address 🗺️`,
       "",
-      "Without settlement, street and house number we can't close the order for delivery.",
+      reasonLine,
       zonesText ? `\nAvailable delivery areas:\n${zonesText}` : "",
       "",
-      "Please send the full address and the courier will be on the way 🏎️",
+      "Please send the full address again.",
     ].filter(Boolean).join("\n");
   }
 
+  const reasonLine =
+    reason === "multiple_zones"
+      ? "זיהיתי יותר מיישוב משלוח אחד בכתובת, אז אני צריך יישוב אחד ברור."
+      : reason === "unsupported_zone"
+        ? "היישוב בכתובת חייב להיות אחד מיישובי המשלוח שלנו."
+        : reason === "missing_house_number"
+          ? "חסר מספר בית/בניין בכתובת."
+          : "בלי יישוב, רחוב ומספר בית לא נוכל להתקדם לסגירת ההזמנה.";
+
   return [
-    `${customerPrefix(firstName, false)}אנחנו ממש רוצים להוציא אליך את המשלוח, אבל המערכת צריכה כתובת מדויקת... 🗺️`,
+    `${customerPrefix(firstName)}אנחנו ממש רוצים להוציא אליך את המשלוח, אבל המערכת צריכה כתובת מדויקת... 🗺️`,
     "",
-    "בלי יישוב, רחוב ומספר בית לא נוכל להתקדם לסגירת ההזמנה.",
+    reasonLine,
     zonesText ? `\nאפשר לבצע משלוח ליישובים:\n${zonesText}` : "",
     "",
-    "שלח לנו את הכתובת המלאה והשליח כבר בדרך! 🏎️",
+    "שלח לנו שוב את הכתובת המלאה ונמשיך משם 👇",
   ].filter(Boolean).join("\n");
 }
 
 function buildSavedAddressQuestion({ firstName, address, isEnglish }) {
   const addr = String(address?.full_address || "").trim();
-  const notes = String(address?.delivery_notes || "").trim();
-
   if (isEnglish) {
     return [
-      `${customerPrefix(firstName, true)}we have a saved delivery address:`,
+      `${customerPrefix(firstName)}we have a saved delivery address:`,
       "",
       addr,
-      notes ? `Courier note: ${notes}` : "",
       "",
       "Should we send it there?",
       "1. Yes",
@@ -308,10 +335,9 @@ function buildSavedAddressQuestion({ firstName, address, isEnglish }) {
   }
 
   return [
-    `${customerPrefix(firstName, false)}יש לנו כתובת שמורה למשלוח:`,
+    `${customerPrefix(firstName)}יש לנו כתובת שמורה למשלוח:`,
     "",
     addr,
-    notes ? `הערה לשליח: ${notes}` : "",
     "",
     "לשלוח לשם?",
     "1. כן",
@@ -324,8 +350,8 @@ function parseFulfillmentChoice(message) {
   if (!raw) return null;
   if (/^1$/.test(raw)) return "delivery";
   if (/^2$/.test(raw)) return "pickup";
-  if (/(משלוח|שליח|עד הבית|delivery|deliver|shipping|ship)/i.test(raw)) return "delivery";
-  if (/(איסוף|איסוף עצמי|חנות|pickup|pick up|collect|collection)/i.test(raw)) return "pickup";
+  if (/^(משלוח|שליח|עד הבית|delivery|deliver|shipping|ship)$/i.test(raw)) return "delivery";
+  if (/^(איסוף|איסוף עצמי|חנות|pickup|pick up|collect|collection)$/i.test(raw)) return "pickup";
   return null;
 }
 
@@ -337,44 +363,35 @@ function parseYesNoAddressConfirm(message) {
   return null;
 }
 
-function parseDeliveryAddressMessage(message) {
-  const raw = cleanText(message, 2000) || "";
-  const marker = raw.match(/(?:הערה\s*(?:לשליח|משלוח)|courier\s*note|delivery\s*note)\s*[:：-]\s*/i);
-  if (!marker) return { full_address: raw, delivery_notes: null };
-
-  const idx = marker.index;
-  const fullAddress = cleanText(raw.slice(0, idx), 1500) || raw;
-  const deliveryNotes = cleanText(raw.slice(idx + marker[0].length), 1000);
-  return { full_address: fullAddress, delivery_notes: deliveryNotes };
-}
-
 function normalizeHebrew(value) {
   return String(value || "")
     .trim()
     .replace(/[\u0591-\u05C7]/g, "")
-    .replace(/\s+/g, " ");
+    .replace(/\s+/g, " ")
+    .toLowerCase();
 }
 
-function findZoneInAddress(fullAddress, zones = []) {
-  const address = normalizeHebrew(fullAddress).toLowerCase();
-  if (!zones.length) return null;
-  return zones.find((z) => {
-    const name = normalizeHebrew(z.settlement_name).toLowerCase();
-    return name && address.includes(name);
-  }) || null;
+function findZonesInAddress(fullAddress, zones = []) {
+  const address = normalizeHebrew(fullAddress);
+  return (zones || []).filter((z) => {
+    const name = normalizeHebrew(z.settlement_name);
+    if (!name) return false;
+    return address.includes(name);
+  });
 }
 
 function validateDeliveryAddress(fullAddress, zones = []) {
-  const text = String(fullAddress || "").trim();
-  if (text.length < 8) return { ok: false, reason: "too_short" };
-  if (zones.length && !findZoneInAddress(text, zones)) {
-    return { ok: false, reason: "unsupported_zone" };
-  }
-  if (!/\d/.test(text)) return { ok: false, reason: "missing_house_number" };
-  return { ok: true, zone: findZoneInAddress(text, zones) };
+  const text = stripAddressPrefix(fullAddress);
+  if (text.length < 8) return { ok: false, reason: "too_short", cleanedAddress: text };
+  const matches = findZonesInAddress(text, zones);
+  if (zones.length && matches.length === 0) return { ok: false, reason: "unsupported_zone", cleanedAddress: text };
+  if (matches.length > 1) return { ok: false, reason: "multiple_zones", zones: matches, cleanedAddress: text };
+  if (!/\d/.test(text)) return { ok: false, reason: "missing_house_number", cleanedAddress: text };
+  return { ok: true, zone: matches[0] || null, cleanedAddress: text };
 }
 
 async function closeFulfillmentQuestions(customer_id, shop_id, order_id = null) {
+  const types = Object.values(QUESTION_TYPES);
   const [rows] = await db.query(
     `
     SELECT id
@@ -382,12 +399,10 @@ async function closeFulfillmentQuestions(customer_id, shop_id, order_id = null) 
     WHERE customer_id = ?
       AND shop_id = ?
       AND status = 'open'
-      AND product_name IN (${Object.values(QUESTION_TYPES).map(() => "?").join(",")})
+      AND product_name IN (${types.map(() => "?").join(",")})
       ${order_id ? "AND (order_id = ? OR order_id IS NULL)" : ""}
     `,
-    order_id
-      ? [customer_id, shop_id, ...Object.values(QUESTION_TYPES), order_id]
-      : [customer_id, shop_id, ...Object.values(QUESTION_TYPES)],
+    order_id ? [customer_id, shop_id, ...types, order_id] : [customer_id, shop_id, ...types],
   );
 
   const ids = (rows || []).map((r) => Number(r.id)).filter(Boolean);
@@ -400,25 +415,17 @@ async function saveFulfillmentQuestion({ customer_id, shop_id, order_id, type, q
     customer_id,
     shop_id,
     order_id,
-    questions: [
-      {
-        name: type,
-        question,
-        options: options || [],
-      },
-    ],
+    questions: [{ name: type, question, options: options || [] }],
   });
 }
 
-async function saveCustomerAddress({ customer_id, shop_id, full_address, delivery_notes }) {
+async function saveCustomerAddress({ customer_id, shop_id, full_address }) {
   await ensureFulfillmentSchema();
-  const addr = cleanText(full_address, 2000);
+  const addr = cleanText(stripAddressPrefix(full_address), 2000);
   if (!addr) return null;
 
   await db.query(
-    `UPDATE customer_delivery_address
-        SET is_default = 0
-      WHERE customer_id = ? AND shop_id = ?`,
+    `UPDATE customer_delivery_address SET is_default = 0 WHERE customer_id = ? AND shop_id = ?`,
     [customer_id, shop_id],
   );
 
@@ -426,23 +433,17 @@ async function saveCustomerAddress({ customer_id, shop_id, full_address, deliver
     `
     INSERT INTO customer_delivery_address
       (customer_id, shop_id, full_address, delivery_notes, is_default, created_at, updated_at)
-    VALUES (?, ?, ?, ?, 1, NOW(), NOW())
+    VALUES (?, ?, ?, NULL, 1, NOW(), NOW())
     `,
-    [customer_id, shop_id, addr, cleanText(delivery_notes, 1000)],
+    [customer_id, shop_id, addr],
   );
 
-  return {
-    id: ins.insertId,
-    full_address: addr,
-    delivery_notes: cleanText(delivery_notes, 1000),
-  };
+  return { id: ins.insertId, full_address: addr, delivery_notes: null };
 }
 
 async function getOrderItemsTotal(conn, order_id) {
   const [[sumRow]] = await conn.query(
-    `SELECT COALESCE(ROUND(SUM(price), 2), 0) AS total
-       FROM order_item
-      WHERE order_id = ?`,
+    `SELECT COALESCE(ROUND(SUM(price), 2), 0) AS total FROM order_item WHERE order_id = ?`,
     [Number(order_id)],
   );
   return money(sumRow?.total || 0);
@@ -457,12 +458,7 @@ async function recalculateOrderTotalWithFulfillment(conn, { order_id }) {
   );
   const fee = String(order?.fulfillment_method || "") === "delivery" ? money(order?.delivery_fee) : 0;
   const total = money(itemTotal + fee);
-  await conn.query(
-    `UPDATE orders
-        SET price = ?, updated_at = NOW(6)
-      WHERE id = ?`,
-    [total, Number(order_id)],
-  );
+  await conn.query(`UPDATE orders SET price = ?, updated_at = NOW(6) WHERE id = ?`, [total, Number(order_id)]);
   return { itemTotal, deliveryFee: fee, total };
 }
 
@@ -473,14 +469,7 @@ async function getDeliveryFeeForOrder({ shop_id, zone }) {
   return money(fee || 0);
 }
 
-async function applyOrderFulfillment({
-  order_id,
-  shop_id,
-  method,
-  delivery_address = null,
-  delivery_notes = null,
-  delivery_fee = null,
-}) {
+async function applyOrderFulfillment({ order_id, shop_id, method, delivery_address = null, delivery_fee = null }) {
   await ensureFulfillmentSchema();
   const conn = await db.getConnection();
   try {
@@ -504,15 +493,14 @@ async function applyOrderFulfillment({
          SET fulfillment_method = ?,
              delivery_address = ?,
              delivery_fee = ?,
-             delivery_notes = ?,
+             delivery_notes = NULL,
              updated_at = NOW(6)
        WHERE id = ? AND shop_id = ?
       `,
       [
         normalizedMethod,
-        normalizedMethod === "delivery" ? cleanText(delivery_address, 2000) : null,
+        normalizedMethod === "delivery" ? cleanText(stripAddressPrefix(delivery_address), 2000) : null,
         fee,
-        normalizedMethod === "delivery" ? cleanText(delivery_notes, 1000) : null,
         Number(order_id),
         Number(shop_id),
       ],
@@ -520,16 +508,7 @@ async function applyOrderFulfillment({
 
     const totals = await recalculateOrderTotalWithFulfillment(conn, { order_id });
     await conn.commit();
-
-    return {
-      id: Number(order_id),
-      fulfillment_method: normalizedMethod,
-      delivery_address: normalizedMethod === "delivery" ? cleanText(delivery_address, 2000) : null,
-      delivery_fee: fee,
-      delivery_notes: normalizedMethod === "delivery" ? cleanText(delivery_notes, 1000) : null,
-      price: totals.total,
-      itemTotal: totals.itemTotal,
-    };
+    return { id: Number(order_id), fulfillment_method: normalizedMethod, price: totals.total };
   } catch (err) {
     try { await conn.rollback(); } catch {}
     throw err;
@@ -563,13 +542,11 @@ function buildFulfillmentSummaryForCheckout(order, isEnglish) {
       lines.push("📦 Receiving method: home delivery");
       if (order.delivery_address) lines.push(`📍 Address: ${order.delivery_address}`);
       if (Number(order.delivery_fee) > 0) lines.push(`🏍️ Delivery fee: ₪${fmtMoney(order.delivery_fee)}`);
-      if (order.delivery_notes) lines.push(`📝 Courier note: ${order.delivery_notes}`);
       lines.push(`💰 Total including delivery: ₪${fmtMoney(order.price)}`);
     } else {
       lines.push("📦 אופן קבלה: משלוח עד הבית");
       if (order.delivery_address) lines.push(`📍 כתובת למשלוח: ${order.delivery_address}`);
       if (Number(order.delivery_fee) > 0) lines.push(`🏍️ דמי משלוח: ₪${fmtMoney(order.delivery_fee)}`);
-      if (order.delivery_notes) lines.push(`📝 הערה לשליח: ${order.delivery_notes}`);
       lines.push(`💰 סה״כ כולל משלוח: ₪${fmtMoney(order.price)}`);
     }
   } else if (method === "pickup") {
@@ -597,13 +574,17 @@ async function buildCheckoutInstructionForOrder({ order_id, shop_id, isEnglish }
       `To confirm your order (#${order_id}), reply with:`,
       String(order_id),
       "",
+      `To send a different delivery address, reply: Address: your new address`,
+      "",
       "If you’d like to add a note for the picker, write it after the number.",
       `For example: ${order_id} Please choose ripe bananas`,
     );
   } else {
     lines.push(
-      `כדי לסיים את ההזמנה שלך (#${order_id}), השב עם:`,
+      `לאישור וסיום ההזמנה שלך (#${order_id}), השב עם:`,
       String(order_id),
+      "",
+      `לשליחת כתובת משלוח חדשה, הגב: כתובת: הכתובת החדשה`,
       "",
       "אם תרצה להוסיף הערה למלקט, אפשר לכתוב אותה אחרי המספר.",
       `לדוגמה: ${order_id} בלי שקיות בבקשה`,
@@ -638,8 +619,8 @@ async function moveOrderToCheckoutPending({ order_id, shop_id, isEnglish }) {
 
 async function prepareFulfillmentBeforeCheckout({ activeOrder, isEnglish, customer_id, shop_id }) {
   if (!activeOrder || activeOrder.status !== "pending") return null;
-
   await ensureFulfillmentSchema();
+
   const shop = await getShopFulfillment(shop_id);
   if (!shop) return null;
 
@@ -649,19 +630,12 @@ async function prepareFulfillmentBeforeCheckout({ activeOrder, isEnglish, custom
   const firstName = getCustomerFirstName(customer);
   const zones = await getDeliveryZones(shop_id);
 
-  if (!supportsDelivery && !supportsPickup) {
+  if (!supportsDelivery || (supportsPickup && !supportsDelivery)) {
     await applyOrderFulfillment({ order_id: activeOrder.id, shop_id, method: "pickup" });
     return null;
   }
 
-  if (supportsPickup && !supportsDelivery) {
-    await applyOrderFulfillment({ order_id: activeOrder.id, shop_id, method: "pickup" });
-    return null;
-  }
-
-  let method = String(activeOrder.fulfillment_method || "").trim();
-
-  if (supportsDelivery && supportsPickup && !method) {
+  if (supportsDelivery && supportsPickup && !activeOrder.fulfillment_method) {
     const question = buildFulfillmentMethodQuestion({ firstName, isEnglish });
     await saveFulfillmentQuestion({
       customer_id,
@@ -674,8 +648,7 @@ async function prepareFulfillmentBeforeCheckout({ activeOrder, isEnglish, custom
     return question;
   }
 
-  if (supportsDelivery && !supportsPickup && !method) {
-    method = "delivery";
+  if (supportsDelivery && !supportsPickup && !activeOrder.fulfillment_method) {
     await applyOrderFulfillment({
       order_id: activeOrder.id,
       shop_id,
@@ -685,8 +658,7 @@ async function prepareFulfillmentBeforeCheckout({ activeOrder, isEnglish, custom
   }
 
   const refreshed = await getOrderForCheckout(activeOrder.id, shop_id);
-  if (String(refreshed?.fulfillment_method || method) !== "delivery") return null;
-
+  if (String(refreshed?.fulfillment_method || "") !== "delivery") return null;
   if (refreshed?.delivery_address) return null;
 
   const savedAddress = await getDefaultCustomerAddress(customer_id, shop_id);
@@ -698,11 +670,7 @@ async function prepareFulfillmentBeforeCheckout({ activeOrder, isEnglish, custom
       order_id: activeOrder.id,
       type: QUESTION_TYPES.DELIVERY_ADDRESS_CONFIRM,
       question,
-      options: {
-        address_id: savedAddress.id,
-        full_address: savedAddress.full_address,
-        delivery_notes: savedAddress.delivery_notes,
-      },
+      options: { address_id: savedAddress.id, full_address: savedAddress.full_address },
     });
     return question;
   }
@@ -722,11 +690,7 @@ async function prepareFulfillmentBeforeCheckout({ activeOrder, isEnglish, custom
 async function finishFulfillmentStep({ activeOrder, shop_id, isEnglish, prefix = "" }) {
   if (!activeOrder) return prefix;
   if (activeOrder.status === "pending" || activeOrder.status === "checkout_pending") {
-    const instruction = await moveOrderToCheckoutPending({
-      order_id: activeOrder.id,
-      shop_id,
-      isEnglish,
-    });
+    const instruction = await moveOrderToCheckoutPending({ order_id: activeOrder.id, shop_id, isEnglish });
     return [prefix, instruction].filter(Boolean).join("\n\n");
   }
   return prefix || (isEnglish ? "Updated." : "עודכן.");
@@ -748,9 +712,63 @@ async function askForDeliveryAddress({ activeOrder, customer_id, shop_id, isEngl
   return question;
 }
 
-async function handleDirectFulfillmentChangeRequest({ message, customer_id, shop_id, activeOrder, isEnglish }) {
+async function saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat }) {
+  await saveChat({ customer_id, shop_id, sender: "customer", status: "classified", message });
+  await saveChat({ customer_id, shop_id, sender: "bot", status: "classified", message: botText });
+  return botText;
+}
+
+async function updateDeliveryAddressForOrder({ message, addressText, customer_id, shop_id, activeOrder, isEnglish, saveChat }) {
+  await ensureFulfillmentSchema();
+  if (!activeOrder || !["pending", "checkout_pending", "confirmed"].includes(String(activeOrder.status))) return null;
+
+  const currentOrder = await getOrderForCheckout(activeOrder.id, shop_id);
+  if (String(currentOrder?.fulfillment_method || "") !== "delivery") return null;
+
+  const customer = await getCustomer(customer_id);
+  const firstName = getCustomerFirstName(customer);
+  const zones = await getDeliveryZones(shop_id);
+  const validation = validateDeliveryAddress(addressText, zones);
+
+  if (!validation.ok) {
+    const botText = buildAddressReminder({ firstName, zones, isEnglish, reason: validation.reason });
+    return saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
+  }
+
+  const saved = await saveCustomerAddress({
+    customer_id,
+    shop_id,
+    full_address: validation.cleanedAddress,
+  });
+  const fee = await getDeliveryFeeForOrder({ shop_id, zone: validation.zone });
+  await applyOrderFulfillment({
+    order_id: activeOrder.id,
+    shop_id,
+    method: "delivery",
+    delivery_address: saved.full_address,
+    delivery_fee: fee,
+  });
+
+  const prefix = isEnglish ? "Great, I updated the delivery address." : "מעולה, עדכנתי את כתובת המשלוח.";
+  const botText = await finishFulfillmentStep({ activeOrder, shop_id, isEnglish, prefix });
+  return saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
+}
+
+async function handleDirectFulfillmentChangeRequest({ message, customer_id, shop_id, activeOrder, isEnglish, saveChat }) {
   if (!activeOrder) return null;
   if (!["pending", "checkout_pending", "confirmed"].includes(String(activeOrder.status))) return null;
+
+  if (isAddressUpdateMessage(message)) {
+    return updateDeliveryAddressForOrder({
+      message,
+      addressText: extractAddressUpdateText(message),
+      customer_id,
+      shop_id,
+      activeOrder,
+      isEnglish,
+      saveChat,
+    });
+  }
 
   const raw = String(message || "").trim();
   const hasChangeIntent = /(שנה|תשנה|תחליף|להחליף|רוצה|עדיף|אפשר|תעשה|תעביר|change|switch|prefer)/i.test(raw);
@@ -764,23 +782,24 @@ async function handleDirectFulfillmentChangeRequest({ message, customer_id, shop
 
   if (choice === "pickup") {
     if (!supportsPickup) {
-      return isEnglish ? "This branch does not support pickup." : "הסניף הזה לא תומך באיסוף עצמי.";
+      const botText = isEnglish ? "This branch does not support pickup." : "הסניף הזה לא תומך באיסוף עצמי.";
+      return saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
     }
     await closeFulfillmentQuestions(customer_id, shop_id, activeOrder.id);
     await applyOrderFulfillment({ order_id: activeOrder.id, shop_id, method: "pickup" });
-    return finishFulfillmentStep({
+    const botText = await finishFulfillmentStep({
       activeOrder,
       shop_id,
       isEnglish,
-      prefix: isEnglish
-        ? "No problem, I changed the order to store pickup."
-        : "אין בעיה, שיניתי את ההזמנה לאיסוף עצמי מהחנות.",
+      prefix: isEnglish ? "No problem, I changed the order to store pickup." : "אין בעיה, שיניתי את ההזמנה לאיסוף עצמי מהחנות.",
     });
+    return saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
   }
 
   if (choice === "delivery") {
     if (!supportsDelivery) {
-      return isEnglish ? "This branch does not support delivery." : "הסניף הזה לא תומך במשלוחים.";
+      const botText = isEnglish ? "This branch does not support delivery." : "הסניף הזה לא תומך במשלוחים.";
+      return saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
     }
     await closeFulfillmentQuestions(customer_id, shop_id, activeOrder.id);
     await applyOrderFulfillment({
@@ -794,23 +813,20 @@ async function handleDirectFulfillmentChangeRequest({ message, customer_id, shop
     const customer = await getCustomer(customer_id);
     const firstName = getCustomerFirstName(customer);
     if (savedAddress) {
-      const question = buildSavedAddressQuestion({ firstName, address: savedAddress, isEnglish });
+      const botText = buildSavedAddressQuestion({ firstName, address: savedAddress, isEnglish });
       await saveFulfillmentQuestion({
         customer_id,
         shop_id,
         order_id: activeOrder.id,
         type: QUESTION_TYPES.DELIVERY_ADDRESS_CONFIRM,
-        question,
-        options: {
-          address_id: savedAddress.id,
-          full_address: savedAddress.full_address,
-          delivery_notes: savedAddress.delivery_notes,
-        },
+        question: botText,
+        options: { address_id: savedAddress.id, full_address: savedAddress.full_address },
       });
-      return question;
+      return saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
     }
 
-    return askForDeliveryAddress({ activeOrder, customer_id, shop_id, isEnglish });
+    const botText = await askForDeliveryAddress({ activeOrder, customer_id, shop_id, isEnglish });
+    return saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
   }
 
   return null;
@@ -823,23 +839,11 @@ async function handleFulfillmentReply({ message, customer_id, shop_id, activeOrd
   const isEnglish = detectIsEnglish(message);
   const question = getLatestFulfillmentQuestion(openQs);
 
-  const saveBoth = async (botText) => {
-    await saveChat({ customer_id, shop_id, sender: "customer", status: "classified", message });
-    await saveChat({ customer_id, shop_id, sender: "bot", status: "classified", message: botText });
-    return botText;
-  };
-
   if (!question) {
-    const direct = await handleDirectFulfillmentChangeRequest({
-      message,
-      customer_id,
-      shop_id,
-      activeOrder,
-      isEnglish,
-    });
-    return direct ? saveBoth(direct) : null;
+    return handleDirectFulfillmentChangeRequest({ message, customer_id, shop_id, activeOrder, isEnglish, saveChat });
   }
 
+  const saveBoth = async (botText) => saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
   const type = String(question.product_name || "").trim();
   const customer = await getCustomer(customer_id);
   const firstName = getCustomerFirstName(customer);
@@ -849,7 +853,7 @@ async function handleFulfillmentReply({ message, customer_id, shop_id, activeOrd
   if (type === QUESTION_TYPES.FULFILLMENT_METHOD) {
     const choice = parseFulfillmentChoice(message);
     if (!choice) {
-      const botText = buildFulfillmentMethodQuestion({ firstName, isEnglish });
+      const botText = buildInvalidFulfillmentChoiceMessage({ isEnglish });
       return saveBoth(botText);
     }
 
@@ -863,9 +867,7 @@ async function handleFulfillmentReply({ message, customer_id, shop_id, activeOrd
         activeOrder,
         shop_id,
         isEnglish,
-        prefix: isEnglish
-          ? "Great, store pickup it is."
-          : "מעולה, ההזמנה תהיה באיסוף עצמי מהחנות.",
+        prefix: isEnglish ? "Great, store pickup it is." : "מעולה, ההזמנה תהיה באיסוף עצמי מהחנות.",
       });
       return saveBoth(botText);
     }
@@ -891,11 +893,7 @@ async function handleFulfillmentReply({ message, customer_id, shop_id, activeOrd
         order_id: activeOrder.id,
         type: QUESTION_TYPES.DELIVERY_ADDRESS_CONFIRM,
         question: botText,
-        options: {
-          address_id: savedAddress.id,
-          full_address: savedAddress.full_address,
-          delivery_notes: savedAddress.delivery_notes,
-        },
+        options: { address_id: savedAddress.id, full_address: savedAddress.full_address },
       });
       return saveBoth(botText);
     }
@@ -915,8 +913,9 @@ async function handleFulfillmentReply({ message, customer_id, shop_id, activeOrd
   if (type === QUESTION_TYPES.DELIVERY_ADDRESS_CONFIRM) {
     const yes = parseYesNoAddressConfirm(message);
     if (yes === null) {
-      const options = parseQuestionOptions(question.option_set) || {};
-      const botText = buildSavedAddressQuestion({ firstName, address: options, isEnglish });
+      const botText = isEnglish
+        ? "Please reply with 1 to use the saved address, or 2 to send a different address."
+        : "כדי להמשיך, השב 1 לשימוש בכתובת השמורה או 2 להזנת כתובת אחרת.";
       return saveBoth(botText);
     }
 
@@ -947,7 +946,6 @@ async function handleFulfillmentReply({ message, customer_id, shop_id, activeOrd
       shop_id,
       method: "delivery",
       delivery_address: savedAddress.full_address,
-      delivery_notes: savedAddress.delivery_notes,
       delivery_fee: fee,
     });
 
@@ -955,28 +953,20 @@ async function handleFulfillmentReply({ message, customer_id, shop_id, activeOrd
       activeOrder,
       shop_id,
       isEnglish,
-      prefix: isEnglish
-        ? "Great, I saved the delivery to your saved address."
-        : "מעולה, שמרתי את המשלוח לכתובת השמורה.",
+      prefix: isEnglish ? "Great, I saved the delivery to your saved address." : "מעולה, שמרתי את המשלוח לכתובת השמורה.",
     });
     return saveBoth(botText);
   }
 
   if (type === QUESTION_TYPES.DELIVERY_ADDRESS_INPUT) {
-    const parsed = parseDeliveryAddressMessage(message);
-    const validation = validateDeliveryAddress(parsed.full_address, zones);
+    const validation = validateDeliveryAddress(message, zones);
     if (!validation.ok) {
-      const botText = buildAddressReminder({ firstName, zones, isEnglish });
+      const botText = buildAddressReminder({ firstName, zones, isEnglish, reason: validation.reason });
       return saveBoth(botText);
     }
 
     await closeQuestionsByIds([question.id]);
-    const saved = await saveCustomerAddress({
-      customer_id,
-      shop_id,
-      full_address: parsed.full_address,
-      delivery_notes: parsed.delivery_notes,
-    });
+    const saved = await saveCustomerAddress({ customer_id, shop_id, full_address: validation.cleanedAddress });
     const fee = await getDeliveryFeeForOrder({ shop_id, zone: validation.zone });
 
     await applyOrderFulfillment({
@@ -984,7 +974,6 @@ async function handleFulfillmentReply({ message, customer_id, shop_id, activeOrd
       shop_id,
       method: "delivery",
       delivery_address: saved.full_address,
-      delivery_notes: saved.delivery_notes,
       delivery_fee: fee,
     });
 
@@ -992,9 +981,7 @@ async function handleFulfillmentReply({ message, customer_id, shop_id, activeOrd
       activeOrder,
       shop_id,
       isEnglish,
-      prefix: isEnglish
-        ? "Great, I saved the delivery address."
-        : "מעולה, שמרתי את כתובת המשלוח.",
+      prefix: isEnglish ? "Great, I saved the delivery address." : "מעולה, שמרתי את כתובת המשלוח.",
     });
     return saveBoth(botText);
   }
@@ -1013,4 +1000,6 @@ module.exports = {
   getOrderForCheckout,
   buildFulfillmentSummaryForCheckout,
   getDeliveryZones,
+  validateDeliveryAddress,
+  isAddressUpdateMessage,
 };

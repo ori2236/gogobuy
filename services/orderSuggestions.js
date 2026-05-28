@@ -313,7 +313,6 @@ async function buildUpdatedOrderSummaryMessage({ order_id, isEnglish }) {
     fulfillmentMethod: order?.fulfillment_method,
     deliveryAddress: order?.delivery_address,
     deliveryFee: order?.delivery_fee,
-    deliveryNotes: order?.delivery_notes,
   });
 }
 

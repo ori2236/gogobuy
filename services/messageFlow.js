@@ -70,6 +70,17 @@ async function processMessage(
   const sig = buildActiveOrderSignals(activeOrder, items);
   const openQs = await fetchOpenQuestions(customer_id, shop_id, 20);
 
+  const fulfillmentReply = await handleFulfillmentReply({
+    message,
+    customer_id,
+    shop_id,
+    activeOrder,
+    openQs,
+    saveChat,
+  });
+
+  if (fulfillmentReply) return fulfillmentReply;
+
   const checkoutReply = await checkIfToCheckoutOrder({
     activeOrder,
     message,
@@ -89,17 +100,6 @@ async function processMessage(
   });
 
   if (cancelReply) return cancelReply;
-
-  const fulfillmentReply = await handleFulfillmentReply({
-    message,
-    customer_id,
-    shop_id,
-    activeOrder,
-    openQs,
-    saveChat,
-  });
-
-  if (fulfillmentReply) return fulfillmentReply;
 
   const checkoutNudgeReply = await handleCheckoutNudgeReply({
     message,

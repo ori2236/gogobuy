@@ -42,14 +42,6 @@ const CATEGORY_HANDLERS = {
         ctx.shop_id
       ),
 
-    STATUS: async (ctx) =>
-      answerOrderStatus({
-        message: ctx.message,
-        customer_id: ctx.customer_id,
-        shop_id: ctx.shop_id,
-        isEnglish: ctx.isEnglish,
-      }),
-
     CANCEL: async (ctx) =>
       askToCancelOrder(
         ctx.activeOrder,
@@ -57,6 +49,14 @@ const CATEGORY_HANDLERS = {
         ctx.customer_id,
         ctx.shop_id
       ),
+
+    STATUS: async (ctx) =>
+      answerOrderStatus({
+        message: ctx.message,
+        customer_id: ctx.customer_id,
+        shop_id: ctx.shop_id,
+        isEnglish: ctx.isEnglish,
+      }),
 
     CHECKOUT: async (ctx) =>
       askToCheckoutOrder(

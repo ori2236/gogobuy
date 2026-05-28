@@ -43,8 +43,37 @@ function methodText(order, isEnglish) {
   return "";
 }
 
-async function getLatestCustomerOrder(customer_id, shop_id) {
-  const [[row]] = await db.query(
+async function getRelevantCustomerIds(customer_id, shop_id) {
+  const [[customer]] = await db.query(
+    `SELECT id, phone, chain_id FROM customer WHERE id = ? LIMIT 1`,
+    [customer_id],
+  );
+
+  if (!customer?.phone) return [Number(customer_id)];
+
+  const params = [customer.phone];
+  let chainFilter = "";
+  if (customer.chain_id) {
+    chainFilter = " AND chain_id = ?";
+    params.push(customer.chain_id);
+  }
+
+  const [rows] = await db.query(
+    `SELECT id FROM customer WHERE phone = ?${chainFilter}`,
+    params,
+  );
+
+  const ids = (rows || []).map((r) => Number(r.id)).filter(Boolean);
+  if (!ids.includes(Number(customer_id))) ids.push(Number(customer_id));
+  return [...new Set(ids)];
+}
+
+async function getRecentCustomerOrders(customer_id, shop_id, hours = 24) {
+  const ids = await getRelevantCustomerIds(customer_id, shop_id);
+  if (!ids.length) return [];
+
+  const placeholders = ids.map(() => "?").join(",");
+  const [rows] = await db.query(
     `
     SELECT
       id,
@@ -53,50 +82,64 @@ async function getLatestCustomerOrder(customer_id, shop_id) {
       fulfillment_method,
       delivery_address,
       delivery_fee,
-      delivery_notes,
       created_at,
       updated_at
     FROM orders
-    WHERE customer_id = ?
+    WHERE customer_id IN (${placeholders})
       AND shop_id = ?
       AND status IN ('pending','checkout_pending','confirmed','preparing','ready','delivering','completed','cancel_pending')
-    ORDER BY updated_at DESC, id DESC
-    LIMIT 1
+      AND (
+        created_at >= (NOW() - INTERVAL ? HOUR)
+        OR updated_at >= (NOW() - INTERVAL ? HOUR)
+      )
+    ORDER BY created_at DESC, id DESC
+    LIMIT 20
     `,
-    [customer_id, shop_id],
+    [...ids, shop_id, Number(hours), Number(hours)],
   );
-  return row || null;
+
+  return rows || [];
+}
+
+function formatOrderLine(order, isEnglish) {
+  const id = Number(order.id);
+  const status = statusText(order, isEnglish);
+  const method = methodText(order, isEnglish);
+  const total = Number(order.price || 0).toFixed(2);
+
+  if (isEnglish) {
+    const parts = [`#${id} — ${status}`];
+    if (method) parts.push(method);
+    parts.push(`₪${total}`);
+    if (isDelivery(order) && order.delivery_address) parts.push(`address: ${order.delivery_address}`);
+    return `• ${parts.join(" — ")}`;
+  }
+
+  const parts = [`#${id} — ${status}`];
+  if (method) parts.push(method);
+  parts.push(`₪${total}`);
+  if (isDelivery(order) && order.delivery_address) parts.push(`כתובת: ${order.delivery_address}`);
+  return `• ${parts.join(" — ")}`;
 }
 
 async function answerOrderStatus({ message, customer_id, shop_id, isEnglish }) {
   const english = typeof isEnglish === "boolean" ? isEnglish : detectIsEnglish(message);
-  const order = await getLatestCustomerOrder(customer_id, shop_id);
+  const orders = await getRecentCustomerOrders(customer_id, shop_id, 24);
 
-  if (!order) {
+  if (!orders.length) {
     return english
-      ? "I couldn't find an order for you right now. Would you like to start a new order?"
-      : "לא מצאתי עבורך הזמנה כרגע. תרצה לפתוח הזמנה חדשה?";
+      ? "I couldn't find any orders from the last 24 hours. Would you like to start a new order?"
+      : "לא מצאתי הזמנות שלך מה־24 שעות האחרונות. תרצה לפתוח הזמנה חדשה?";
   }
 
-  const lines = [];
-  if (english) {
-    lines.push(`Order #${order.id} status: ${statusText(order, true)}.`);
-    const method = methodText(order, true);
-    if (method) lines.push(`Receiving method: ${method}.`);
-    if (isDelivery(order) && order.delivery_address) lines.push(`Delivery address: ${order.delivery_address}.`);
-    if (order.price !== null && order.price !== undefined) lines.push(`Total: ₪${Number(order.price || 0).toFixed(2)}.`);
-  } else {
-    lines.push(`סטטוס הזמנה #${order.id}: ${statusText(order, false)}.`);
-    const method = methodText(order, false);
-    if (method) lines.push(`אופן קבלה: ${method}.`);
-    if (isDelivery(order) && order.delivery_address) lines.push(`כתובת למשלוח: ${order.delivery_address}.`);
-    if (order.price !== null && order.price !== undefined) lines.push(`סה״כ לתשלום: ₪${Number(order.price || 0).toFixed(2)}.`);
-  }
+  const header = english
+    ? "Here are your orders from the last 24 hours:"
+    : "אלה ההזמנות שלך מה־24 שעות האחרונות:";
 
-  return lines.join("\n");
+  return [header, "", ...orders.map((order) => formatOrderLine(order, english))].join("\n");
 }
 
 module.exports = {
   answerOrderStatus,
-  getLatestCustomerOrder,
+  getRecentCustomerOrders,
 };

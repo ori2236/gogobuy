@@ -263,7 +263,6 @@ function buildOrderSummaryMessage({
   fulfillmentMethod = null,
   deliveryAddress = null,
   deliveryFee = null,
-  deliveryNotes = null,
 } = {}) {
   const normalizedItems = (Array.isArray(items) ? items : [])
     .map(normalizeOrderItemForSummary)
@@ -349,13 +348,6 @@ function buildOrderSummaryMessage({
         isEnglish
           ? `📍 Delivery address: ${deliveryAddress}`
           : `📍 כתובת למשלוח: ${deliveryAddress}`,
-      );
-    }
-    if (deliveryNotes) {
-      lines.push(
-        isEnglish
-          ? `📝 Courier note: ${deliveryNotes}`
-          : `📝 הערה לשליח: ${deliveryNotes}`,
       );
     }
     lines.push(

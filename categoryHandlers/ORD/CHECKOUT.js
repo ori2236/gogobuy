@@ -7,7 +7,6 @@ const { detectIsEnglish } = require("../../utilities/lang");
 const {
   prepareFulfillmentBeforeCheckout,
   moveOrderToCheckoutPending,
-  buildCheckoutInstructionForOrder,
   getOrderForCheckout,
 } = require("../../services/fulfillment");
 
@@ -114,9 +113,9 @@ async function checkIfToCheckoutOrder({
         if (String(confirmedOrder.fulfillment_method || "") === "delivery") {
           return isEnglish
             ? `
-Delivery total: ₪${Number(confirmedOrder.price || 0).toFixed(2)}. The order will be delivered to: ${confirmedOrder.delivery_address || "the saved address"}.`
+Total including delivery: ₪${Number(confirmedOrder.price || 0).toFixed(2)}. Delivery address: ${confirmedOrder.delivery_address || "saved address"}.`
             : `
-סה״כ כולל משלוח: ₪${Number(confirmedOrder.price || 0).toFixed(2)}. ההזמנה תישלח לכתובת: ${confirmedOrder.delivery_address || "הכתובת השמורה"}.`;
+סה״כ כולל משלוח: ₪${Number(confirmedOrder.price || 0).toFixed(2)}. כתובת למשלוח: ${confirmedOrder.delivery_address || "הכתובת השמורה"}.`;
         }
         if (String(confirmedOrder.fulfillment_method || "") === "pickup") {
           return isEnglish
