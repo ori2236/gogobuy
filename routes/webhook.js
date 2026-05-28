@@ -39,26 +39,26 @@ router.post("/webhooks", async (req, res) => {
       change?.metadata?.phone_number_id || "",
     ).trim();
 
-    let SHOP_ID = 1;
+    if (!incomingPhoneNumberId) {
+      console.warn("[webhook] Missing metadata.phone_number_id. Message ignored to avoid routing to the wrong shop.");
+      return res.sendStatus(200);
+    }
 
-    if (incomingPhoneNumberId) {
-      const phoneMapping = await getShopByIncomingPhoneId(
+    const phoneMapping = await getShopByIncomingPhoneId(incomingPhoneNumberId);
+
+    if (!phoneMapping?.shop_id) {
+      console.warn("[webhook] No active shop mapping for WhatsApp phone_number_id. Message ignored:", incomingPhoneNumberId);
+      return res.sendStatus(200);
+    }
+
+    const SHOP_ID = Number(phoneMapping.shop_id);
+
+    if (!Number.isInteger(SHOP_ID) || SHOP_ID <= 0) {
+      console.warn("[webhook] Invalid mapped shop_id. Message ignored:", {
         incomingPhoneNumberId,
-      );
-
-      if (phoneMapping?.shop_id) {
-        SHOP_ID = Number(phoneMapping.shop_id);
-      } else {
-        console.warn(
-          "[webhook] No shop mapping for WhatsApp phone_number_id:",
-          incomingPhoneNumberId,
-          "falling back to shop_id=1",
-        );
-      }
-    } else {
-      console.warn(
-        "[webhook] Missing metadata.phone_number_id, falling back to shop_id=1",
-      );
+        shop_id: phoneMapping.shop_id,
+      });
+      return res.sendStatus(200);
     }
 
     const waMessageId = msg.id;
@@ -139,7 +139,7 @@ router.post("/webhooks", async (req, res) => {
         for (const followUp of followUpMessages) {
           const text = typeof followUp === "string" ? followUp.trim() : "";
           if (!text) continue;
-          await sendWhatsAppText(from, reply, incomingPhoneNumberId);
+          await sendWhatsAppText(from, text, incomingPhoneNumberId);
         }
 
         const deferredCheckoutNudge = botResp?.deferredCheckoutNudge || null;
@@ -150,6 +150,7 @@ router.post("/webhooks", async (req, res) => {
             const didSendRecommendation = await runProductRecommendationsAndSend({
               ...ctx,
               phone_number: from,
+              businessPhoneNumberId: incomingPhoneNumberId,
             });
 
             // Checkout nudges should come only after async recommendations finish.
@@ -159,6 +160,7 @@ router.post("/webhooks", async (req, res) => {
               await sendDeferredCheckoutNudge({
                 checkoutNudge: deferredCheckoutNudge,
                 phone_number: from,
+                businessPhoneNumberId: incomingPhoneNumberId,
               });
             }
           });
@@ -167,6 +169,7 @@ router.post("/webhooks", async (req, res) => {
             sendDeferredCheckoutNudge({
               checkoutNudge: deferredCheckoutNudge,
               phone_number: from,
+              businessPhoneNumberId: incomingPhoneNumberId,
             });
           });
         }

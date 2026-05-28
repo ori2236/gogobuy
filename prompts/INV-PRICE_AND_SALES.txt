@@ -32,8 +32,9 @@ Return products[] where each item has:
   * If the user didn’t specify a brand/size, use a generic name like "מיץ אפרסק", "אפרסק", "חלב 3%", etc.
   * Never turn a generic request like "מיץ אפרסק" into a specific branded SKU like "פריגת מיץ אפרסק 1 ליטר" unless the user explicitly wrote that brand and size.
   * The "name" should not include context words like "for salad" or "not too big", only the core product type.
-  * For items you mark as sold_by_weight=true (loose produce/herbs), if the user wrote the product name in singular, output the name in the common plural form (e.g. "בננה" → "בננות").
-    If the plural form is not clear or the singular is commonly used in catalogs, keep the original singular.
+  * For items you mark as sold_by_weight=true (loose produce/herbs), output the core product name in the common supermarket catalog form.
+    Prefer the singular/base form when it is commonly used in the DB/catalog. (e.g. "בננות" → "בננה").
+    If unsure, keep the user’s original core product name after stripping context words.
 - amount: numeric quantity.
   • For regular packaged items (cartons of milk, bottles, bags, boxes, etc.) this is the count of sellable units (e.g. 1, 2, 6).
   • For items that are normally sold by weight (loose fruits/vegetables, fresh herbs, potatoes, onions, loose meat/fish, deli salads/cheese by weight, etc.), "amount" must always be in kilograms.
@@ -131,8 +132,8 @@ Example 2 - Simple price question (Hebrew, default quantity)
 {
 "products": [
 {
-  "name": "מלפפונים",
-  "outputName": "cucumbers",
+  "name": "מלפפון",
+  "outputName": "cucumber",
   "amount": 0.3,
   "units": 1,
   "sold_by_weight": true,
@@ -141,7 +142,7 @@ Example 2 - Simple price question (Hebrew, default quantity)
   "budget_ils": null,
   "price_intent": "PRICE",
   "category": "Produce",
-  "sub-category": "Vegetables",
+  "sub-category": "Vegetables"
 }
 ],
 "questions": []

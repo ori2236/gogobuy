@@ -426,10 +426,11 @@ module.exports = {
      p.display_name_en,
      p.emoji
       FROM order_item oi
-      JOIN product p ON p.id = oi.product_id
-      LEFT JOIN promotion pr ON pr.id = oi.promo_id
-      WHERE oi.order_id = ?`,
-      [orderRes.order_id],
+      JOIN orders o ON o.id = oi.order_id
+      JOIN product p ON p.id = oi.product_id AND p.shop_id = o.shop_id
+      LEFT JOIN promotion pr ON pr.id = oi.promo_id AND pr.shop_id = o.shop_id
+      WHERE oi.order_id = ? AND o.shop_id = ?`,
+      [orderRes.order_id, shop_id],
     );
 
     const totalWithPromos = Number(orderRes.totalPrice ?? 0);

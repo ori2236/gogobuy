@@ -1,8 +1,10 @@
 function normalizeToken(t) {
-  return String(t || "")
-    .normalize("NFKC")
-    .replace(/['’"]/g, "")
-    .trim();
+  return (
+    String(t || "")
+      .normalize("NFKC")
+      .replace(/['’"`\u05F3\u05F4]/g, "")
+      .trim()
+  );
 }
 
 function normForContains(s) {

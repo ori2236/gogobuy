@@ -827,6 +827,7 @@ async function runProductRecommendationsAndSend({
   order_id,
   phone_number,
   isEnglish,
+  businessPhoneNumberId = null,
 }) {
   try {
     if (!customer_id || !shop_id || !order_id || !phone_number) return false;
@@ -942,7 +943,7 @@ async function runProductRecommendationsAndSend({
       ],
     });
 
-    await sendWhatsAppText(phone_number, message);
+    await sendWhatsAppText(phone_number, message, businessPhoneNumberId);
     await saveChat({
       customer_id,
       shop_id,

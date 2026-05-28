@@ -1,0 +1,919 @@
+[
+  {
+    "subcategory_id": 1,
+    "category_id": 1,
+    "category": "Dairy & Eggs",
+    "subcategory": "Milk",
+    "emoji": "🥛"
+  },
+  {
+    "subcategory_id": 2,
+    "category_id": 1,
+    "category": "Dairy & Eggs",
+    "subcategory": "Milk Alternatives",
+    "emoji": "🥛"
+  },
+  {
+    "subcategory_id": 3,
+    "category_id": 1,
+    "category": "Dairy & Eggs",
+    "subcategory": "Yogurt",
+    "emoji": "🍓"
+  },
+  {
+    "subcategory_id": 4,
+    "category_id": 1,
+    "category": "Dairy & Eggs",
+    "subcategory": "Cheese",
+    "emoji": "🧀"
+  },
+  {
+    "subcategory_id": 5,
+    "category_id": 1,
+    "category": "Dairy & Eggs",
+    "subcategory": "Cream",
+    "emoji": "🥛"
+  },
+  {
+    "subcategory_id": 6,
+    "category_id": 1,
+    "category": "Dairy & Eggs",
+    "subcategory": "Butter & Margarine",
+    "emoji": "🧈"
+  },
+  {
+    "subcategory_id": 7,
+    "category_id": 1,
+    "category": "Dairy & Eggs",
+    "subcategory": "Eggs",
+    "emoji": "🥚"
+  },
+  {
+    "subcategory_id": 8,
+    "category_id": 1,
+    "category": "Dairy & Eggs",
+    "subcategory": "Spreads & Cream Cheese",
+    "emoji": "🧀"
+  },
+  {
+    "subcategory_id": 9,
+    "category_id": 1,
+    "category": "Dairy & Eggs",
+    "subcategory": "Desserts & Puddings",
+    "emoji": "🍮"
+  },
+  {
+    "subcategory_id": 10,
+    "category_id": 2,
+    "category": "Bakery",
+    "subcategory": "Bread",
+    "emoji": "🍞"
+  },
+  {
+    "subcategory_id": 11,
+    "category_id": 2,
+    "category": "Bakery",
+    "subcategory": "Rolls & Buns",
+    "emoji": "🥯"
+  },
+  {
+    "subcategory_id": 12,
+    "category_id": 2,
+    "category": "Bakery",
+    "subcategory": "Pita & Flatbread",
+    "emoji": "🫓"
+  },
+  {
+    "subcategory_id": 13,
+    "category_id": 2,
+    "category": "Bakery",
+    "subcategory": "Baguettes & Artisan",
+    "emoji": "🥖"
+  },
+  {
+    "subcategory_id": 14,
+    "category_id": 2,
+    "category": "Bakery",
+    "subcategory": "Cakes & Pastries",
+    "emoji": "🥐"
+  },
+  {
+    "subcategory_id": 15,
+    "category_id": 2,
+    "category": "Bakery",
+    "subcategory": "Cookies & Biscuits",
+    "emoji": "🍪"
+  },
+  {
+    "subcategory_id": 16,
+    "category_id": 2,
+    "category": "Bakery",
+    "subcategory": "Tortillas & Wraps",
+    "emoji": "🌯"
+  },
+  {
+    "subcategory_id": 17,
+    "category_id": 2,
+    "category": "Bakery",
+    "subcategory": "Gluten-Free Bakery",
+    "emoji": "🍞"
+  },
+  {
+    "subcategory_id": 18,
+    "category_id": 3,
+    "category": "Produce",
+    "subcategory": "Fruits",
+    "emoji": "🍎"
+  },
+  {
+    "subcategory_id": 19,
+    "category_id": 3,
+    "category": "Produce",
+    "subcategory": "Vegetables",
+    "emoji": "🍅"
+  },
+  {
+    "subcategory_id": 20,
+    "category_id": 3,
+    "category": "Produce",
+    "subcategory": "Fresh Herbs",
+    "emoji": "🌿"
+  },
+  {
+    "subcategory_id": 21,
+    "category_id": 3,
+    "category": "Produce",
+    "subcategory": "Prepped Produce",
+    "emoji": "🥗"
+  },
+  {
+    "subcategory_id": 22,
+    "category_id": 3,
+    "category": "Produce",
+    "subcategory": "Organic Produce",
+    "emoji": "🥬"
+  },
+  {
+    "subcategory_id": 23,
+    "category_id": 4,
+    "category": "Meat & Poultry",
+    "subcategory": "Beef",
+    "emoji": "🥩"
+  },
+  {
+    "subcategory_id": 24,
+    "category_id": 4,
+    "category": "Meat & Poultry",
+    "subcategory": "Chicken",
+    "emoji": "🍗"
+  },
+  {
+    "subcategory_id": 25,
+    "category_id": 4,
+    "category": "Meat & Poultry",
+    "subcategory": "Turkey",
+    "emoji": "🦃"
+  },
+  {
+    "subcategory_id": 26,
+    "category_id": 4,
+    "category": "Meat & Poultry",
+    "subcategory": "Lamb",
+    "emoji": "🥩"
+  },
+  {
+    "subcategory_id": 27,
+    "category_id": 4,
+    "category": "Meat & Poultry",
+    "subcategory": "Mixed & Other Meats",
+    "emoji": "🥩"
+  },
+  {
+    "subcategory_id": 28,
+    "category_id": 4,
+    "category": "Meat & Poultry",
+    "subcategory": "Ground/Minced",
+    "emoji": "🥩"
+  },
+  {
+    "subcategory_id": 29,
+    "category_id": 4,
+    "category": "Meat & Poultry",
+    "subcategory": "Cold Cuts",
+    "emoji": "🥪"
+  },
+  {
+    "subcategory_id": 30,
+    "category_id": 4,
+    "category": "Meat & Poultry",
+    "subcategory": "Sausages",
+    "emoji": "🌭"
+  },
+  {
+    "subcategory_id": 31,
+    "category_id": 5,
+    "category": "Fish & Seafood",
+    "subcategory": "Fresh Fish",
+    "emoji": "🐟"
+  },
+  {
+    "subcategory_id": 32,
+    "category_id": 5,
+    "category": "Fish & Seafood",
+    "subcategory": "Frozen Fish",
+    "emoji": "🐟"
+  },
+  {
+    "subcategory_id": 33,
+    "category_id": 5,
+    "category": "Fish & Seafood",
+    "subcategory": "Shellfish",
+    "emoji": "🦐"
+  },
+  {
+    "subcategory_id": 34,
+    "category_id": 5,
+    "category": "Fish & Seafood",
+    "subcategory": "Smoked & Cured",
+    "emoji": "🐟"
+  },
+  {
+    "subcategory_id": 35,
+    "category_id": 5,
+    "category": "Fish & Seafood",
+    "subcategory": "Canned Fish",
+    "emoji": "🥫"
+  },
+  {
+    "subcategory_id": 36,
+    "category_id": 6,
+    "category": "Deli & Ready Meals",
+    "subcategory": "Deli Meats",
+    "emoji": "🥩"
+  },
+  {
+    "subcategory_id": 37,
+    "category_id": 6,
+    "category": "Deli & Ready Meals",
+    "subcategory": "Deli Cheeses",
+    "emoji": "🧀"
+  },
+  {
+    "subcategory_id": 38,
+    "category_id": 6,
+    "category": "Deli & Ready Meals",
+    "subcategory": "Salads & Spreads",
+    "emoji": "🥙"
+  },
+  {
+    "subcategory_id": 39,
+    "category_id": 6,
+    "category": "Deli & Ready Meals",
+    "subcategory": "Ready-to-Eat Meals",
+    "emoji": "🍱"
+  },
+  {
+    "subcategory_id": 40,
+    "category_id": 6,
+    "category": "Deli & Ready Meals",
+    "subcategory": "Sushi & Sashimi",
+    "emoji": "🍣"
+  },
+  {
+    "subcategory_id": 41,
+    "category_id": 7,
+    "category": "Frozen",
+    "subcategory": "Vegetables",
+    "emoji": "🥦"
+  },
+  {
+    "subcategory_id": 42,
+    "category_id": 7,
+    "category": "Frozen",
+    "subcategory": "Fruits",
+    "emoji": "🍓"
+  },
+  {
+    "subcategory_id": 43,
+    "category_id": 7,
+    "category": "Frozen",
+    "subcategory": "Meat & Poultry",
+    "emoji": "🍗"
+  },
+  {
+    "subcategory_id": 44,
+    "category_id": 7,
+    "category": "Frozen",
+    "subcategory": "Fish & Seafood",
+    "emoji": "🐟"
+  },
+  {
+    "subcategory_id": 45,
+    "category_id": 7,
+    "category": "Frozen",
+    "subcategory": "Pizza & Dough",
+    "emoji": "🍕"
+  },
+  {
+    "subcategory_id": 46,
+    "category_id": 7,
+    "category": "Frozen",
+    "subcategory": "Ice Cream & Desserts",
+    "emoji": "🍨"
+  },
+  {
+    "subcategory_id": 47,
+    "category_id": 7,
+    "category": "Frozen",
+    "subcategory": "Ready Meals",
+    "emoji": "🍱"
+  },
+  {
+    "subcategory_id": 48,
+    "category_id": 7,
+    "category": "Frozen",
+    "subcategory": "Vegan & Veggie",
+    "emoji": "🌱"
+  },
+  {
+    "subcategory_id": 49,
+    "category_id": 8,
+    "category": "Pantry",
+    "subcategory": "Flour & Baking",
+    "emoji": "🌾"
+  },
+  {
+    "subcategory_id": 50,
+    "category_id": 8,
+    "category": "Pantry",
+    "subcategory": "Sugar & Sweeteners",
+    "emoji": "🍯"
+  },
+  {
+    "subcategory_id": 51,
+    "category_id": 8,
+    "category": "Pantry",
+    "subcategory": "Spices & Seasonings",
+    "emoji": "🧂"
+  },
+  {
+    "subcategory_id": 52,
+    "category_id": 8,
+    "category": "Pantry",
+    "subcategory": "Oils & Vinegar",
+    "emoji": "🫒"
+  },
+  {
+    "subcategory_id": 53,
+    "category_id": 8,
+    "category": "Pantry",
+    "subcategory": "Sauces & Condiments",
+    "emoji": "🥫"
+  },
+  {
+    "subcategory_id": 54,
+    "category_id": 8,
+    "category": "Pantry",
+    "subcategory": "Pasta",
+    "emoji": "🍝"
+  },
+  {
+    "subcategory_id": 55,
+    "category_id": 8,
+    "category": "Pantry",
+    "subcategory": "Rice & Grains",
+    "emoji": "🌾"
+  },
+  {
+    "subcategory_id": 56,
+    "category_id": 8,
+    "category": "Pantry",
+    "subcategory": "Canned Vegetables",
+    "emoji": "🥫"
+  },
+  {
+    "subcategory_id": 57,
+    "category_id": 8,
+    "category": "Pantry",
+    "subcategory": "Canned Tomatoes",
+    "emoji": "🍅"
+  },
+  {
+    "subcategory_id": 58,
+    "category_id": 8,
+    "category": "Pantry",
+    "subcategory": "Canned Beans & Legumes",
+    "emoji": "🫘"
+  },
+  {
+    "subcategory_id": 59,
+    "category_id": 8,
+    "category": "Pantry",
+    "subcategory": "Canned Fish",
+    "emoji": "🐟"
+  },
+  {
+    "subcategory_id": 60,
+    "category_id": 8,
+    "category": "Pantry",
+    "subcategory": "Pickles & Olives",
+    "emoji": "🫒"
+  },
+  {
+    "subcategory_id": 61,
+    "category_id": 8,
+    "category": "Pantry",
+    "subcategory": "Honey & Spreads",
+    "emoji": "🍯"
+  },
+  {
+    "subcategory_id": 62,
+    "category_id": 8,
+    "category": "Pantry",
+    "subcategory": "Breakfast Cereal",
+    "emoji": "🥣"
+  },
+  {
+    "subcategory_id": 63,
+    "category_id": 8,
+    "category": "Pantry",
+    "subcategory": "Granola & Muesli",
+    "emoji": "🥣"
+  },
+  {
+    "subcategory_id": 64,
+    "category_id": 8,
+    "category": "Pantry",
+    "subcategory": "Nut Butters",
+    "emoji": "🥜"
+  },
+  {
+    "subcategory_id": 65,
+    "category_id": 8,
+    "category": "Pantry",
+    "subcategory": "Jams & Preserves",
+    "emoji": "🍓"
+  },
+  {
+    "subcategory_id": 66,
+    "category_id": 8,
+    "category": "Pantry",
+    "subcategory": "Asian Pantry",
+    "emoji": "🍜"
+  },
+  {
+    "subcategory_id": 67,
+    "category_id": 8,
+    "category": "Pantry",
+    "subcategory": "Mediterranean Pantry",
+    "emoji": "🫒"
+  },
+  {
+    "subcategory_id": 68,
+    "category_id": 8,
+    "category": "Pantry",
+    "subcategory": "Mexican Pantry",
+    "emoji": "🌮"
+  },
+  {
+    "subcategory_id": 69,
+    "category_id": 8,
+    "category": "Pantry",
+    "subcategory": "Baking Mixes",
+    "emoji": "🧁"
+  },
+  {
+    "subcategory_id": 70,
+    "category_id": 9,
+    "category": "Snacks",
+    "subcategory": "Chips & Crisps",
+    "emoji": "🥔"
+  },
+  {
+    "subcategory_id": 71,
+    "category_id": 9,
+    "category": "Snacks",
+    "subcategory": "Pretzels & Popcorn",
+    "emoji": "🍿"
+  },
+  {
+    "subcategory_id": 72,
+    "category_id": 9,
+    "category": "Snacks",
+    "subcategory": "Nuts & Seeds",
+    "emoji": "🥜"
+  },
+  {
+    "subcategory_id": 73,
+    "category_id": 9,
+    "category": "Snacks",
+    "subcategory": "Dried Fruit",
+    "emoji": "🍇"
+  },
+  {
+    "subcategory_id": 74,
+    "category_id": 9,
+    "category": "Snacks",
+    "subcategory": "Cookies & Biscuits",
+    "emoji": "🍪"
+  },
+  {
+    "subcategory_id": 75,
+    "category_id": 9,
+    "category": "Snacks",
+    "subcategory": "Crackers",
+    "emoji": "🍘"
+  },
+  {
+    "subcategory_id": 76,
+    "category_id": 9,
+    "category": "Snacks",
+    "subcategory": "Candy & Chocolate",
+    "emoji": "🍫"
+  },
+  {
+    "subcategory_id": 77,
+    "category_id": 9,
+    "category": "Snacks",
+    "subcategory": "Energy & Protein Bars",
+    "emoji": "⚡"
+  },
+  {
+    "subcategory_id": 78,
+    "category_id": 10,
+    "category": "Beverages",
+    "subcategory": "Water",
+    "emoji": "💧"
+  },
+  {
+    "subcategory_id": 79,
+    "category_id": 10,
+    "category": "Beverages",
+    "subcategory": "Sparkling Water",
+    "emoji": "🫧"
+  },
+  {
+    "subcategory_id": 80,
+    "category_id": 10,
+    "category": "Beverages",
+    "subcategory": "Soft Drinks",
+    "emoji": "🥤"
+  },
+  {
+    "subcategory_id": 81,
+    "category_id": 10,
+    "category": "Beverages",
+    "subcategory": "Juices & Nectars",
+    "emoji": "🧃"
+  },
+  {
+    "subcategory_id": 82,
+    "category_id": 10,
+    "category": "Beverages",
+    "subcategory": "Iced Tea & Lemonade",
+    "emoji": "🧊"
+  },
+  {
+    "subcategory_id": 83,
+    "category_id": 10,
+    "category": "Beverages",
+    "subcategory": "Coffee",
+    "emoji": "☕"
+  },
+  {
+    "subcategory_id": 84,
+    "category_id": 10,
+    "category": "Beverages",
+    "subcategory": "Tea & Herbal",
+    "emoji": "🍵"
+  },
+  {
+    "subcategory_id": 85,
+    "category_id": 10,
+    "category": "Beverages",
+    "subcategory": "Syrups & Concentrates",
+    "emoji": "🍹"
+  },
+  {
+    "subcategory_id": 86,
+    "category_id": 10,
+    "category": "Beverages",
+    "subcategory": "Energy Drinks",
+    "emoji": "⚡"
+  },
+  {
+    "subcategory_id": 87,
+    "category_id": 10,
+    "category": "Beverages",
+    "subcategory": "Sports Drinks",
+    "emoji": "🏃"
+  },
+  {
+    "subcategory_id": 88,
+    "category_id": 11,
+    "category": "Alcoholic Beverages",
+    "subcategory": "Beer",
+    "emoji": "🍺"
+  },
+  {
+    "subcategory_id": 89,
+    "category_id": 11,
+    "category": "Alcoholic Beverages",
+    "subcategory": "Wine",
+    "emoji": "🍷"
+  },
+  {
+    "subcategory_id": 90,
+    "category_id": 11,
+    "category": "Alcoholic Beverages",
+    "subcategory": "Spirits",
+    "emoji": "🥃"
+  },
+  {
+    "subcategory_id": 91,
+    "category_id": 11,
+    "category": "Alcoholic Beverages",
+    "subcategory": "Cider",
+    "emoji": "🍎"
+  },
+  {
+    "subcategory_id": 92,
+    "category_id": 11,
+    "category": "Alcoholic Beverages",
+    "subcategory": "Liqueurs",
+    "emoji": "🍸"
+  },
+  {
+    "subcategory_id": 93,
+    "category_id": 12,
+    "category": "Baby",
+    "subcategory": "Diapers",
+    "emoji": "🧷"
+  },
+  {
+    "subcategory_id": 94,
+    "category_id": 12,
+    "category": "Baby",
+    "subcategory": "Wipes",
+    "emoji": "🧻"
+  },
+  {
+    "subcategory_id": 95,
+    "category_id": 12,
+    "category": "Baby",
+    "subcategory": "Formula",
+    "emoji": "🍼"
+  },
+  {
+    "subcategory_id": 96,
+    "category_id": 12,
+    "category": "Baby",
+    "subcategory": "Baby Food",
+    "emoji": "👶"
+  },
+  {
+    "subcategory_id": 97,
+    "category_id": 12,
+    "category": "Baby",
+    "subcategory": "Baby Snacks",
+    "emoji": "🍪"
+  },
+  {
+    "subcategory_id": 98,
+    "category_id": 12,
+    "category": "Baby",
+    "subcategory": "Bath & Care",
+    "emoji": "🧴"
+  },
+  {
+    "subcategory_id": 99,
+    "category_id": 12,
+    "category": "Baby",
+    "subcategory": "Accessories",
+    "emoji": "🧸"
+  },
+  {
+    "subcategory_id": 100,
+    "category_id": 13,
+    "category": "Household",
+    "subcategory": "Paper Goods",
+    "emoji": "🧻"
+  },
+  {
+    "subcategory_id": 101,
+    "category_id": 13,
+    "category": "Household",
+    "subcategory": "Cleaning Supplies",
+    "emoji": "🧽"
+  },
+  {
+    "subcategory_id": 102,
+    "category_id": 13,
+    "category": "Household",
+    "subcategory": "Dishwashing",
+    "emoji": "🍽️"
+  },
+  {
+    "subcategory_id": 103,
+    "category_id": 13,
+    "category": "Household",
+    "subcategory": "Laundry",
+    "emoji": "🧺"
+  },
+  {
+    "subcategory_id": 104,
+    "category_id": 13,
+    "category": "Household",
+    "subcategory": "Trash Bags",
+    "emoji": "🗑️"
+  },
+  {
+    "subcategory_id": 105,
+    "category_id": 13,
+    "category": "Household",
+    "subcategory": "Air Fresheners",
+    "emoji": "🌸"
+  },
+  {
+    "subcategory_id": 106,
+    "category_id": 13,
+    "category": "Household",
+    "subcategory": "Food Storage & Wrap",
+    "emoji": "🥡"
+  },
+  {
+    "subcategory_id": 107,
+    "category_id": 13,
+    "category": "Household",
+    "subcategory": "Light Bulbs & Batteries",
+    "emoji": "🔋"
+  },
+  {
+    "subcategory_id": 108,
+    "category_id": 14,
+    "category": "Personal Care",
+    "subcategory": "Oral Care",
+    "emoji": "🪥"
+  },
+  {
+    "subcategory_id": 109,
+    "category_id": 14,
+    "category": "Personal Care",
+    "subcategory": "Hair Care",
+    "emoji": "🧴"
+  },
+  {
+    "subcategory_id": 110,
+    "category_id": 14,
+    "category": "Personal Care",
+    "subcategory": "Skin Care",
+    "emoji": "🧴"
+  },
+  {
+    "subcategory_id": 111,
+    "category_id": 14,
+    "category": "Personal Care",
+    "subcategory": "Deodorants",
+    "emoji": "🧴"
+  },
+  {
+    "subcategory_id": 112,
+    "category_id": 14,
+    "category": "Personal Care",
+    "subcategory": "Shaving & Grooming",
+    "emoji": "🪒"
+  },
+  {
+    "subcategory_id": 113,
+    "category_id": 14,
+    "category": "Personal Care",
+    "subcategory": "Feminine Care",
+    "emoji": "🌸"
+  },
+  {
+    "subcategory_id": 114,
+    "category_id": 14,
+    "category": "Personal Care",
+    "subcategory": "Bath & Body",
+    "emoji": "🛁"
+  },
+  {
+    "subcategory_id": 115,
+    "category_id": 14,
+    "category": "Personal Care",
+    "subcategory": "Hand Soap & Sanitizers",
+    "emoji": "🧼"
+  },
+  {
+    "subcategory_id": 116,
+    "category_id": 15,
+    "category": "Health & Wellness",
+    "subcategory": "Vitamins & Supplements",
+    "emoji": "💊"
+  },
+  {
+    "subcategory_id": 117,
+    "category_id": 15,
+    "category": "Health & Wellness",
+    "subcategory": "First Aid",
+    "emoji": "🩹"
+  },
+  {
+    "subcategory_id": 118,
+    "category_id": 15,
+    "category": "Health & Wellness",
+    "subcategory": "Pain Relief",
+    "emoji": "💊"
+  },
+  {
+    "subcategory_id": 119,
+    "category_id": 15,
+    "category": "Health & Wellness",
+    "subcategory": "Cough & Cold",
+    "emoji": "🤧"
+  },
+  {
+    "subcategory_id": 120,
+    "category_id": 15,
+    "category": "Health & Wellness",
+    "subcategory": "Digestive Health",
+    "emoji": "🩺"
+  },
+  {
+    "subcategory_id": 121,
+    "category_id": 15,
+    "category": "Health & Wellness",
+    "subcategory": "Allergy",
+    "emoji": "🌼"
+  },
+  {
+    "subcategory_id": 122,
+    "category_id": 16,
+    "category": "Pet",
+    "subcategory": "Dog Food",
+    "emoji": "🐶"
+  },
+  {
+    "subcategory_id": 123,
+    "category_id": 16,
+    "category": "Pet",
+    "subcategory": "Dog Care",
+    "emoji": "🐶"
+  },
+  {
+    "subcategory_id": 124,
+    "category_id": 16,
+    "category": "Pet",
+    "subcategory": "Cat Food",
+    "emoji": "🐱"
+  },
+  {
+    "subcategory_id": 125,
+    "category_id": 16,
+    "category": "Pet",
+    "subcategory": "Cat Care",
+    "emoji": "🐱"
+  },
+  {
+    "subcategory_id": 126,
+    "category_id": 16,
+    "category": "Pet",
+    "subcategory": "Bird & Small Pet",
+    "emoji": "🐦"
+  },
+  {
+    "subcategory_id": 127,
+    "category_id": 16,
+    "category": "Pet",
+    "subcategory": "Litter & Accessories",
+    "emoji": "🐾"
+  },
+  {
+    "subcategory_id": 128,
+    "category_id": 17,
+    "category": "Home & Leisure",
+    "subcategory": "Kitchenware & Utensils",
+    "emoji": "🍴"
+  },
+  {
+    "subcategory_id": 129,
+    "category_id": 17,
+    "category": "Home & Leisure",
+    "subcategory": "Disposable Tableware",
+    "emoji": "🥤"
+  },
+  {
+    "subcategory_id": 130,
+    "category_id": 17,
+    "category": "Home & Leisure",
+    "subcategory": "Charcoal & BBQ",
+    "emoji": "🔥"
+  },
+  {
+    "subcategory_id": 131,
+    "category_id": 17,
+    "category": "Home & Leisure",
+    "subcategory": "Seasonal & Holiday",
+    "emoji": "🎁"
+  }
+]

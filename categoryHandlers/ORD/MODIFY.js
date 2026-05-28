@@ -89,12 +89,14 @@ async function repriceOrderItemsWithPromos(
     pr.bundle_buy_qty,
     pr.bundle_pay_price
     FROM order_item oi
-    JOIN product p ON p.id = oi.product_id
-    LEFT JOIN promotion pr ON pr.id = oi.promo_id
+    JOIN orders o ON o.id = oi.order_id
+    JOIN product p ON p.id = oi.product_id AND p.shop_id = o.shop_id
+    LEFT JOIN promotion pr ON pr.id = oi.promo_id AND pr.shop_id = o.shop_id
     WHERE oi.order_id = ?
+    AND o.shop_id = ?
     AND oi.id IN (${placeholders})
   `,
-    [Number(order_id), ...ids],
+    [Number(order_id), Number(shop_id), ...ids],
   );
 
   for (const r of rows) {
@@ -271,10 +273,11 @@ async function applyOrderPatch({
          p.category,
          p.sub_category
        FROM order_item oi
-       JOIN product p ON p.id = oi.product_id
-       WHERE oi.order_id = ?
+       JOIN orders o ON o.id = oi.order_id
+       JOIN product p ON p.id = oi.product_id AND p.shop_id = o.shop_id
+       WHERE oi.order_id = ? AND o.shop_id = ?
        FOR UPDATE`,
-      [Number(order_id)],
+      [Number(order_id), Number(shop_id)],
     );
 
     const byOrderItemId = new Map(origItems.map((it) => [Number(it.id), it]));
@@ -782,10 +785,11 @@ async function applyOrderPatch({
         p.display_name_en,
         p.emoji
       FROM order_item oi
-      JOIN product p ON p.id = oi.product_id
-      LEFT JOIN promotion pr ON pr.id = oi.promo_id
-      WHERE oi.order_id = ?`,
-      [Number(order_id)],
+      JOIN orders o ON o.id = oi.order_id
+      JOIN product p ON p.id = oi.product_id AND p.shop_id = o.shop_id
+      LEFT JOIN promotion pr ON pr.id = oi.promo_id AND pr.shop_id = o.shop_id
+      WHERE oi.order_id = ? AND o.shop_id = ?`,
+      [Number(order_id), Number(shop_id)],
     );
 
     await conn.commit();
@@ -953,9 +957,10 @@ module.exports = {
             await db.query(
               `SELECT oi.*, p.name, p.display_name_en, p.category, p.sub_category AS 'sub-category'
            FROM order_item oi
-           LEFT JOIN product p ON p.id = oi.product_id
-           WHERE oi.order_id = ?`,
-              [order.id],
+           JOIN orders o ON o.id = oi.order_id
+           LEFT JOIN product p ON p.id = oi.product_id AND p.shop_id = o.shop_id
+           WHERE oi.order_id = ? AND o.shop_id = ?`,
+              [order.id, shop_id],
             )
           )[0];
 
@@ -1210,10 +1215,11 @@ module.exports = {
           p.display_name_en,
           p.emoji
         FROM order_item oi
-        JOIN product p ON p.id = oi.product_id
-        LEFT JOIN promotion pr ON pr.id = oi.promo_id
-        WHERE oi.order_id = ?`,
-        [order.id],
+        JOIN orders o ON o.id = oi.order_id
+        JOIN product p ON p.id = oi.product_id AND p.shop_id = o.shop_id
+        LEFT JOIN promotion pr ON pr.id = oi.promo_id AND pr.shop_id = o.shop_id
+        WHERE oi.order_id = ? AND o.shop_id = ?`,
+        [order.id, shop_id],
       );
 
       const itemsForView = (curItems || []).map((it) => {

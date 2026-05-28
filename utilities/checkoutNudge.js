@@ -478,14 +478,18 @@ async function attachCheckoutNudgeIfNeeded({
   return attachDeferredNudge(botPayload, nudgeContext);
 }
 
-async function sendDeferredCheckoutNudge({ checkoutNudge, phone_number }) {
+async function sendDeferredCheckoutNudge({
+  checkoutNudge,
+  phone_number,
+  businessPhoneNumberId = null,
+}) {
   if (!checkoutNudge || !phone_number) return false;
 
   try {
     const text = await materializeNudgeContext(checkoutNudge);
     if (!text) return false;
 
-    await sendWhatsAppText(phone_number, text);
+    await sendWhatsAppText(phone_number, text, businessPhoneNumberId);
     await saveChat({
       customer_id: checkoutNudge.customer_id,
       shop_id: checkoutNudge.shop_id,

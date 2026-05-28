@@ -395,6 +395,7 @@ async function findBestProductForRequest(shop_id, req) {
       SELECT id, name, display_name_en, price, stock_amount, category, sub_category
       FROM product
       WHERE shop_id = ?
+        AND (stock_amount IS NULL OR stock_amount > 0)
     `;
     const params = [shop_id];
 
@@ -571,6 +572,7 @@ async function fetchAlternatives(
       SELECT id, name, display_name_en, price, stock_amount, category, sub_category
       FROM product
       WHERE shop_id = ?
+        AND (stock_amount IS NULL OR stock_amount > 0)
     `;
 
     if (cat) {
@@ -906,7 +908,7 @@ async function searchVariants(
 module.exports = {
   findBestProductForRequest,
   searchProducts,
-  
+
   fetchAlternatives,
   buildAlternativeQuestions,
 
