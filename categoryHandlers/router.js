@@ -3,6 +3,7 @@ const { modifyOrder } = require("./ORD/MODIFY");
 const { orderReview } = require("./ORD/REVIEW");
 const { askToCheckoutOrder } = require("./ORD/CHECKOUT");
 const { askToCancelOrder } = require("./ORD/CANCEL");
+const { answerOrderStatus } = require("./ORD/STATUS");
 const { checkAvailability } = require("./INV/AVAIL");
 const { answerPriceAndSales } = require("./INV/PRICE_AND_SALES");
 const { answerGeneralInfo } = require("./BUS/GENERAL_INFO");
@@ -40,6 +41,14 @@ const CATEGORY_HANDLERS = {
         ctx.customer_id,
         ctx.shop_id
       ),
+
+    STATUS: async (ctx) =>
+      answerOrderStatus({
+        message: ctx.message,
+        customer_id: ctx.customer_id,
+        shop_id: ctx.shop_id,
+        isEnglish: ctx.isEnglish,
+      }),
 
     CANCEL: async (ctx) =>
       askToCancelOrder(

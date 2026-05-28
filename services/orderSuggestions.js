@@ -21,6 +21,7 @@ const { parseModelAnswer } = require("../utilities/jsonParse");
 const { roundTo } = require("../utilities/decimal");
 const { getPromptFromDB } = require("../repositories/prompt");
 const { buildOrderSummaryMessage } = require("../utilities/orderSummaryMessage");
+const { recalculateOrderTotalWithFulfillment } = require("./fulfillment");
 
 const SUGGESTION_SOURCE = {
   GPT: "GPT_RECOMMENDATION",
@@ -309,6 +310,10 @@ async function buildUpdatedOrderSummaryMessage({ order_id, isEnglish }) {
     items: mapOrderItemsForSummary(items, isEnglish),
     isEnglish,
     totalWithPromos: order?.price,
+    fulfillmentMethod: order?.fulfillment_method,
+    deliveryAddress: order?.delivery_address,
+    deliveryFee: order?.delivery_fee,
+    deliveryNotes: order?.delivery_notes,
   });
 }
 
@@ -480,17 +485,9 @@ async function addSuggestionActionsToOrder({
       });
     }
 
-    const [[sumRow]] = await conn.query(
-      `SELECT COALESCE(ROUND(SUM(price), 2), 0) AS total
-         FROM order_item
-        WHERE order_id = ?`,
-      [Number(order_id)],
-    );
-
-    await conn.query(
-      `UPDATE orders SET price = ?, updated_at = NOW(6) WHERE id = ?`,
-      [Number(sumRow?.total || 0), Number(order_id)],
-    );
+    await recalculateOrderTotalWithFulfillment(conn, {
+      order_id: Number(order_id),
+    });
 
     await conn.commit();
 

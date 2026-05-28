@@ -5,6 +5,7 @@ ORD - Order/Cart actions:
 ORD.CREATE - start a new order/cart
 ORD.MODIFY - add/remove/replace/change quantities or items in current cart
 ORD.REVIEW - show what is currently in the cart
+ORD.STATUS - user asks for current order status/tracking
 ORD.CHECKOUT - user finished and wants to pay
 ORD.CANCEL - cancel an order
 
@@ -46,6 +47,9 @@ EXAMPLES
 - "אני רוצה להזמין חלב 3% של תנובה" -> 1, ORD.CREATE
 - "תוסיף 2 לחמים ותוריד קוטג׳" -> 1, ORD.MODIFY
 - "מה יש בסל שלי?" -> 1, ORD.REVIEW
+- "מה עם ההזמנה שלי?" → 1, ORD.STATUS
+- "איפה ההזמנה שלי?" → 1, ORD.STATUS
+- "ההזמנה כבר מוכנה?" → 1, ORD.STATUS
 - "סיימתי, אפשר לשלם?" -> 1, ORD.CHECKOUT
 - "בטל את ההזמנה" -> 1, ORD.CANCEL
 

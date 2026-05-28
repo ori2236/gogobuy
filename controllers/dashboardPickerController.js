@@ -4,6 +4,7 @@ const {
   parseShopId,
   normalizeWaNumber,
 } = require("../utilities/dashboardUtils");
+const { ensureFulfillmentSchema } = require("../services/fulfillment");
 
 const ALLOWED_STATUSES = new Set([
   "pending",
@@ -106,13 +107,44 @@ function buildPreparingMsg(orderId) {
   return `ההזמנה שלך (#${orderId}) התחילה להילקט\nנעדכן אותך כשהיא תהיה מוכנה.`;
 }
 
-function buildReadyMsg(orderId, note) {
-  let msg =
-    `ההזמנה שלך (#${orderId}) מוכנה 🎉\n` + `אפשר להגיע לסניף לאסוף אותה.`;
+function buildReadyMsg(orderId, note, fulfillmentMethod) {
+  const isDelivery = String(fulfillmentMethod || "") === "delivery";
+  let msg = isDelivery
+    ? `ההזמנה שלך (#${orderId}) מוכנה 🎉
+אנחנו מעבירים אותה לשליח, ונעדכן אותך כשהיא יוצאת לדרך.`
+    : `ההזמנה שלך (#${orderId}) מוכנה 🎉
+אפשר להגיע לסניף לאסוף אותה.`;
   if (note && String(note).trim()) {
-    msg += `\n\nהערה מהמלקט/ת:\n${String(note).trim()}`;
+    msg += `
+
+הערה מהמלקט/ת:
+${String(note).trim()}`;
   }
   return msg;
+}
+
+function buildDeliveringMsg(orderId, note) {
+  let msg = `ההזמנה שלך (#${orderId}) יצאה למשלוח 🏍️
+השליח בדרך אליך.`;
+  if (note && String(note).trim()) {
+    msg += `
+
+הערה מהמלקט/ת:
+${String(note).trim()}`;
+  }
+  return msg;
+}
+
+async function getShopWhatsAppPhoneNumberId(shopId) {
+  const [[row]] = await db.query(
+    `SELECT phone_number_id
+       FROM shop_whatsapp_phone
+      WHERE shop_id = ? AND is_active = 1
+      ORDER BY id ASC
+      LIMIT 1`,
+    [shopId],
+  );
+  return row?.phone_number_id || null;
 }
 
 function buildEmptyOrderDeletedMsg(orderId) {
@@ -196,6 +228,8 @@ exports.getPickerOrders = async (req, res) => {
       return res.status(400).json({ ok: false, message: "Invalid shop_id" });
     }
 
+    await ensureFulfillmentSchema(conn);
+
     let deletedEmpty = [];
     try {
       deletedEmpty = await cleanupEmptyPickerOrders(conn, shopId, {
@@ -249,7 +283,10 @@ exports.getPickerOrders = async (req, res) => {
         o.status,
         o.price,
         o.payment_method,
+        o.fulfillment_method,
         o.delivery_address,
+        o.delivery_fee,
+        o.delivery_notes,
         o.created_at,
         o.updated_at,
         ${pickerNoteSelect},
@@ -324,8 +361,11 @@ exports.getPickerOrders = async (req, res) => {
       customer_note_to_picker: o.customer_note_to_picker ?? null,
       customer_name: o.customer_name ?? null,
       customer_phone: o.customer_phone ?? null,
+      fulfillment_method: o.fulfillment_method ?? null,
       delivery_address: o.delivery_address ?? null,
-      price: o.price,
+      delivery_fee: o.delivery_fee == null ? 0 : Number(o.delivery_fee),
+      delivery_notes: o.delivery_notes ?? null,
+      price: o.price == null ? null : Number(o.price),
       payment_method: o.payment_method,
       items: itemsByOrder.get(o.id) || [],
     }));
@@ -465,7 +505,9 @@ exports.updateOrderStatus = async (req, res) => {
       return res.status(400).json({ ok: false, message: "Invalid orderId" });
     }
 
-    if (!["preparing", "ready", "completed"].includes(nextStatus)) {
+    await ensureFulfillmentSchema(conn);
+
+    if (!["preparing", "ready", "delivering", "completed"].includes(nextStatus)) {
       return res.status(400).json({ ok: false, message: "Invalid status" });
     }
 
@@ -489,6 +531,9 @@ exports.updateOrderStatus = async (req, res) => {
         o.shop_id,
         o.status,
         o.customer_id,
+        o.fulfillment_method,
+        o.delivery_address,
+        o.delivery_fee,
         c.phone AS customer_phone,
         c.name  AS customer_name
         ${noteSelect}
@@ -507,13 +552,17 @@ exports.updateOrderStatus = async (req, res) => {
     }
 
     const current = rows[0].status;
+    const currentOrder = rows[0];
+    const fulfillmentMethod = String(currentOrder.fulfillment_method || "pickup");
+    const isDeliveryOrder = fulfillmentMethod === "delivery";
     const customerPhone = normalizeWaNumber(rows[0].customer_phone);
     const existingNote = hasPickerNoteCol ? rows[0].picker_note : null;
 
     // rules:
     // confirmed -> preparing
     // preparing -> ready
-    // ready -> completed
+    // delivery: ready -> delivering -> completed
+    // pickup: ready -> completed
     // idempotent allowed
     if (nextStatus === "preparing") {
       if (current !== "confirmed" && current !== "preparing") {
@@ -535,8 +584,23 @@ exports.updateOrderStatus = async (req, res) => {
       }
     }
 
+    if (nextStatus === "delivering") {
+      if (!isDeliveryOrder) {
+        await conn.rollback();
+        return res.status(409).json({ ok: false, message: "Only delivery orders can be marked as sent" });
+      }
+      if (current !== "ready" && current !== "delivering") {
+        await conn.rollback();
+        return res.status(409).json({
+          ok: false,
+          message: `Cannot move from ${current} to delivering`,
+        });
+      }
+    }
+
     if (nextStatus === "completed") {
-      if (current !== "ready" && current !== "completed") {
+      const allowedCurrent = isDeliveryOrder ? ["delivering", "completed"] : ["ready", "completed"];
+      if (!allowedCurrent.includes(current)) {
         await conn.rollback();
         return res.status(409).json({
           ok: false,
@@ -570,11 +634,18 @@ exports.updateOrderStatus = async (req, res) => {
 
     await conn.commit();
 
-    res.json({ ok: true, order: { id: orderId, status: nextStatus } });
+    res.json({
+      ok: true,
+      order: {
+        id: orderId,
+        status: nextStatus,
+        fulfillment_method: fulfillmentMethod,
+      },
+    });
 
     if (statusChanged && customerPhone && nextStatus !== "completed") {
       const noteToSend =
-        nextStatus === "ready"
+        nextStatus === "ready" || nextStatus === "delivering"
           ? hasNoteInBody
             ? pickerNoteFromBody
             : existingNote
@@ -583,11 +654,14 @@ exports.updateOrderStatus = async (req, res) => {
       const text =
         nextStatus === "preparing"
           ? buildPreparingMsg(orderId)
-          : buildReadyMsg(orderId, noteToSend);
+          : nextStatus === "delivering"
+            ? buildDeliveringMsg(orderId, noteToSend)
+            : buildReadyMsg(orderId, noteToSend, fulfillmentMethod);
 
       (async () => {
         try {
-          await sendWhatsAppText(customerPhone, text);
+          const phoneNumberId = await getShopWhatsAppPhoneNumberId(shopId);
+          await sendWhatsAppText(customerPhone, text, phoneNumberId);
           console.log("[dashboard.updateOrderStatus] WhatsApp sent", {
             orderId,
             nextStatus,

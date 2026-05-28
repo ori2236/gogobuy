@@ -81,6 +81,11 @@ async function orderReview(order, items, isEnglish, customer_id, shop_id) {
     status: order.status,
     items: itemsForView,
     isEnglish,
+    totalWithPromos: order.price,
+    fulfillmentMethod: order.fulfillment_method,
+    deliveryAddress: order.delivery_address,
+    deliveryFee: order.delivery_fee,
+    deliveryNotes: order.delivery_notes,
   });
 }
 

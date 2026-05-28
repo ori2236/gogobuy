@@ -23,6 +23,7 @@ const { buildModifyOrderSchema } = require("./schemas/modify.schema");
 const { getExcludeTokensFromReq } = require("../../utilities/tokens");
 const { parseModelAnswer } = require("../../utilities/jsonParse");
 const { buildQuestionsBlock } = require("../../utilities/messageBuilders");
+const { recalculateOrderTotalWithFulfillment } = require("../../services/fulfillment");
 const {
   buildOrderSummaryMessage,
 } = require("../../utilities/orderSummaryMessage");
@@ -749,20 +750,12 @@ async function applyOrderPatch({
       orderItemIds: touchedOrderItemIds,
     });
 
-    //Recompute total
-    const [[sumRow]] = await conn.query(
-      `SELECT COALESCE(ROUND(SUM(price), 2), 0) AS total
-        FROM order_item
-        WHERE order_id = ?`,
-      [Number(order_id)],
-    );
+    // Recompute total including delivery fee when the order is a delivery order.
+    const totals = await recalculateOrderTotalWithFulfillment(conn, {
+      order_id: Number(order_id),
+    });
 
-    const total = Number(sumRow.total || 0);
-
-    await conn.query(
-      `UPDATE orders SET price = ?, updated_at = NOW(6) WHERE id = ?`,
-      [total, Number(order_id)],
-    );
+    const total = Number(totals.total || 0);
 
     const [curItems] = await conn.query(
       `SELECT
@@ -1139,6 +1132,10 @@ module.exports = {
         totalWithPromos,
         totalNoPromos,
         savings,
+        fulfillmentMethod: order.fulfillment_method,
+        deliveryAddress: order.delivery_address,
+        deliveryFee: order.delivery_fee,
+        deliveryNotes: order.delivery_notes,
       });
 
       const questionsBlock = buildQuestionsBlock({
@@ -1281,6 +1278,10 @@ module.exports = {
         totalWithPromos: total,
         totalNoPromos,
         savings: roundTo(totalNoPromos - total, 2),
+        fulfillmentMethod: order.fulfillment_method,
+        deliveryAddress: order.delivery_address,
+        deliveryFee: order.delivery_fee,
+        deliveryNotes: order.delivery_notes,
       });
 
       const questionsBlock = buildQuestionsBlock({

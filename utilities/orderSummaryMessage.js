@@ -260,6 +260,10 @@ function buildOrderSummaryMessage({
   savings = null,
   questions = [],
   greeting = null,
+  fulfillmentMethod = null,
+  deliveryAddress = null,
+  deliveryFee = null,
+  deliveryNotes = null,
 } = {}) {
   const normalizedItems = (Array.isArray(items) ? items : [])
     .map(normalizeOrderItemForSummary)
@@ -326,6 +330,50 @@ function buildOrderSummaryMessage({
   }
 
   lines.push("");
+
+  const normalizedFulfillment = String(fulfillmentMethod || "").toLowerCase();
+  const normalizedDeliveryFee = Number(deliveryFee || 0);
+  const hasDeliveryFee =
+    normalizedFulfillment === "delivery" &&
+    Number.isFinite(normalizedDeliveryFee) &&
+    normalizedDeliveryFee > 0;
+
+  if (normalizedFulfillment === "delivery") {
+    const productsSubtotal = hasDeliveryFee
+      ? Math.max(0, roundTo(finalTotal - normalizedDeliveryFee, 2))
+      : calculated.totalWithPromos;
+
+    lines.push(isEnglish ? "📦 Receiving method: home delivery" : "📦 אופן קבלה: משלוח עד הבית");
+    if (deliveryAddress) {
+      lines.push(
+        isEnglish
+          ? `📍 Delivery address: ${deliveryAddress}`
+          : `📍 כתובת למשלוח: ${deliveryAddress}`,
+      );
+    }
+    if (deliveryNotes) {
+      lines.push(
+        isEnglish
+          ? `📝 Courier note: ${deliveryNotes}`
+          : `📝 הערה לשליח: ${deliveryNotes}`,
+      );
+    }
+    lines.push(
+      isEnglish
+        ? `🧾 Products subtotal: ₪${fmtMoney(productsSubtotal)}`
+        : `🧾 סה״כ מוצרים: ₪${fmtMoney(productsSubtotal)}`,
+    );
+    if (hasDeliveryFee) {
+      lines.push(
+        isEnglish
+          ? `🏍️ Delivery fee: ₪${fmtMoney(normalizedDeliveryFee)}`
+          : `🏍️ דמי משלוח: ₪${fmtMoney(normalizedDeliveryFee)}`,
+      );
+    }
+  } else if (normalizedFulfillment === "pickup") {
+    lines.push(isEnglish ? "🛍️ Receiving method: store pickup" : "🛍️ אופן קבלה: איסוף עצמי מהחנות");
+  }
+
   lines.push(
     isEnglish
       ? `💰 Total to pay: ₪${fmtMoney(finalTotal)}`

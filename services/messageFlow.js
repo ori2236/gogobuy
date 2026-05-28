@@ -19,15 +19,27 @@ const {
 const { detectIsEnglish } = require("../utilities/lang");
 const { checkIfToCancelOrder } = require("../categoryHandlers/ORD/CANCEL");
 const { checkIfToCheckoutOrder } = require("../categoryHandlers/ORD/CHECKOUT");
+const { answerOrderStatus } = require("../categoryHandlers/ORD/STATUS");
 const { sendWhatsAppMarkAsRead } = require("../utilities/whatsapp");
 const { startSlowProgression } = require("./sendProgressionMessage");
 const { handleSuggestionReply } = require("./orderSuggestions");
+const { handleFulfillmentReply } = require("./fulfillment");
 const {
   handleCheckoutNudgeReply,
   attachCheckoutNudgeIfNeeded,
 } = require("../utilities/checkoutNudge");
 
 const maxPerProduct = 10;
+
+function isOrderStatusQuestion(message) {
+  const raw = String(message || "").trim().toLowerCase();
+  if (!raw) return false;
+
+  const asksCartContent = /(מה\s+יש\s+(בסל|בעגלה|בהזמנה)|תראה\s+לי\s+(את\s+)?(הסל|העגלה)|סיכום\s+הזמנה|cart|basket|order summary)/i.test(raw);
+  if (asksCartContent) return false;
+
+  return /(מה\s+עם\s+ההזמנה|איפה\s+ההזמנה|סטטוס\s+הזמנה|מה\s+קורה\s+עם\s+ההזמנה|המשלוח\s+יצא|שליח\s+בדרך|ההזמנה\s+מוכנה|מתי\s+מגיע|מתי\s+מוכן|נשלחה|נאספה|status|tracking|where\s+is\s+my\s+order|is\s+my\s+order\s+ready|delivery\s+sent)/i.test(raw);
+}
 
 async function processMessage(
   message,
@@ -56,6 +68,7 @@ async function processMessage(
   const order_id = activeOrder ? activeOrder.id : null;
   const items = activeOrder ? await getOrderItems(activeOrder.id) : [];
   const sig = buildActiveOrderSignals(activeOrder, items);
+  const openQs = await fetchOpenQuestions(customer_id, shop_id, 20);
 
   const checkoutReply = await checkIfToCheckoutOrder({
     activeOrder,
@@ -77,7 +90,16 @@ async function processMessage(
 
   if (cancelReply) return cancelReply;
 
-  const openQs = await fetchOpenQuestions(customer_id, shop_id, 20);
+  const fulfillmentReply = await handleFulfillmentReply({
+    message,
+    customer_id,
+    shop_id,
+    activeOrder,
+    openQs,
+    saveChat,
+  });
+
+  if (fulfillmentReply) return fulfillmentReply;
 
   const checkoutNudgeReply = await handleCheckoutNudgeReply({
     message,
@@ -117,6 +139,33 @@ async function processMessage(
     });
 
     return suggestionReply;
+  }
+
+  if (isOrderStatusQuestion(message)) {
+    const statusReply = await answerOrderStatus({
+      message,
+      customer_id,
+      shop_id,
+      isEnglish: detectIsEnglish(message),
+    });
+
+    await saveChat({
+      customer_id,
+      shop_id,
+      sender: "customer",
+      status: "classified",
+      message,
+    });
+
+    await saveChat({
+      customer_id,
+      shop_id,
+      sender: "bot",
+      status: "classified",
+      message: statusReply,
+    });
+
+    return statusReply;
   }
 
   const closedQs = await fetchRecentClosedQuestions(customer_id, shop_id, 5);

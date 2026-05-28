@@ -4,6 +4,12 @@ const {
   deleteOpenQuestionsByOrderId,
 } = require("../../utilities/openQuestions");
 const { detectIsEnglish } = require("../../utilities/lang");
+const {
+  prepareFulfillmentBeforeCheckout,
+  moveOrderToCheckoutPending,
+  buildCheckoutInstructionForOrder,
+  getOrderForCheckout,
+} = require("../../services/fulfillment");
 
 function parseCheckoutConfirmation(msg) {
   const raw = String(msg || "").trim();
@@ -102,9 +108,29 @@ async function checkIfToCheckoutOrder({
           : "\nשמרתי גם את ההערה שלך למלקט."
         : "";
 
+      const confirmedOrder = await getOrderForCheckout(activeOrder.id, shop_id);
+      const fulfillmentLine = (() => {
+        if (!confirmedOrder) return "";
+        if (String(confirmedOrder.fulfillment_method || "") === "delivery") {
+          return isEnglish
+            ? `
+Delivery total: ₪${Number(confirmedOrder.price || 0).toFixed(2)}. The order will be delivered to: ${confirmedOrder.delivery_address || "the saved address"}.`
+            : `
+סה״כ כולל משלוח: ₪${Number(confirmedOrder.price || 0).toFixed(2)}. ההזמנה תישלח לכתובת: ${confirmedOrder.delivery_address || "הכתובת השמורה"}.`;
+        }
+        if (String(confirmedOrder.fulfillment_method || "") === "pickup") {
+          return isEnglish
+            ? `
+Pickup total: ₪${Number(confirmedOrder.price || 0).toFixed(2)}.`
+            : `
+סה״כ לתשלום באיסוף עצמי: ₪${Number(confirmedOrder.price || 0).toFixed(2)}.`;
+        }
+        return "";
+      })();
+
       botText = isEnglish
-        ? `Your order (#${activeOrder.id}) has been confirmed and sent to the shop.${noteSuffix}`
-        : `ההזמנה שלך (#${activeOrder.id}) אושרה ונשלחה לחנות.${noteSuffix}`;
+        ? `Your order (#${activeOrder.id}) has been confirmed and sent to the shop.${noteSuffix}${fulfillmentLine}`
+        : `ההזמנה שלך (#${activeOrder.id}) אושרה ונשלחה לחנות.${noteSuffix}${fulfillmentLine}`;
     }
   } else {
     await db.query(
@@ -166,23 +192,18 @@ async function askToCheckoutOrder(
       : `ההזמנה שלך (#${activeOrder.id}) כבר מאושרת.`;
   }
 
-  const [res] = await db.query(
-    `UPDATE orders
-        SET prev_status = status,
-            status = 'checkout_pending',
-            updated_at = NOW()
-      WHERE id = ? AND shop_id = ? AND status = 'pending'`,
-    [activeOrder.id, shop_id]
-  );
+  const fulfillmentQuestion = await prepareFulfillmentBeforeCheckout({
+    activeOrder,
+    isEnglish,
+    customer_id,
+    shop_id,
+  });
 
-  if (res.affectedRows === 0) {
-    return isEnglish
-      ? `Order (#${activeOrder.id}) can't be checked out at this stage.`
-      : `אי אפשר לסיים את ההזמנה (#${activeOrder.id}) בשלב הזה.`;
-  }
+  if (fulfillmentQuestion) return fulfillmentQuestion;
 
-  return buildCheckoutInstruction({
-    orderId: activeOrder.id,
+  return moveOrderToCheckoutPending({
+    order_id: activeOrder.id,
+    shop_id,
     isEnglish,
   });
 }

@@ -9,6 +9,7 @@ const {
 } = require("../utilities/dashboardUtils");
 const { rebuildTokenWeightsForShop } = require("../services/buildTokenWeights");
 const { fetchCategoriesMap } = require("../repositories/categories");
+const { recalculateOrderTotalWithFulfillment } = require("../services/fulfillment");
 
 const DELETE_FROM_ORDER_STATUSES = [
   "pending",
@@ -699,6 +700,10 @@ exports.deleteStockProduct = async (req, res) => {
         );
         deletedCount += Number(delRes.affectedRows || 0);
       }
+
+      for (const oid of orderIds) {
+        await recalculateOrderTotalWithFulfillment(conn, { order_id: oid });
+      }
     }
 
     await conn.query(
@@ -801,7 +806,15 @@ exports.deleteStockProduct = async (req, res) => {
             });
 
             try {
-              await sendWhatsAppText(t.phone, msg);
+              const [[phoneRow]] = await db.query(
+                `SELECT phone_number_id
+                   FROM shop_whatsapp_phone
+                  WHERE shop_id = ? AND is_active = 1
+                  ORDER BY id ASC
+                  LIMIT 1`,
+                [shopId],
+              );
+              await sendWhatsAppText(t.phone, msg, phoneRow?.phone_number_id || null);
               console.log("[stock.deleteStockProduct] WhatsApp sent", {
                 orderId: t.order_id,
                 to: t.phone,
