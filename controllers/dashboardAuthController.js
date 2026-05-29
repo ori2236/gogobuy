@@ -33,10 +33,6 @@ exports.login = async (req, res) => {
       return res.status(401).json({ ok: false, message: "שם משתמש או סיסמה לא נכונים" });
     }
 
-    if (user.role !== "picker") {
-      return res.status(403).json({ ok: false, message: "רק משתמש מסוג מלקט יכול להיכנס לדשבורד" });
-    }
-
     // If a legacy plain-text password was used, transparently upgrade it after successful login.
     if (!String(user.password_hash || "").startsWith("scrypt$v1$")) {
       await db.query("UPDATE dashboard_user SET password_hash = ? WHERE id = ?", [

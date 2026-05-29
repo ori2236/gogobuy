@@ -2,6 +2,8 @@ const db = require("../config/db");
 const { parseShopId } = require("../utilities/dashboardUtils");
 
 const SHOP_EXTRA_COLUMNS = {
+  chain_name: "VARCHAR(150) DEFAULT NULL",
+  branch_name: "VARCHAR(150) DEFAULT NULL",
   google_maps_url: "VARCHAR(512) DEFAULT NULL",
   whatsapp_phone: "VARCHAR(32) DEFAULT NULL",
   supports_delivery: "TINYINT(1) NOT NULL DEFAULT 0",
@@ -57,13 +59,44 @@ function cleanMoney(value, fallback = 0) {
   return Math.round(n * 100) / 100;
 }
 
-function cleanMinutes(value, fallback = 0, { minActive = 0 } = {}) {
+function cleanMinutes(value, fallback = 0, { minActive = 0, fieldName = "Minutes" } = {}) {
   if (value === null || value === undefined || value === "") return fallback;
   const n = Number(value);
   if (!Number.isFinite(n) || n < 0) return fallback;
   const minutes = Math.floor(n);
-  if (minutes > 0 && minActive > 0 && minutes < minActive) return minActive;
+  if (minActive > 0 && minutes < minActive) {
+    const err = new Error(`${fieldName} must be at least ${minActive}`);
+    err.status = 400;
+    throw err;
+  }
   return minutes;
+}
+
+function normalizeZoneName(value) {
+  const s = String(value ?? "").trim().replace(/\s+/g, " ");
+  return s ? s.slice(0, 120) : null;
+}
+
+function normalizeDeliveryZones(input) {
+  const rows = Array.isArray(input) ? input : [];
+  const seen = new Set();
+  const out = [];
+
+  for (const raw of rows) {
+    const name = normalizeZoneName(raw?.settlement_name ?? raw?.name ?? raw);
+    if (!name) continue;
+    const key = name.toLocaleLowerCase("he-IL");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      settlement_name: name,
+      is_active: raw?.is_active === undefined ? 1 : (toBool(raw.is_active) ? 1 : 0),
+      delivery_fee_override: raw?.delivery_fee_override === undefined || raw?.delivery_fee_override === "" ? null : cleanMoney(raw.delivery_fee_override, null),
+      min_order_amount_override: raw?.min_order_amount_override === undefined || raw?.min_order_amount_override === "" ? null : cleanMoney(raw.min_order_amount_override, null),
+    });
+  }
+
+  return out;
 }
 
 function cleanDate(value) {
@@ -105,6 +138,25 @@ async function ensureShopSettingsSchema(conn) {
       updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
       PRIMARY KEY (shop_id, day_of_week),
       KEY idx_shop_regular_hours_shop (shop_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+  `);
+
+
+
+  await conn.query(`
+    CREATE TABLE IF NOT EXISTS shop_delivery_zone (
+      id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+      shop_id INT UNSIGNED NOT NULL,
+      settlement_name VARCHAR(120) NOT NULL,
+      is_active TINYINT(1) NOT NULL DEFAULT 1,
+      delivery_fee_override DECIMAL(10,2) DEFAULT NULL,
+      min_order_amount_override DECIMAL(10,2) DEFAULT NULL,
+      created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (id),
+      UNIQUE KEY uniq_shop_delivery_zone_name (shop_id, settlement_name),
+      KEY idx_shop_delivery_zone_shop_active (shop_id, is_active),
+      KEY idx_shop_delivery_zone_name (settlement_name)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
   `);
 
@@ -209,6 +261,8 @@ exports.getBusinessSettings = async (req, res) => {
       SELECT
         id AS shop_id,
         name,
+        chain_name,
+        branch_name,
         address,
         google_maps_url,
         phone,
@@ -265,6 +319,31 @@ exports.getBusinessSettings = async (req, res) => {
       [shopId],
     );
 
+    const [deliveryZoneRows] = await conn.query(
+      `
+      SELECT
+        id,
+        settlement_name,
+        is_active,
+        delivery_fee_override,
+        min_order_amount_override
+      FROM shop_delivery_zone
+      WHERE shop_id = ?
+      ORDER BY is_active DESC, settlement_name ASC
+      `,
+      [shopId],
+    );
+
+    const [deliveryZoneOptionsRows] = await conn.query(
+      `
+      SELECT DISTINCT settlement_name
+      FROM shop_delivery_zone
+      WHERE settlement_name IS NOT NULL AND settlement_name <> ''
+      ORDER BY settlement_name ASC
+      LIMIT 300
+      `,
+    );
+
     return res.json({
       ok: true,
       info: {
@@ -281,6 +360,14 @@ exports.getBusinessSettings = async (req, res) => {
         note: r.note || "",
         label: r.label || "",
       })),
+      delivery_zones: deliveryZoneRows.map((r) => ({
+        id: Number(r.id),
+        settlement_name: r.settlement_name || "",
+        is_active: Boolean(r.is_active),
+        delivery_fee_override: r.delivery_fee_override == null ? null : Number(r.delivery_fee_override),
+        min_order_amount_override: r.min_order_amount_override == null ? null : Number(r.min_order_amount_override),
+      })),
+      delivery_zone_options: deliveryZoneOptionsRows.map((r) => r.settlement_name).filter(Boolean),
     });
   } catch (err) {
     console.error("[dashboardSettings.getBusinessSettings]", err);
@@ -302,6 +389,7 @@ exports.updateBusinessSettings = async (req, res) => {
     const info = payload.info || payload;
     const regularHours = normalizeRegularPayload(payload.regular_hours);
     const specialHours = normalizeSpecialPayload(payload.special_hours);
+    const deliveryZones = normalizeDeliveryZones(payload.delivery_zones);
 
     const name = cleanRequiredText(info.name, "Shop name", 150);
     const address = cleanRequiredText(info.address, "Address", 255);
@@ -314,6 +402,8 @@ exports.updateBusinessSettings = async (req, res) => {
       UPDATE shop
       SET
         name = ?,
+        chain_name = ?,
+        branch_name = ?,
         address = ?,
         google_maps_url = ?,
         phone = ?,
@@ -331,6 +421,8 @@ exports.updateBusinessSettings = async (req, res) => {
       `,
       [
         name,
+        cleanText(info.chain_name, 150),
+        cleanText(info.branch_name, 150),
         address,
         cleanText(info.google_maps_url, 512),
         cleanText(info.phone, 32),
@@ -342,8 +434,8 @@ exports.updateBusinessSettings = async (req, res) => {
         cleanText(info.about, 4000),
         cleanMoney(info.min_order_amount, 0),
         cleanMoney(info.delivery_fee, 0),
-        cleanMinutes(info.cart_empty_reminder_minutes, 0),
-        cleanMinutes(info.stock_release_after_inactive_minutes, 0, { minActive: 30 }),
+        cleanMinutes(info.cart_empty_reminder_minutes, 5, { minActive: 5, fieldName: "cart_empty_reminder_minutes" }),
+        cleanMinutes(info.stock_release_after_inactive_minutes, 30, { minActive: 30, fieldName: "stock_release_after_inactive_minutes" }),
         shopId,
       ],
     );
@@ -373,6 +465,18 @@ exports.updateBusinessSettings = async (req, res) => {
         VALUES (?, ?, ?, ?, ?, ?, ?)
         `,
         [shopId, r.special_date, r.label, r.is_closed, r.open_time, r.close_time, r.note],
+      );
+    }
+
+    await conn.query("DELETE FROM shop_delivery_zone WHERE shop_id = ?", [shopId]);
+    for (const z of deliveryZones) {
+      await conn.query(
+        `
+        INSERT INTO shop_delivery_zone
+          (shop_id, settlement_name, is_active, delivery_fee_override, min_order_amount_override)
+        VALUES (?, ?, ?, ?, ?)
+        `,
+        [shopId, z.settlement_name, z.is_active, z.delivery_fee_override, z.min_order_amount_override],
       );
     }
 

@@ -52,12 +52,22 @@ function verifyPassword(password, storedHash) {
   return safeEqual(actualHash, expectedHash);
 }
 
+function normalizeDashboardRole(role) {
+  const raw = String(role || "").trim().toLowerCase();
+  if (raw === "admin" || raw === "owner" || raw === "manager") return "admin";
+  return "user";
+}
+
+function isAllowedDashboardRole(role) {
+  return ["admin", "user", "picker", "manager", "owner"].includes(String(role || "").trim().toLowerCase());
+}
+
 function createDashboardToken(user) {
   const now = Math.floor(Date.now() / 1000);
   const payload = {
     sub: Number(user.id),
     username: String(user.username),
-    role: String(user.role),
+    role: normalizeDashboardRole(user.role),
     shop_id: Number(user.shop_id || 1),
     iat: now,
     exp: now + TOKEN_TTL_SECONDS,
@@ -85,12 +95,12 @@ function verifyDashboardToken(token) {
 
   const now = Math.floor(Date.now() / 1000);
   if (!payload?.exp || Number(payload.exp) < now) return null;
-  if (payload.role !== "picker") return null;
+  if (!isAllowedDashboardRole(payload.role)) return null;
   if (!Number.isFinite(Number(payload.shop_id)) || Number(payload.shop_id) <= 0) {
     return null;
   }
 
-  return payload;
+  return { ...payload, role: normalizeDashboardRole(payload.role) };
 }
 
 async function ensureDashboardAuthTable() {
@@ -102,26 +112,55 @@ async function ensureDashboardAuthTable() {
           shop_id INT UNSIGNED NOT NULL DEFAULT 1,
           username VARCHAR(100) NOT NULL,
           password_hash VARCHAR(255) NOT NULL,
-          role ENUM('picker','manager','owner') NOT NULL DEFAULT 'picker',
+          role ENUM('user','admin') NOT NULL DEFAULT 'user',
           is_active TINYINT(1) NOT NULL DEFAULT 1,
           created_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
           PRIMARY KEY (id),
           UNIQUE KEY uniq_dashboard_user_username (username),
-          KEY idx_dashboard_user_shop (shop_id)
+          KEY idx_dashboard_user_shop (shop_id),
+          KEY idx_dashboard_user_shop_role (shop_id, role, is_active)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
       `);
+
+      // Align older deployments that had picker/manager/owner roles.
+      try {
+        await db.query(`
+          ALTER TABLE dashboard_user
+          MODIFY COLUMN role ENUM('user','admin') NOT NULL DEFAULT 'user'
+        `);
+      } catch (err) {
+        // Old DBs may have ENUM('picker','manager','owner'), so first allow both old and new values.
+        await db.query(`
+          ALTER TABLE dashboard_user
+          MODIFY COLUMN role ENUM('picker','manager','owner','user','admin') NOT NULL DEFAULT 'user'
+        `);
+        await db.query(`UPDATE dashboard_user SET role = 'admin' WHERE role IN ('manager','owner')`);
+        await db.query(`UPDATE dashboard_user SET role = 'user' WHERE role NOT IN ('admin')`);
+        await db.query(`
+          ALTER TABLE dashboard_user
+          MODIFY COLUMN role ENUM('user','admin') NOT NULL DEFAULT 'user'
+        `);
+      }
 
       const seedUsers = [
         {
           username: process.env.DASHBOARD_ADMIN_USERNAME || "admin",
           password: process.env.DASHBOARD_ADMIN_PASSWORD || "admin",
           shopId: Number(process.env.DASHBOARD_ADMIN_SHOP_ID || 1),
+          role: "admin",
         },
         {
           username: process.env.DASHBOARD_BRANCH2_USERNAME || "glasner",
-          password: process.env.DASHBOARD_BRANCH2_PASSWORD || "עglasner1!",
+          password: process.env.DASHBOARD_BRANCH2_PASSWORD || "glasner1!",
           shopId: Number(process.env.DASHBOARD_BRANCH2_SHOP_ID || 2),
+          role: "user",
+        },
+        {
+          username: process.env.DASHBOARD_BRANCH2_ADMIN_USERNAME || "glasneradmin",
+          password: process.env.DASHBOARD_BRANCH2_ADMIN_PASSWORD || "glasner!1",
+          shopId: Number(process.env.DASHBOARD_BRANCH2_ADMIN_SHOP_ID || 2),
+          role: "admin",
         },
       ];
 
@@ -132,14 +171,14 @@ async function ensureDashboardAuthTable() {
         await db.query(
           `
           INSERT INTO dashboard_user (shop_id, username, password_hash, role, is_active)
-          VALUES (?, ?, ?, 'picker', 1)
+          VALUES (?, ?, ?, ?, 1)
           ON DUPLICATE KEY UPDATE
             shop_id = VALUES(shop_id),
             password_hash = VALUES(password_hash),
-            role = 'picker',
+            role = VALUES(role),
             is_active = 1
           `,
-          [shopId, seed.username, passwordHash],
+          [shopId, seed.username, passwordHash, seed.role],
         );
       }
     })().catch((err) => {
@@ -155,7 +194,7 @@ function dashboardUserForClient(user) {
   return {
     id: Number(user.sub ?? user.id),
     username: String(user.username),
-    role: String(user.role),
+    role: normalizeDashboardRole(user.role),
     shop_id: Number(user.shop_id || 1),
   };
 }
@@ -180,6 +219,13 @@ async function requireDashboardAuth(req, res, next) {
   }
 }
 
+function requireDashboardAdmin(req, res, next) {
+  if (normalizeDashboardRole(req.dashboardUser?.role) !== "admin") {
+    return res.status(403).json({ ok: false, message: "רק מנהל יכול לבצע את הפעולה הזו" });
+  }
+  return next();
+}
+
 module.exports = {
   ensureDashboardAuthTable,
   hashPassword,
@@ -187,5 +233,7 @@ module.exports = {
   createDashboardToken,
   verifyDashboardToken,
   dashboardUserForClient,
+  normalizeDashboardRole,
   requireDashboardAuth,
+  requireDashboardAdmin,
 };
