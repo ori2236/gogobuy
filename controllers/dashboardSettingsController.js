@@ -57,11 +57,13 @@ function cleanMoney(value, fallback = 0) {
   return Math.round(n * 100) / 100;
 }
 
-function cleanMinutes(value, fallback = 0) {
+function cleanMinutes(value, fallback = 0, { minActive = 0 } = {}) {
   if (value === null || value === undefined || value === "") return fallback;
   const n = Number(value);
   if (!Number.isFinite(n) || n < 0) return fallback;
-  return Math.floor(n);
+  const minutes = Math.floor(n);
+  if (minutes > 0 && minActive > 0 && minutes < minActive) return minActive;
+  return minutes;
 }
 
 function cleanDate(value) {
@@ -341,7 +343,7 @@ exports.updateBusinessSettings = async (req, res) => {
         cleanMoney(info.min_order_amount, 0),
         cleanMoney(info.delivery_fee, 0),
         cleanMinutes(info.cart_empty_reminder_minutes, 0),
-        cleanMinutes(info.stock_release_after_inactive_minutes, 0),
+        cleanMinutes(info.stock_release_after_inactive_minutes, 0, { minActive: 30 }),
         shopId,
       ],
     );

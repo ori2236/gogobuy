@@ -16,7 +16,7 @@ function statusText(order, isEnglish) {
       confirmed: "waiting to be picked",
       preparing: "being picked now",
       ready: delivery ? "ready and waiting to be sent" : "ready for pickup",
-      delivering: "sent — the courier is on the way",
+      delivering: "sent - the courier is on the way",
       completed: delivery ? "delivered" : "picked up",
       cancel_pending: "waiting for cancel confirmation",
     };
@@ -29,7 +29,7 @@ function statusText(order, isEnglish) {
     confirmed: "ממתינה לליקוט",
     preparing: "בליקוט",
     ready: delivery ? "מוכנה ומחכה להישלח" : "מוכנה לאיסוף",
-    delivering: "נשלחה — השליח בדרך אליך",
+    delivering: "נשלחה - השליח בדרך אליך",
     completed: delivery ? "נמסרה" : "נאספה",
     cancel_pending: "ממתינה לאישור ביטול",
   };
@@ -108,18 +108,18 @@ function formatOrderLine(order, isEnglish) {
   const total = Number(order.price || 0).toFixed(2);
 
   if (isEnglish) {
-    const parts = [`#${id} — ${status}`];
+    const parts = [`#${id} - ${status}`];
     if (method) parts.push(method);
     parts.push(`₪${total}`);
     if (isDelivery(order) && order.delivery_address) parts.push(`address: ${order.delivery_address}`);
-    return `• ${parts.join(" — ")}`;
+    return `• ${parts.join(" - ")}`;
   }
 
-  const parts = [`#${id} — ${status}`];
+  const parts = [`#${id} - ${status}`];
   if (method) parts.push(method);
   parts.push(`₪${total}`);
   if (isDelivery(order) && order.delivery_address) parts.push(`כתובת: ${order.delivery_address}`);
-  return `• ${parts.join(" — ")}`;
+  return `• ${parts.join(" - ")}`;
 }
 
 async function answerOrderStatus({ message, customer_id, shop_id, isEnglish }) {

@@ -112,19 +112,36 @@ async function ensureDashboardAuthTable() {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
       `);
 
-      const username = process.env.DASHBOARD_ADMIN_USERNAME || "admin";
-      const password = process.env.DASHBOARD_ADMIN_PASSWORD || "admin";
-      const shopId = Number(process.env.DASHBOARD_ADMIN_SHOP_ID || 1);
-      const passwordHash = hashPassword(password);
+      const seedUsers = [
+        {
+          username: process.env.DASHBOARD_ADMIN_USERNAME || "admin",
+          password: process.env.DASHBOARD_ADMIN_PASSWORD || "admin",
+          shopId: Number(process.env.DASHBOARD_ADMIN_SHOP_ID || 1),
+        },
+        {
+          username: process.env.DASHBOARD_BRANCH2_USERNAME || "glasner",
+          password: process.env.DASHBOARD_BRANCH2_PASSWORD || "עglasner1!",
+          shopId: Number(process.env.DASHBOARD_BRANCH2_SHOP_ID || 2),
+        },
+      ];
 
-      await db.query(
-        `
-        INSERT INTO dashboard_user (shop_id, username, password_hash, role, is_active)
-        VALUES (?, ?, ?, 'picker', 1)
-        ON DUPLICATE KEY UPDATE username = username
-        `,
-        [Number.isFinite(shopId) && shopId > 0 ? shopId : 1, username, passwordHash],
-      );
+      for (const seed of seedUsers) {
+        const shopId = Number.isFinite(seed.shopId) && seed.shopId > 0 ? seed.shopId : 1;
+        const passwordHash = hashPassword(seed.password);
+
+        await db.query(
+          `
+          INSERT INTO dashboard_user (shop_id, username, password_hash, role, is_active)
+          VALUES (?, ?, ?, 'picker', 1)
+          ON DUPLICATE KEY UPDATE
+            shop_id = VALUES(shop_id),
+            password_hash = VALUES(password_hash),
+            role = 'picker',
+            is_active = 1
+          `,
+          [shopId, seed.username, passwordHash],
+        );
+      }
     })().catch((err) => {
       schemaReadyPromise = null;
       throw err;

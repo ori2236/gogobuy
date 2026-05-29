@@ -135,6 +135,17 @@ ${String(note).trim()}`;
   return msg;
 }
 
+function buildCompletedMsg(orderId, fulfillmentMethod) {
+  const isDelivery = String(fulfillmentMethod || "") === "delivery";
+  return isDelivery
+    ? `תודה שהזמנת אצלנו 💚
+ההזמנה שלך (#${orderId}) נמסרה בהצלחה.
+נשמח לראות אותך שוב!`
+    : `תודה שהזמנת אצלנו 💚
+ההזמנה שלך (#${orderId}) נאספה בהצלחה.
+נשמח לראות אותך שוב!`;
+}
+
 async function getShopWhatsAppPhoneNumberId(shopId) {
   const [[row]] = await db.query(
     `SELECT phone_number_id
@@ -643,7 +654,7 @@ exports.updateOrderStatus = async (req, res) => {
       },
     });
 
-    if (statusChanged && customerPhone && nextStatus !== "completed") {
+    if (statusChanged && customerPhone) {
       const noteToSend =
         nextStatus === "ready" || nextStatus === "delivering"
           ? hasNoteInBody
@@ -656,7 +667,9 @@ exports.updateOrderStatus = async (req, res) => {
           ? buildPreparingMsg(orderId)
           : nextStatus === "delivering"
             ? buildDeliveringMsg(orderId, noteToSend)
-            : buildReadyMsg(orderId, noteToSend, fulfillmentMethod);
+            : nextStatus === "completed"
+              ? buildCompletedMsg(orderId, fulfillmentMethod)
+              : buildReadyMsg(orderId, noteToSend, fulfillmentMethod);
 
       (async () => {
         try {

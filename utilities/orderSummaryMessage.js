@@ -318,7 +318,7 @@ function buildOrderSummaryMessage({
 
     const emoji = cleanEmoji(item.emoji);
     const qtySuffix = buildQuantitySuffix(item, isEnglish);
-    lines.push(`${emoji} ${name}${qtySuffix} — ₪${fmtMoney(item.line_total)}`);
+    lines.push(`${emoji} ${name}${qtySuffix} - ₪${fmtMoney(item.line_total)}`);
 
     const promoLine = buildPromoLine({
       promo: item.promo,
