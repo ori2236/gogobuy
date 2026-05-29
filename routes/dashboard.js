@@ -32,10 +32,10 @@ router.delete("/promotions/:id", promotions.deletePromotion);
 
 router.get("/stock/products", stock.listStockProducts);
 
-router.post("/stock/products", stock.createStockProduct);
+router.post("/stock/products", requireDashboardAdmin, stock.createStockProduct);
 
-router.patch("/stock/products/:id", stock.updateStockProduct);
+router.patch("/stock/products/:id", requireDashboardAdmin, stock.updateStockProduct);
 
-router.delete("/stock/products/:id", stock.deleteStockProduct);
+router.delete("/stock/products/:id", requireDashboardAdmin, stock.deleteStockProduct);
 
 module.exports = router;

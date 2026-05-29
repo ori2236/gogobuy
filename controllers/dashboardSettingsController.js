@@ -14,6 +14,7 @@ const SHOP_EXTRA_COLUMNS = {
   delivery_fee: "DECIMAL(10,2) NOT NULL DEFAULT 0.00",
   cart_empty_reminder_minutes: "INT UNSIGNED NOT NULL DEFAULT 0",
   stock_release_after_inactive_minutes: "INT UNSIGNED NOT NULL DEFAULT 0",
+  max_order_quantity_per_product: "INT UNSIGNED NOT NULL DEFAULT 10",
 };
 
 const DAYS = [0, 1, 2, 3, 4, 5, 6];
@@ -91,8 +92,6 @@ function normalizeDeliveryZones(input) {
     out.push({
       settlement_name: name,
       is_active: raw?.is_active === undefined ? 1 : (toBool(raw.is_active) ? 1 : 0),
-      delivery_fee_override: raw?.delivery_fee_override === undefined || raw?.delivery_fee_override === "" ? null : cleanMoney(raw.delivery_fee_override, null),
-      min_order_amount_override: raw?.min_order_amount_override === undefined || raw?.min_order_amount_override === "" ? null : cleanMoney(raw.min_order_amount_override, null),
     });
   }
 
@@ -275,7 +274,8 @@ exports.getBusinessSettings = async (req, res) => {
         min_order_amount,
         delivery_fee,
         cart_empty_reminder_minutes,
-        stock_release_after_inactive_minutes
+        stock_release_after_inactive_minutes,
+        max_order_quantity_per_product
       FROM shop
       WHERE id = ?
       LIMIT 1
@@ -416,7 +416,8 @@ exports.updateBusinessSettings = async (req, res) => {
         min_order_amount = ?,
         delivery_fee = ?,
         cart_empty_reminder_minutes = ?,
-        stock_release_after_inactive_minutes = ?
+        stock_release_after_inactive_minutes = ?,
+        max_order_quantity_per_product = ?
       WHERE id = ?
       `,
       [
@@ -434,8 +435,17 @@ exports.updateBusinessSettings = async (req, res) => {
         cleanText(info.about, 4000),
         cleanMoney(info.min_order_amount, 0),
         cleanMoney(info.delivery_fee, 0),
-        cleanMinutes(info.cart_empty_reminder_minutes, 5, { minActive: 5, fieldName: "cart_empty_reminder_minutes" }),
-        cleanMinutes(info.stock_release_after_inactive_minutes, 30, { minActive: 30, fieldName: "stock_release_after_inactive_minutes" }),
+        ...(() => {
+          const cartReminder = cleanMinutes(info.cart_empty_reminder_minutes, 5, { minActive: 5, fieldName: "cart_empty_reminder_minutes" });
+          const stockRelease = cleanMinutes(info.stock_release_after_inactive_minutes, 30, { minActive: 30, fieldName: "stock_release_after_inactive_minutes" });
+          const maxPerProduct = cleanMinutes(info.max_order_quantity_per_product, 10, { minActive: 10, fieldName: "max_order_quantity_per_product" });
+          if (cartReminder >= stockRelease) {
+            const err = new Error("תזכורת לעגלה לא מאושרת חייבת להיות נמוכה מזמן החזרת מוצרים למלאי");
+            err.status = 400;
+            throw err;
+          }
+          return [cartReminder, stockRelease, maxPerProduct];
+        })(),
         shopId,
       ],
     );
@@ -474,9 +484,9 @@ exports.updateBusinessSettings = async (req, res) => {
         `
         INSERT INTO shop_delivery_zone
           (shop_id, settlement_name, is_active, delivery_fee_override, min_order_amount_override)
-        VALUES (?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, NULL, NULL)
         `,
-        [shopId, z.settlement_name, z.is_active, z.delivery_fee_override, z.min_order_amount_override],
+        [shopId, z.settlement_name, z.is_active],
       );
     }
 

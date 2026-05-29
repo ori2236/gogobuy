@@ -28,8 +28,53 @@ const {
   handleCheckoutNudgeReply,
   attachCheckoutNudgeIfNeeded,
 } = require("../utilities/checkoutNudge");
+const db = require("../config/db");
 
-const maxPerProduct = 10;
+const DEFAULT_MAX_PER_PRODUCT = 10;
+let maxPerProductSchemaReadyPromise = null;
+
+async function ensureMaxPerProductSchema() {
+  if (!maxPerProductSchemaReadyPromise) {
+    maxPerProductSchemaReadyPromise = (async () => {
+      const [rows] = await db.query(
+        `
+        SELECT 1
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'shop'
+          AND COLUMN_NAME = 'max_order_quantity_per_product'
+        LIMIT 1
+        `,
+      );
+      if (!rows.length) {
+        await db.query(
+          `ALTER TABLE shop ADD COLUMN max_order_quantity_per_product INT UNSIGNED NOT NULL DEFAULT 10`,
+        );
+      }
+    })().catch((err) => {
+      maxPerProductSchemaReadyPromise = null;
+      throw err;
+    });
+  }
+  return maxPerProductSchemaReadyPromise;
+}
+
+async function getMaxPerProductForShop(shop_id) {
+  try {
+    await ensureMaxPerProductSchema();
+    const [[row]] = await db.query(
+      `SELECT max_order_quantity_per_product FROM shop WHERE id = ? LIMIT 1`,
+      [shop_id],
+    );
+    const n = Number(row?.max_order_quantity_per_product);
+    return Number.isFinite(n) && n >= DEFAULT_MAX_PER_PRODUCT
+      ? Math.floor(n)
+      : DEFAULT_MAX_PER_PRODUCT;
+  } catch (err) {
+    console.error("[messageFlow.getMaxPerProductForShop]", err?.message || err);
+    return DEFAULT_MAX_PER_PRODUCT;
+  }
+}
 
 function isOrderStatusQuestion(message) {
   const raw = String(message || "").trim().toLowerCase();
@@ -49,6 +94,7 @@ async function processMessage(
   receivedAt = Date.now(),
   businessPhoneNumberId = "",
 ) {
+  const maxPerProduct = await getMaxPerProductForShop(shop_id);
   const customer_id = await ensureCustomer(shop_id, phone_number);
 
   const wasSent = await wasSentBefore(customer_id, shop_id, message);

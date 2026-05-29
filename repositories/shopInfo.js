@@ -11,6 +11,7 @@ const SHOP_EXTRA_COLUMNS = {
   delivery_fee: "DECIMAL(10,2) NOT NULL DEFAULT 0.00",
   cart_empty_reminder_minutes: "INT UNSIGNED NOT NULL DEFAULT 0",
   stock_release_after_inactive_minutes: "INT UNSIGNED NOT NULL DEFAULT 0",
+  max_order_quantity_per_product: "INT UNSIGNED NOT NULL DEFAULT 10",
 };
 
 let schemaReadyPromise = null;
@@ -99,7 +100,8 @@ async function getShopInfo(shop_id) {
       s.min_order_amount,
       s.delivery_fee,
       s.cart_empty_reminder_minutes,
-      s.stock_release_after_inactive_minutes
+      s.stock_release_after_inactive_minutes,
+      s.max_order_quantity_per_product
     FROM shop s
     WHERE s.id = ?
     LIMIT 1
