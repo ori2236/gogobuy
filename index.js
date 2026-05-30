@@ -8,6 +8,7 @@ const customerInteractionRoutes = require("./routes/customerInteractionRoutes");
 const webhooksRoutes = require("./routes/webhook");
 const dashboardRoutes = require("./routes/dashboard");
 const deleteLastData = require("./routes/deleteLastData");
+const { startInactiveOrderLifecycleWorker } = require("./services/inactiveOrderLifecycle");
 
 const app = express();
 const port = config.port || 3000;
@@ -33,6 +34,7 @@ app.get("/health", (req, res) => {
 // START SERVER
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
+  startInactiveOrderLifecycleWorker();
 });
 
 db.getConnection()

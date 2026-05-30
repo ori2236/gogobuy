@@ -352,7 +352,22 @@ function parseFulfillmentChoice(message) {
   if (/^2$/.test(raw)) return "pickup";
   if (/^(משלוח|שליח|עד הבית|delivery|deliver|shipping|ship)$/i.test(raw)) return "delivery";
   if (/^(איסוף|איסוף עצמי|חנות|pickup|pick up|collect|collection)$/i.test(raw)) return "pickup";
+
+  const pickupMatch = raw.match(/איסוף|איסוף עצמי|חנות|pickup|pick up|collect|collection/i);
+  const deliveryMatch = raw.match(/משלוח|שליח|עד הבית|delivery|deliver|shipping|ship/i);
+  if (pickupMatch && !deliveryMatch) return "pickup";
+  if (deliveryMatch && !pickupMatch) return "delivery";
+  if (pickupMatch && deliveryMatch) {
+    return pickupMatch.index > deliveryMatch.index ? "pickup" : "delivery";
+  }
+
   return null;
+}
+
+function hasExplicitFulfillmentMethodMention(message) {
+  return /(משלוח|שליח|עד הבית|איסוף|איסוף עצמי|חנות|delivery|deliver|shipping|ship|pickup|pick up|collect|collection)/i.test(
+    String(message || ""),
+  );
 }
 
 function parseYesNoAddressConfirm(message) {
@@ -565,6 +580,7 @@ function buildFulfillmentSummaryForCheckout(order, isEnglish) {
 async function buildCheckoutInstructionForOrder({ order_id, shop_id, isEnglish }) {
   const order = await getOrderForCheckout(order_id, shop_id);
   const summary = buildFulfillmentSummaryForCheckout(order, isEnglish);
+  const isDelivery = String(order?.fulfillment_method || "") === "delivery";
 
   const lines = [];
   if (summary) lines.push(summary, "");
@@ -574,8 +590,16 @@ async function buildCheckoutInstructionForOrder({ order_id, shop_id, isEnglish }
       `To confirm your order (#${order_id}), reply with:`,
       String(order_id),
       "",
-      `To send a different delivery address, reply: Address: your new address`,
-      "",
+    );
+
+    if (isDelivery) {
+      lines.push(
+        `To send a different delivery address, reply: Address: your new address`,
+        "",
+      );
+    }
+
+    lines.push(
       "If you’d like to add a note for the picker, write it after the number.",
       `For example: ${order_id} Please choose ripe bananas`,
     );
@@ -584,8 +608,16 @@ async function buildCheckoutInstructionForOrder({ order_id, shop_id, isEnglish }
       `לאישור וסיום ההזמנה שלך (#${order_id}), השב עם:`,
       String(order_id),
       "",
-      `לשליחת כתובת משלוח חדשה, הגב: כתובת: הכתובת החדשה`,
-      "",
+    );
+
+    if (isDelivery) {
+      lines.push(
+        `לשליחת כתובת משלוח חדשה, הגב: כתובת: הכתובת החדשה`,
+        "",
+      );
+    }
+
+    lines.push(
       "אם תרצה להוסיף הערה למלקט, אפשר לכתוב אותה אחרי המספר.",
       `לדוגמה: ${order_id} בלי שקיות בבקשה`,
     );
@@ -754,7 +786,15 @@ async function updateDeliveryAddressForOrder({ message, addressText, customer_id
   return saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
 }
 
-async function handleDirectFulfillmentChangeRequest({ message, customer_id, shop_id, activeOrder, isEnglish, saveChat }) {
+async function handleDirectFulfillmentChangeRequest({
+  message,
+  customer_id,
+  shop_id,
+  activeOrder,
+  isEnglish,
+  saveChat,
+  allowMethodOnly = false,
+}) {
   if (!activeOrder) return null;
   if (!["pending", "checkout_pending", "confirmed"].includes(String(activeOrder.status))) return null;
 
@@ -771,9 +811,10 @@ async function handleDirectFulfillmentChangeRequest({ message, customer_id, shop
   }
 
   const raw = String(message || "").trim();
-  const hasChangeIntent = /(שנה|תשנה|תחליף|להחליף|רוצה|עדיף|אפשר|תעשה|תעביר|change|switch|prefer)/i.test(raw);
+  const hasChangeIntent = /(שנה|תשנה|תחליף|להחליף|רוצה|עדיף|אפשר|תעשה|תעביר|בעצם|לא משנה|change|switch|prefer)/i.test(raw);
+  const hasMethodMention = hasExplicitFulfillmentMethodMention(raw);
   const choice = parseFulfillmentChoice(raw);
-  if (!choice || !hasChangeIntent) return null;
+  if (!choice || (!hasChangeIntent && !(allowMethodOnly && hasMethodMention))) return null;
 
   const shop = await getShopFulfillment(shop_id);
   if (!shop) return null;
@@ -843,8 +884,21 @@ async function handleFulfillmentReply({ message, customer_id, shop_id, activeOrd
     return handleDirectFulfillmentChangeRequest({ message, customer_id, shop_id, activeOrder, isEnglish, saveChat });
   }
 
-  const saveBoth = async (botText) => saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
   const type = String(question.product_name || "").trim();
+  if (type !== QUESTION_TYPES.FULFILLMENT_METHOD && hasExplicitFulfillmentMethodMention(message)) {
+    const changeReply = await handleDirectFulfillmentChangeRequest({
+      message,
+      customer_id,
+      shop_id,
+      activeOrder,
+      isEnglish,
+      saveChat,
+      allowMethodOnly: true,
+    });
+    if (changeReply) return changeReply;
+  }
+
+  const saveBoth = async (botText) => saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
   const customer = await getCustomer(customer_id);
   const firstName = getCustomerFirstName(customer);
   const zones = await getDeliveryZones(shop_id);

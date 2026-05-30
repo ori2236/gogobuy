@@ -12,8 +12,8 @@ const SHOP_EXTRA_COLUMNS = {
   about: "TEXT DEFAULT NULL",
   min_order_amount: "DECIMAL(10,2) NOT NULL DEFAULT 0.00",
   delivery_fee: "DECIMAL(10,2) NOT NULL DEFAULT 0.00",
-  cart_empty_reminder_minutes: "INT UNSIGNED NOT NULL DEFAULT 0",
-  stock_release_after_inactive_minutes: "INT UNSIGNED NOT NULL DEFAULT 0",
+  cart_empty_reminder_minutes: "INT UNSIGNED NOT NULL DEFAULT 5",
+  stock_release_after_inactive_minutes: "INT UNSIGNED NOT NULL DEFAULT 30",
   max_order_quantity_per_product: "INT UNSIGNED NOT NULL DEFAULT 10",
 };
 
