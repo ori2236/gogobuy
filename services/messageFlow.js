@@ -22,6 +22,7 @@ const { checkIfToCheckoutOrder } = require("../categoryHandlers/ORD/CHECKOUT");
 const { answerOrderStatus } = require("../categoryHandlers/ORD/STATUS");
 const { sendWhatsAppMarkAsRead } = require("../utilities/whatsapp");
 const { startSlowProgression } = require("./sendProgressionMessage");
+const { buildConversationGreetingPrefix } = require("./conversationGreeting");
 const { handleSuggestionReply } = require("./orderSuggestions");
 const { handleFulfillmentReply } = require("./fulfillment");
 const {
@@ -120,7 +121,14 @@ function buildNoActiveOrderReply(message) {
   ].join("\n");
 }
 
-async function saveAndReturnUnclassifiedReply({ customer_id, shop_id, message, reply }) {
+async function saveAndReturnUnclassifiedReply({
+  customer_id,
+  shop_id,
+  message,
+  reply,
+  greetingPrefix = "",
+}) {
+  const finalReply = prependTextToBotPayload(reply, greetingPrefix);
   await saveChat({
     customer_id,
     shop_id,
@@ -134,10 +142,10 @@ async function saveAndReturnUnclassifiedReply({ customer_id, shop_id, message, r
     shop_id,
     sender: "bot",
     status: "unclassified",
-    message: reply,
+    message: normalizeOutboundMessage(finalReply),
   });
 
-  return reply;
+  return finalReply;
 }
 
 function prependTextToBotPayload(payload, prefix) {
@@ -171,6 +179,31 @@ function prependTextToBotPayload(payload, prefix) {
   return { ...payload, reply: mergedText };
 }
 
+function buildGreetingAwareSaveChat(greetingPrefix) {
+  let prefixedFirstBotMessage = false;
+
+  return async function saveChatWithGreeting(args) {
+    if (
+      greetingPrefix &&
+      !prefixedFirstBotMessage &&
+      args &&
+      args.sender === "bot" &&
+      typeof args.message === "string" &&
+      args.message.trim()
+    ) {
+      prefixedFirstBotMessage = true;
+      return saveChat({
+        ...args,
+        message: normalizeOutboundMessage(
+          prependTextToBotPayload(args.message, greetingPrefix),
+        ),
+      });
+    }
+
+    return saveChat(args);
+  };
+}
+
 async function processMessage(
   message,
   phone_number,
@@ -186,6 +219,13 @@ async function processMessage(
   if (wasSent) {
     return { skipSend: true };
   }
+
+  const conversationGreetingPrefix = await buildConversationGreetingPrefix({
+    customer_id,
+    shop_id,
+    message,
+  });
+  const saveChatWithGreeting = buildGreetingAwareSaveChat(conversationGreetingPrefix);
 
   if (waMessageId) {
     setTimeout(() => {
@@ -209,6 +249,7 @@ async function processMessage(
       shop_id,
       message,
       reply: pendingNameResult.reply,
+      greetingPrefix: conversationGreetingPrefix,
     });
   }
 
@@ -237,31 +278,37 @@ async function processMessage(
     shop_id,
     activeOrder,
     openQs,
-    saveChat,
+    saveChat: saveChatWithGreeting,
     maxPerProduct,
   });
 
-  if (fulfillmentReply) return fulfillmentReply;
+  if (fulfillmentReply) {
+    return prependTextToBotPayload(fulfillmentReply, conversationGreetingPrefix);
+  }
 
   const checkoutReply = await checkIfToCheckoutOrder({
     activeOrder,
     message: effectiveMessage,
     customer_id,
     shop_id,
-    saveChat,
+    saveChat: saveChatWithGreeting,
   });
 
-  if (checkoutReply) return checkoutReply;
+  if (checkoutReply) {
+    return prependTextToBotPayload(checkoutReply, conversationGreetingPrefix);
+  }
 
   const cancelReply = await checkIfToCancelOrder({
     activeOrder,
     message: effectiveMessage,
     customer_id,
     shop_id,
-    saveChat,
+    saveChat: saveChatWithGreeting,
   });
 
-  if (cancelReply) return cancelReply;
+  if (cancelReply) {
+    return prependTextToBotPayload(cancelReply, conversationGreetingPrefix);
+  }
 
   const checkoutNudgeReply = await handleCheckoutNudgeReply({
     message: effectiveMessage,
@@ -269,10 +316,12 @@ async function processMessage(
     shop_id,
     activeOrder,
     openQs,
-    saveChat,
+    saveChat: saveChatWithGreeting,
   });
 
-  if (checkoutNudgeReply) return checkoutNudgeReply;
+  if (checkoutNudgeReply) {
+    return prependTextToBotPayload(checkoutNudgeReply, conversationGreetingPrefix);
+  }
 
   const suggestionReply = await handleSuggestionReply({
     message: effectiveMessage,
@@ -292,15 +341,20 @@ async function processMessage(
       message: effectiveMessage,
     });
 
+    const finalSuggestionReply = prependTextToBotPayload(
+      suggestionReply,
+      conversationGreetingPrefix,
+    );
+
     await saveChat({
       customer_id,
       shop_id,
       sender: "bot",
       status: "classified",
-      message: suggestionReply,
+      message: normalizeOutboundMessage(finalSuggestionReply),
     });
 
-    return suggestionReply;
+    return finalSuggestionReply;
   }
 
   if (isOrderStatusQuestion(effectiveMessage)) {
@@ -319,15 +373,20 @@ async function processMessage(
       message: effectiveMessage,
     });
 
+    const finalStatusReply = prependTextToBotPayload(
+      statusReply,
+      conversationGreetingPrefix,
+    );
+
     await saveChat({
       customer_id,
       shop_id,
       sender: "bot",
       status: "classified",
-      message: statusReply,
+      message: normalizeOutboundMessage(finalStatusReply),
     });
 
-    return statusReply;
+    return finalStatusReply;
   }
 
   const closedQs = await fetchRecentClosedQuestions(customer_id, shop_id, 5);
@@ -357,6 +416,7 @@ async function processMessage(
       shop_id,
       message: effectiveMessage,
       reply: clarifyText,
+      greetingPrefix: conversationGreetingPrefix,
     });
   } else if (parsed.type === "classified") {
     const { category, subcategory } = parsed;
@@ -370,6 +430,7 @@ async function processMessage(
         shop_id,
         message: effectiveMessage,
         reply: buildNoActiveOrderReply(effectiveMessage),
+        greetingPrefix: conversationGreetingPrefix,
       });
     }
 
@@ -384,14 +445,19 @@ async function processMessage(
         message: effectiveMessage,
       });
 
+      const finalApology = prependTextToBotPayload(
+        apology,
+        conversationGreetingPrefix,
+      );
+
       await saveChat({
         customer_id,
         shop_id,
         sender: "bot",
         status: "unclassified",
-        message: apology,
+        message: normalizeOutboundMessage(finalApology),
       });
-      return apology;
+      return finalApology;
     }
 
     if (category === "ORD" && subcategory === "CREATE") {
@@ -409,6 +475,7 @@ async function processMessage(
           shop_id,
           message: effectiveMessage,
           reply: nameRequestReply,
+          greetingPrefix: conversationGreetingPrefix,
         });
       }
     }
@@ -467,7 +534,10 @@ async function processMessage(
         message: "",
       });
 
-      const fallback = "כרגע אין לנו תמיכה בבקשות מסוג זה";
+      const fallback = prependTextToBotPayload(
+        "כרגע אין לנו תמיכה בבקשות מסוג זה",
+        conversationGreetingPrefix,
+      );
       return fallback;
     }
 
@@ -481,6 +551,7 @@ async function processMessage(
     });
 
     botPayload = prependTextToBotPayload(botPayload, onboardingPrefix);
+    botPayload = prependTextToBotPayload(botPayload, conversationGreetingPrefix);
 
     const botText = normalizeOutboundMessage(botPayload);
     await saveChat({
@@ -515,14 +586,19 @@ async function processMessage(
       status: "unclassified",
       message: effectiveMessage,
     });
+    const finalUnclassifiedReply = prependTextToBotPayload(
+      replyText || "לא התקבלה תשובה מהמודל.",
+      conversationGreetingPrefix,
+    );
+
     await saveChat({
       customer_id,
       shop_id,
       sender: "bot",
       status: "unclassified",
-      message: replyText || "",
+      message: normalizeOutboundMessage(finalUnclassifiedReply),
     });
-    return replyText || "לא התקבלה תשובה מהמודל.";
+    return finalUnclassifiedReply;
   }
 }
 

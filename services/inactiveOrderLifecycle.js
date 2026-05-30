@@ -75,8 +75,6 @@ async function ensureExpiredOrderStatusEnum() {
       'expired'
     ) NOT NULL
   `);
-
-  console.log("[inactive-order-lifecycle] orders.status enum includes expired");
 }
 
 async function ensureInactiveOrderLifecycleSchema() {
@@ -132,16 +130,6 @@ async function ensureInactiveOrderLifecycleSchema() {
            AND (stock_release_after_inactive_minutes IS NULL
                 OR stock_release_after_inactive_minutes = 0)
       `);
-
-      try {
-        await db.query(`DROP EVENT IF EXISTS ev_expire_pending_orders`);
-        console.log("[inactive-order-lifecycle] legacy MySQL event ev_expire_pending_orders disabled");
-      } catch (err) {
-        console.warn(
-          "[inactive-order-lifecycle] could not drop legacy MySQL event ev_expire_pending_orders:",
-          err?.message || err,
-        );
-      }
     })().catch((err) => {
       schemaReadyPromise = null;
       throw err;
@@ -550,8 +538,6 @@ function startInactiveOrderLifecycleWorker() {
     });
   }, intervalMs);
   workerState.timer.unref?.();
-
-  console.log("[inactive-order-lifecycle] started", { intervalMs });
   return workerState.timer;
 }
 

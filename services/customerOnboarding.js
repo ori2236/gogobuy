@@ -122,20 +122,69 @@ function buildAskFullNameReply({ shopName, isEnglish }) {
   ].join("\n\n");
 }
 
-function buildNeedFullNameReply({ isEnglish }) {
-  if (isEnglish) {
-    return [
-      "We will be happy to help, but before opening an order we need your full name 🧑‍💻",
-      "Without first name and last name, we cannot open a cart and save the products for you.",
-      "Just write your full name here and we will continue right away 🛒🎉",
-    ].join("\n\n");
-  }
-
-  return [
+const NEED_FULL_NAME_REPLIES_HE = [
+  [
     "אנחנו ממש נשמח לעזור, אבל לפני פתיחת הזמנה המערכת צריכה שם מלא 🧑‍💻",
     "בלי שם פרטי ושם משפחה לא נוכל לפתוח סל ולשמור את המוצרים עבורך.",
     "פשוט כותבים כאן את השם המלא ומיד ממשיכים 🛒🎉",
-  ].join("\n\n");
+  ].join("\n\n"),
+  [
+    "רגע קטן לפני שממשיכים 😊",
+    "כדי לפתוח לך סל קניות אישי ולשמור את המוצרים, אנחנו צריכים שם פרטי ושם משפחה.",
+    "כתוב כאן את שמך המלא ומיד נמשיך עם ההזמנה 🛒",
+  ].join("\n\n"),
+  [
+    "בשמחה נטפל בזה, רק חסר לנו פרט קטן 🙏",
+    "לפני פתיחת הזמנה צריך להזין שם מלא — שם פרטי ושם משפחה.",
+    "שלח את השם המלא כאן בצ׳אט ונמשיך מאיפה שעצרנו 😊",
+  ].join("\n\n"),
+  [
+    "כמעט מתחילים 🥳",
+    "כדי שהסל יישמר על שמך בצורה מסודרת, צריך קודם לקבל שם מלא.",
+    "שם פרטי ושם משפחה, ואז ממשיכים מיד עם המוצרים שביקשת 👇",
+  ].join("\n\n"),
+  [
+    "נשמח לפתוח לך הזמנה, אבל המערכת עדיין מחכה לשם מלא 🙂",
+    "בלי שם פרטי ושם משפחה אי אפשר לשמור סל אישי במערכת.",
+    "פשוט כתוב את שמך המלא ונמשיך מיד 🛒",
+  ].join("\n\n"),
+  [
+    "עוד שנייה ממשיכים עם הסל שלך 🛍️",
+    "לפני זה נצטרך שם פרטי ושם משפחה כדי לפתוח את ההזמנה בצורה מסודרת.",
+    "כתוב כאן את השם המלא ונמשיך בדיוק מאיפה שעצרנו 😊",
+  ].join("\n\n"),
+];
+
+const NEED_FULL_NAME_REPLIES_EN = [
+  [
+    "We will be happy to help, but before opening an order we need your full name 🧑‍💻",
+    "Without first name and last name, we cannot open a cart and save the products for you.",
+    "Just write your full name here and we will continue right away 🛒🎉",
+  ].join("\n\n"),
+  [
+    "One small step before we continue 😊",
+    "To open your personal shopping cart, please send your first name and last name.",
+    "Write your full name here and we will continue with your order 🛒",
+  ].join("\n\n"),
+  [
+    "We are ready to help, we just need your full name first 🙏",
+    "Please send first name and last name so we can save the cart under your name.",
+    "After that, we will continue exactly where we stopped 😊",
+  ].join("\n\n"),
+  [
+    "Almost there 🥳",
+    "Before opening the order, the system needs your full name.",
+    "Please send first name and last name, and we will continue right away 👇",
+  ].join("\n\n"),
+];
+
+function pickRandom(items) {
+  if (!Array.isArray(items) || items.length === 0) return "";
+  return items[Math.floor(Math.random() * items.length)];
+}
+
+function buildNeedFullNameReply({ isEnglish }) {
+  return pickRandom(isEnglish ? NEED_FULL_NAME_REPLIES_EN : NEED_FULL_NAME_REPLIES_HE);
 }
 
 function buildNameSavedPrefix({ fullName, isEnglish }) {

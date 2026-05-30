@@ -173,7 +173,10 @@ async function ensureDashboardAuthTable() {
           INSERT INTO dashboard_user (shop_id, username, password_hash, role, is_active)
           VALUES (?, ?, ?, ?, 1)
           ON DUPLICATE KEY UPDATE
-            id = id
+            shop_id = VALUES(shop_id),
+            password_hash = VALUES(password_hash),
+            role = VALUES(role),
+            is_active = 1
           `,
           [shopId, seed.username, passwordHash, seed.role],
         );
