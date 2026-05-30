@@ -1,6 +1,8 @@
 const db = require("../config/db");
 const { saveOpenQuestions, closeQuestionsByIds } = require("../utilities/openQuestions");
 const { detectIsEnglish } = require("../utilities/lang");
+const { chat } = require("../config/openai");
+const { getPromptFromDB } = require("../repositories/prompt");
 
 const QUESTION_TYPES = {
   FULFILLMENT_METHOD: "FULFILLMENT_METHOD",
@@ -9,8 +11,45 @@ const QUESTION_TYPES = {
 };
 
 const FULFILLMENT_QUESTION_NAMES = new Set(Object.values(QUESTION_TYPES));
+const FULFILLMENT_INTENT_PROMPT_CAT = "ORD";
+const FULFILLMENT_INTENT_PROMPT_SUB = "FULFILLMENT_INTENT";
+const FULFILLMENT_INTENT_PROMPT_CACHE_KEY = "ord_fulfillment_intent_v1";
 const ORDERS_COLUMN_CACHE = new Map();
 let schemaReadyPromise = null;
+let warnedMissingFulfillmentIntentPrompt = false;
+
+const FULFILLMENT_INTENT_FALLBACK_PROMPT = `You classify a supermarket WhatsApp customer's intent during checkout fulfillment only.
+Return JSON only. Do not answer the customer.
+
+Allowed intents:
+- choose_delivery: user wants home delivery or wants to switch to delivery.
+- choose_pickup: user wants store pickup / self pickup / to come take it themselves.
+- confirm_saved_address: user agrees to use the saved delivery address.
+- different_address: user rejects the saved address or wants to enter another address.
+- provide_address: user provides a concrete delivery address.
+- not_fulfillment: unrelated to delivery/pickup/address selection.
+
+Critical rules:
+- If the user corrects themselves with words like בעצם / לא בעצם / actually, classify the final intended method.
+- Bare numbers depend on pending_question:
+  * FULFILLMENT_METHOD => 1 choose_delivery, 2 choose_pickup.
+  * DELIVERY_ADDRESS_CONFIRM => 1 confirm_saved_address, 2 different_address.
+- In DELIVERY_ADDRESS_CONFIRM, yes/כן means confirm_saved_address unless the text clearly asks pickup/delivery instead.
+- In DELIVERY_ADDRESS_CONFIRM or DELIVERY_ADDRESS_INPUT, phrases like לקחת לבד / לקחת אותה לבד / אני אקח / אני אאסוף / אגיע לקחת / בלי משלוח / לא משלוח mean choose_pickup, not provide_address.
+- Only use provide_address when the text looks like an actual delivery address, not when it asks for pickup.
+
+Hebrew examples for choose_pickup:
+לקחת לבד, לקחת אותה לבד, אני אקח, אני אאסוף, לבוא לקחת, אגיע לקחת, אני בא לקחת, לא משלוח, בלי משלוח, לקחת מהחנות.
+
+Hebrew examples for choose_delivery:
+משלוח, שליח, עד הבית, תשלחו לי, בא לי משלוח, אני רוצה משלוח, לא איסוף עצמי.
+
+Output schema:
+{
+  "intent": "choose_delivery" | "choose_pickup" | "confirm_saved_address" | "different_address" | "provide_address" | "not_fulfillment",
+  "confidence": number between 0 and 1,
+  "address": string or null
+}`;
 
 function toBool(v) {
   return v === true || v === 1 || v === "1" || String(v).toLowerCase() === "true";
@@ -365,9 +404,171 @@ function parseFulfillmentChoice(message) {
 }
 
 function hasExplicitFulfillmentMethodMention(message) {
-  return /(משלוח|שליח|עד הבית|איסוף|איסוף עצמי|חנות|delivery|deliver|shipping|ship|pickup|pick up|collect|collection)/i.test(
+  return /(משלוח|שליח|עד הבית|איסוף|איסוף עצמי|חנות|לקחת|אאסוף|לאסוף|אקח|take it|take myself|come get|come pick|delivery|deliver|shipping|ship|pickup|pick up|collect|collection)/i.test(
     String(message || ""),
   );
+}
+
+function safeJsonParse(raw) {
+  try {
+    const text = String(raw || "").trim();
+    if (!text) return null;
+    const direct = JSON.parse(text);
+    return direct && typeof direct === "object" ? direct : null;
+  } catch {
+    const match = String(raw || "").match(/\{[\s\S]*\}/);
+    if (!match) return null;
+    try {
+      const parsed = JSON.parse(match[0]);
+      return parsed && typeof parsed === "object" ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+}
+
+function normalizeFulfillmentIntent(value) {
+  const intent = String(value || "").trim().toLowerCase();
+  return [
+    "choose_delivery",
+    "choose_pickup",
+    "confirm_saved_address",
+    "different_address",
+    "provide_address",
+    "not_fulfillment",
+  ].includes(intent)
+    ? intent
+    : "not_fulfillment";
+}
+
+async function getFulfillmentIntentSystemPrompt() {
+  const dbPrompt = await getPromptFromDB(
+    FULFILLMENT_INTENT_PROMPT_CAT,
+    FULFILLMENT_INTENT_PROMPT_SUB,
+  );
+
+  if (dbPrompt && String(dbPrompt).trim()) return String(dbPrompt).trim();
+
+  if (!warnedMissingFulfillmentIntentPrompt) {
+    warnedMissingFulfillmentIntentPrompt = true;
+    console.warn(
+      `[fulfillment.intent] Missing DB prompt ${FULFILLMENT_INTENT_PROMPT_CAT}.${FULFILLMENT_INTENT_PROMPT_SUB}; using fallback prompt`,
+    );
+  }
+
+  return FULFILLMENT_INTENT_FALLBACK_PROMPT;
+}
+
+function parseRuleBasedFulfillmentIntent({ message, questionType }) {
+  const raw = String(message || "").trim();
+  if (!raw) return { intent: "not_fulfillment", confidence: 0 };
+
+  if (questionType === QUESTION_TYPES.FULFILLMENT_METHOD && /^1$/.test(raw)) {
+    return { intent: "choose_delivery", confidence: 0.95 };
+  }
+  if (questionType === QUESTION_TYPES.FULFILLMENT_METHOD && /^2$/.test(raw)) {
+    return { intent: "choose_pickup", confidence: 0.95 };
+  }
+
+  if (questionType === QUESTION_TYPES.DELIVERY_ADDRESS_CONFIRM && /^1$/.test(raw)) {
+    return { intent: "confirm_saved_address", confidence: 0.95 };
+  }
+  if (questionType === QUESTION_TYPES.DELIVERY_ADDRESS_CONFIRM && /^2$/.test(raw)) {
+    return { intent: "different_address", confidence: 0.95 };
+  }
+
+  // Common Hebrew phrasing that means pickup but does not contain the literal word "איסוף".
+  if (/(לקחת\s+לבד|לקחת\s+אותה\s+לבד|אני\s+אקח|אני\s+אאסוף|לבוא\s+לקחת|בא\s+לי\s+לקחת|אקח\s+מהחנות|אאסוף\s+מהחנות|אגיע\s+לקחת|אני\s+בא\s+לקחת|לא\s+משלוח|בלי\s+משלוח)/i.test(raw)) {
+    return { intent: "choose_pickup", confidence: 0.9 };
+  }
+
+  const nonNumericRaw = /^\d+$/.test(raw) ? "" : raw;
+  const choice = parseFulfillmentChoice(nonNumericRaw);
+  if (choice === "delivery") return { intent: "choose_delivery", confidence: 0.95 };
+  if (choice === "pickup") return { intent: "choose_pickup", confidence: 0.95 };
+
+  if (questionType === QUESTION_TYPES.DELIVERY_ADDRESS_CONFIRM) {
+    const yes = parseYesNoAddressConfirm(raw);
+    if (yes === true) return { intent: "confirm_saved_address", confidence: 0.95 };
+    if (yes === false) return { intent: "different_address", confidence: 0.9 };
+  }
+
+  if (isAddressUpdateMessage(raw)) {
+    return { intent: "provide_address", confidence: 0.9, address: extractAddressUpdateText(raw) };
+  }
+
+  return { intent: "not_fulfillment", confidence: 0 };
+}
+
+async function classifyFulfillmentIntentWithAI({ message, questionType, activeOrder, isEnglish }) {
+  const raw = String(message || "").trim();
+  if (!raw) return { intent: "not_fulfillment", confidence: 0 };
+
+  const rule = parseRuleBasedFulfillmentIntent({ message: raw, questionType });
+  if (rule.intent !== "not_fulfillment" && rule.confidence >= 0.9) return rule;
+
+  // Avoid calling the model for long unrelated messages unless we are inside a fulfillment question.
+  if (!questionType && raw.length > 120 && !hasExplicitFulfillmentMethodMention(raw)) {
+    return rule;
+  }
+
+  const systemPrompt = await getFulfillmentIntentSystemPrompt();
+
+  const userContext = [
+    `pending_question=${questionType || "none"}`,
+    `current_order_status=${activeOrder?.status || "none"}`,
+    `current_fulfillment_method=${activeOrder?.fulfillment_method || "none"}`,
+    `language=${isEnglish ? "English" : "Hebrew"}`,
+    `message=${raw}`,
+  ].join("\n");
+
+  try {
+    const rawAnswer = await chat({
+      message: raw,
+      systemPrompt,
+      userContext,
+      use: "main",
+      prompt_cache_key: FULFILLMENT_INTENT_PROMPT_CACHE_KEY,
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "fulfillment_intent",
+          strict: true,
+          schema: {
+            type: "object",
+            additionalProperties: false,
+            properties: {
+              intent: {
+                type: "string",
+                enum: [
+                  "choose_delivery",
+                  "choose_pickup",
+                  "confirm_saved_address",
+                  "different_address",
+                  "provide_address",
+                  "not_fulfillment",
+                ],
+              },
+              confidence: { type: "number" },
+              address: { type: ["string", "null"] },
+            },
+            required: ["intent", "confidence", "address"],
+          },
+        },
+      },
+    });
+
+    const parsed = safeJsonParse(rawAnswer) || {};
+    const confidence = Number(parsed.confidence);
+    return {
+      intent: normalizeFulfillmentIntent(parsed.intent),
+      confidence: Number.isFinite(confidence) ? confidence : 0,
+      address: typeof parsed.address === "string" && parsed.address.trim() ? parsed.address.trim() : null,
+    };
+  } catch (err) {
+    console.error("[fulfillment.intent.ai]", err?.message || err);
+    return rule;
+  }
 }
 
 function parseYesNoAddressConfirm(message) {
@@ -750,7 +951,7 @@ async function saveBotAndCustomer({ message, botText, customer_id, shop_id, save
   return botText;
 }
 
-async function updateDeliveryAddressForOrder({ message, addressText, customer_id, shop_id, activeOrder, isEnglish, saveChat }) {
+async function updateDeliveryAddressForOrder({ message, addressText, customer_id, shop_id, activeOrder, isEnglish, saveChat, questionId = null }) {
   await ensureFulfillmentSchema();
   if (!activeOrder || !["pending", "checkout_pending", "confirmed"].includes(String(activeOrder.status))) return null;
 
@@ -766,6 +967,8 @@ async function updateDeliveryAddressForOrder({ message, addressText, customer_id
     const botText = buildAddressReminder({ firstName, zones, isEnglish, reason: validation.reason });
     return saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
   }
+
+  if (questionId) await closeQuestionsByIds([questionId]);
 
   const saved = await saveCustomerAddress({
     customer_id,
@@ -784,6 +987,133 @@ async function updateDeliveryAddressForOrder({ message, addressText, customer_id
   const prefix = isEnglish ? "Great, I updated the delivery address." : "מעולה, עדכנתי את כתובת המשלוח.";
   const botText = await finishFulfillmentStep({ activeOrder, shop_id, isEnglish, prefix });
   return saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
+}
+
+async function switchOrderToPickup({ message, customer_id, shop_id, activeOrder, isEnglish, saveChat }) {
+  const shop = await getShopFulfillment(shop_id);
+  if (!toBool(shop?.supports_pickup)) {
+    const botText = isEnglish ? "This branch does not support pickup." : "הסניף הזה לא תומך באיסוף עצמי.";
+    return saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
+  }
+
+  await closeFulfillmentQuestions(customer_id, shop_id, activeOrder.id);
+  await applyOrderFulfillment({ order_id: activeOrder.id, shop_id, method: "pickup" });
+  const botText = await finishFulfillmentStep({
+    activeOrder,
+    shop_id,
+    isEnglish,
+    prefix: isEnglish ? "No problem, I changed the order to store pickup." : "אין בעיה, שיניתי את ההזמנה לאיסוף עצמי מהחנות.",
+  });
+  return saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
+}
+
+async function switchOrderToDelivery({ message, customer_id, shop_id, activeOrder, isEnglish, saveChat }) {
+  const shop = await getShopFulfillment(shop_id);
+  if (!toBool(shop?.supports_delivery)) {
+    const botText = isEnglish ? "This branch does not support delivery." : "הסניף הזה לא תומך במשלוחים.";
+    return saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
+  }
+
+  await closeFulfillmentQuestions(customer_id, shop_id, activeOrder.id);
+  await applyOrderFulfillment({
+    order_id: activeOrder.id,
+    shop_id,
+    method: "delivery",
+    delivery_fee: await getDeliveryFeeForOrder({ shop_id, zone: null }),
+  });
+
+  const savedAddress = await getDefaultCustomerAddress(customer_id, shop_id);
+  const customer = await getCustomer(customer_id);
+  const firstName = getCustomerFirstName(customer);
+  if (savedAddress) {
+    const botText = buildSavedAddressQuestion({ firstName, address: savedAddress, isEnglish });
+    await saveFulfillmentQuestion({
+      customer_id,
+      shop_id,
+      order_id: activeOrder.id,
+      type: QUESTION_TYPES.DELIVERY_ADDRESS_CONFIRM,
+      question: botText,
+      options: { address_id: savedAddress.id, full_address: savedAddress.full_address },
+    });
+    return saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
+  }
+
+  const botText = await askForDeliveryAddress({ activeOrder, customer_id, shop_id, isEnglish });
+  return saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
+}
+
+async function confirmSavedDeliveryAddress({ message, customer_id, shop_id, activeOrder, isEnglish, saveChat, questionId = null }) {
+  const savedAddress = await getDefaultCustomerAddress(customer_id, shop_id);
+  if (!savedAddress) {
+    if (questionId) await closeQuestionsByIds([questionId]);
+    const botText = await askForDeliveryAddress({ activeOrder, customer_id, shop_id, isEnglish });
+    return saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
+  }
+
+  const zones = await getDeliveryZones(shop_id);
+  const validation = validateDeliveryAddress(savedAddress.full_address, zones);
+  if (!validation.ok) {
+    if (questionId) await closeQuestionsByIds([questionId]);
+    const botText = await askForDeliveryAddress({ activeOrder, customer_id, shop_id, isEnglish });
+    return saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
+  }
+
+  if (questionId) await closeQuestionsByIds([questionId]);
+  const fee = await getDeliveryFeeForOrder({ shop_id, zone: validation.zone });
+  await applyOrderFulfillment({
+    order_id: activeOrder.id,
+    shop_id,
+    method: "delivery",
+    delivery_address: savedAddress.full_address,
+    delivery_fee: fee,
+  });
+
+  const botText = await finishFulfillmentStep({
+    activeOrder,
+    shop_id,
+    isEnglish,
+    prefix: isEnglish ? "Great, I saved the delivery to your saved address." : "מעולה, שמרתי את המשלוח לכתובת השמורה.",
+  });
+  return saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
+}
+
+async function handleFulfillmentIntentResult({ intentResult, message, customer_id, shop_id, activeOrder, isEnglish, saveChat, questionId = null }) {
+  const intent = normalizeFulfillmentIntent(intentResult?.intent);
+  const confidence = Number(intentResult?.confidence || 0);
+  if (!intent || intent === "not_fulfillment" || confidence < 0.55) return null;
+
+  if (intent === "choose_pickup") {
+    return switchOrderToPickup({ message, customer_id, shop_id, activeOrder, isEnglish, saveChat });
+  }
+
+  if (intent === "choose_delivery") {
+    return switchOrderToDelivery({ message, customer_id, shop_id, activeOrder, isEnglish, saveChat });
+  }
+
+  if (intent === "confirm_saved_address") {
+    return confirmSavedDeliveryAddress({ message, customer_id, shop_id, activeOrder, isEnglish, saveChat, questionId });
+  }
+
+  if (intent === "different_address") {
+    if (questionId) await closeQuestionsByIds([questionId]);
+    const botText = await askForDeliveryAddress({ activeOrder, customer_id, shop_id, isEnglish });
+    return saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
+  }
+
+  if (intent === "provide_address") {
+    return updateDeliveryAddressForOrder({
+      message,
+      addressText: intentResult?.address || message,
+      customer_id,
+      shop_id,
+      activeOrder,
+      isEnglish,
+      saveChat,
+      questionId,
+    });
+  }
+
+  return null;
 }
 
 async function handleDirectFulfillmentChangeRequest({
@@ -811,66 +1141,39 @@ async function handleDirectFulfillmentChangeRequest({
   }
 
   const raw = String(message || "").trim();
-  const hasChangeIntent = /(שנה|תשנה|תחליף|להחליף|רוצה|עדיף|אפשר|תעשה|תעביר|בעצם|לא משנה|change|switch|prefer)/i.test(raw);
+  const hasChangeIntent = /(שנה|תשנה|תחליף|להחליף|רוצה|עדיף|אפשר|תעשה|תעביר|בעצם|לא משנה|בא\s+לי|בלי\s+משלוח|לא\s+משלוח|change|switch|prefer|actually|instead)/i.test(raw);
   const hasMethodMention = hasExplicitFulfillmentMethodMention(raw);
-  const choice = parseFulfillmentChoice(raw);
-  if (!choice || (!hasChangeIntent && !(allowMethodOnly && hasMethodMention))) return null;
+  if (!hasChangeIntent && !hasMethodMention && !allowMethodOnly) return null;
 
-  const shop = await getShopFulfillment(shop_id);
-  if (!shop) return null;
-  const supportsDelivery = toBool(shop.supports_delivery);
-  const supportsPickup = toBool(shop.supports_pickup);
+  const intentResult = await classifyFulfillmentIntentWithAI({
+    message: raw,
+    questionType: null,
+    activeOrder,
+    isEnglish,
+  });
 
-  if (choice === "pickup") {
-    if (!supportsPickup) {
-      const botText = isEnglish ? "This branch does not support pickup." : "הסניף הזה לא תומך באיסוף עצמי.";
-      return saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
-    }
-    await closeFulfillmentQuestions(customer_id, shop_id, activeOrder.id);
-    await applyOrderFulfillment({ order_id: activeOrder.id, shop_id, method: "pickup" });
-    const botText = await finishFulfillmentStep({
+  if (!allowMethodOnly && intentResult?.intent === "provide_address") {
+    return handleFulfillmentIntentResult({
+      intentResult,
+      message,
+      customer_id,
+      shop_id,
       activeOrder,
-      shop_id,
       isEnglish,
-      prefix: isEnglish ? "No problem, I changed the order to store pickup." : "אין בעיה, שיניתי את ההזמנה לאיסוף עצמי מהחנות.",
+      saveChat,
     });
-    return saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
   }
 
-  if (choice === "delivery") {
-    if (!supportsDelivery) {
-      const botText = isEnglish ? "This branch does not support delivery." : "הסניף הזה לא תומך במשלוחים.";
-      return saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
-    }
-    await closeFulfillmentQuestions(customer_id, shop_id, activeOrder.id);
-    await applyOrderFulfillment({
-      order_id: activeOrder.id,
-      shop_id,
-      method: "delivery",
-      delivery_fee: await getDeliveryFeeForOrder({ shop_id, zone: null }),
-    });
-
-    const savedAddress = await getDefaultCustomerAddress(customer_id, shop_id);
-    const customer = await getCustomer(customer_id);
-    const firstName = getCustomerFirstName(customer);
-    if (savedAddress) {
-      const botText = buildSavedAddressQuestion({ firstName, address: savedAddress, isEnglish });
-      await saveFulfillmentQuestion({
-        customer_id,
-        shop_id,
-        order_id: activeOrder.id,
-        type: QUESTION_TYPES.DELIVERY_ADDRESS_CONFIRM,
-        question: botText,
-        options: { address_id: savedAddress.id, full_address: savedAddress.full_address },
-      });
-      return saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
-    }
-
-    const botText = await askForDeliveryAddress({ activeOrder, customer_id, shop_id, isEnglish });
-    return saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
-  }
-
-  return null;
+  if (!["choose_pickup", "choose_delivery"].includes(intentResult?.intent)) return null;
+  return handleFulfillmentIntentResult({
+    intentResult,
+    message,
+    customer_id,
+    shop_id,
+    activeOrder,
+    isEnglish,
+    saveChat,
+  });
 }
 
 async function handleFulfillmentReply({ message, customer_id, shop_id, activeOrder, openQs, saveChat }) {
@@ -885,134 +1188,73 @@ async function handleFulfillmentReply({ message, customer_id, shop_id, activeOrd
   }
 
   const type = String(question.product_name || "").trim();
-  if (type !== QUESTION_TYPES.FULFILLMENT_METHOD && hasExplicitFulfillmentMethodMention(message)) {
-    const changeReply = await handleDirectFulfillmentChangeRequest({
-      message,
-      customer_id,
-      shop_id,
-      activeOrder,
-      isEnglish,
-      saveChat,
-      allowMethodOnly: true,
-    });
-    if (changeReply) return changeReply;
-  }
-
   const saveBoth = async (botText) => saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
   const customer = await getCustomer(customer_id);
   const firstName = getCustomerFirstName(customer);
   const zones = await getDeliveryZones(shop_id);
   const shop = await getShopFulfillment(shop_id);
 
+  const intentResult = await classifyFulfillmentIntentWithAI({
+    message,
+    questionType: type,
+    activeOrder,
+    isEnglish,
+  });
+
   if (type === QUESTION_TYPES.FULFILLMENT_METHOD) {
-    const choice = parseFulfillmentChoice(message);
-    if (!choice) {
-      const botText = buildInvalidFulfillmentChoiceMessage({ isEnglish });
-      return saveBoth(botText);
-    }
-
-    if (choice === "pickup") {
-      if (!toBool(shop?.supports_pickup)) {
-        return saveBoth(isEnglish ? "This branch does not support pickup." : "הסניף הזה לא תומך באיסוף עצמי.");
-      }
-      await closeQuestionsByIds([question.id]);
-      await applyOrderFulfillment({ order_id: activeOrder.id, shop_id, method: "pickup" });
-      const botText = await finishFulfillmentStep({
-        activeOrder,
-        shop_id,
-        isEnglish,
-        prefix: isEnglish ? "Great, store pickup it is." : "מעולה, ההזמנה תהיה באיסוף עצמי מהחנות.",
-      });
-      return saveBoth(botText);
-    }
-
-    if (!toBool(shop?.supports_delivery)) {
-      return saveBoth(isEnglish ? "This branch does not support delivery." : "הסניף הזה לא תומך במשלוחים.");
-    }
-
-    await closeQuestionsByIds([question.id]);
-    await applyOrderFulfillment({
-      order_id: activeOrder.id,
-      shop_id,
-      method: "delivery",
-      delivery_fee: await getDeliveryFeeForOrder({ shop_id, zone: null }),
-    });
-
-    const savedAddress = await getDefaultCustomerAddress(customer_id, shop_id);
-    if (savedAddress) {
-      const botText = buildSavedAddressQuestion({ firstName, address: savedAddress, isEnglish });
-      await saveFulfillmentQuestion({
+    if (["choose_pickup", "choose_delivery"].includes(intentResult?.intent)) {
+      return handleFulfillmentIntentResult({
+        intentResult,
+        message,
         customer_id,
         shop_id,
-        order_id: activeOrder.id,
-        type: QUESTION_TYPES.DELIVERY_ADDRESS_CONFIRM,
-        question: botText,
-        options: { address_id: savedAddress.id, full_address: savedAddress.full_address },
+        activeOrder,
+        isEnglish,
+        saveChat,
+        questionId: question.id,
       });
-      return saveBoth(botText);
     }
 
-    const botText = buildAddressPrompt({ firstName, zones, isEnglish });
-    await saveFulfillmentQuestion({
-      customer_id,
-      shop_id,
-      order_id: activeOrder.id,
-      type: QUESTION_TYPES.DELIVERY_ADDRESS_INPUT,
-      question: botText,
-      options: { zones: zones.map((z) => z.settlement_name) },
-    });
+    const botText = buildInvalidFulfillmentChoiceMessage({ isEnglish });
     return saveBoth(botText);
   }
 
   if (type === QUESTION_TYPES.DELIVERY_ADDRESS_CONFIRM) {
-    const yes = parseYesNoAddressConfirm(message);
-    if (yes === null) {
-      const botText = isEnglish
-        ? "Please reply with 1 to use the saved address, or 2 to send a different address."
-        : "כדי להמשיך, השב 1 לשימוש בכתובת השמורה או 2 להזנת כתובת אחרת.";
-      return saveBoth(botText);
+    if (["choose_pickup", "choose_delivery", "confirm_saved_address", "different_address", "provide_address"].includes(intentResult?.intent)) {
+      const handled = await handleFulfillmentIntentResult({
+        intentResult,
+        message,
+        customer_id,
+        shop_id,
+        activeOrder,
+        isEnglish,
+        saveChat,
+        questionId: question.id,
+      });
+      if (handled) return handled;
     }
 
-    if (!yes) {
-      await closeQuestionsByIds([question.id]);
-      const botText = await askForDeliveryAddress({ activeOrder, customer_id, shop_id, isEnglish });
-      return saveBoth(botText);
-    }
-
-    const savedAddress = await getDefaultCustomerAddress(customer_id, shop_id);
-    if (!savedAddress) {
-      await closeQuestionsByIds([question.id]);
-      const botText = await askForDeliveryAddress({ activeOrder, customer_id, shop_id, isEnglish });
-      return saveBoth(botText);
-    }
-
-    const validation = validateDeliveryAddress(savedAddress.full_address, zones);
-    if (!validation.ok) {
-      await closeQuestionsByIds([question.id]);
-      const botText = await askForDeliveryAddress({ activeOrder, customer_id, shop_id, isEnglish });
-      return saveBoth(botText);
-    }
-
-    await closeQuestionsByIds([question.id]);
-    const fee = await getDeliveryFeeForOrder({ shop_id, zone: validation.zone });
-    await applyOrderFulfillment({
-      order_id: activeOrder.id,
-      shop_id,
-      method: "delivery",
-      delivery_address: savedAddress.full_address,
-      delivery_fee: fee,
-    });
-
-    const botText = await finishFulfillmentStep({
-      activeOrder,
-      shop_id,
-      isEnglish,
-      prefix: isEnglish ? "Great, I saved the delivery to your saved address." : "מעולה, שמרתי את המשלוח לכתובת השמורה.",
-    });
+    const botText = isEnglish
+      ? "Please reply with 1 to use the saved address, 2 to send a different address, or write that you'd prefer store pickup."
+      : "כדי להמשיך, השב 1 לשימוש בכתובת השמורה, 2 להזנת כתובת אחרת, או כתוב שאתה מעדיף איסוף עצמי.";
     return saveBoth(botText);
   }
 
   if (type === QUESTION_TYPES.DELIVERY_ADDRESS_INPUT) {
+    if (["choose_pickup", "choose_delivery", "provide_address"].includes(intentResult?.intent)) {
+      const handled = await handleFulfillmentIntentResult({
+        intentResult,
+        message,
+        customer_id,
+        shop_id,
+        activeOrder,
+        isEnglish,
+        saveChat,
+        questionId: question.id,
+      });
+      if (handled) return handled;
+    }
+
     const validation = validateDeliveryAddress(message, zones);
     if (!validation.ok) {
       const botText = buildAddressReminder({ firstName, zones, isEnglish, reason: validation.reason });
@@ -1040,6 +1282,9 @@ async function handleFulfillmentReply({ message, customer_id, shop_id, activeOrd
     return saveBoth(botText);
   }
 
+  // A fulfillment-related open question exists, but it is not one of the known types.
+  // Let the regular classification flow continue instead of blocking the customer.
+  if (toBool(shop?.supports_delivery) || toBool(shop?.supports_pickup)) return null;
   return null;
 }
 

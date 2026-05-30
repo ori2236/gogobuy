@@ -143,7 +143,7 @@ function buildCartReminderMessage({ order, isEnglish }) {
         : `✅ To continue to final confirmation, reply: send order`;
 
     return [
-      `⏰ Small reminder — your order #${orderId} is still waiting for confirmation.`,
+      `⏰ Small reminder - your order #${orderId} is still waiting for confirmation.`,
       "",
       `🛒 We are currently keeping the products reserved for you${total > 0 ? ` (₪${total.toFixed(2)})` : ""}.`,
       `If the order is not confirmed in the next ${minutesLeft}, the products will return to stock automatically.`,
@@ -159,7 +159,7 @@ function buildCartReminderMessage({ order, isEnglish }) {
       : `✅ כדי להתקדם לאישור הסופי, כתוב: שלח הזמנה`;
 
   return [
-    `⏰ תזכורת קטנה — ההזמנה שלך #${orderId} עדיין מחכה לאישור.`,
+    `⏰ תזכורת קטנה - ההזמנה שלך #${orderId} עדיין מחכה לאישור.`,
     "",
     `🛒 כרגע אנחנו שומרים לך את המוצרים במלאי${total > 0 ? ` (₪${total.toFixed(2)})` : ""}.`,
     `אם ההזמנה לא תאושר במהלך ${minutesLeft}, המוצרים יחזרו אוטומטית למלאי לטובת לקוחות אחרים.`,
@@ -177,7 +177,7 @@ function buildStockReleasedMessage({ order, isEnglish }) {
       `⏳ Order #${orderId} was cancelled automatically because it was not confirmed in time.`,
       "",
       "🛒 The reserved products were returned to stock.",
-      "You can start a new order whenever you like — just write what you would like to buy.",
+      "You can start a new order whenever you like - just write what you would like to buy.",
     ].join("\n");
   }
 
@@ -185,7 +185,7 @@ function buildStockReleasedMessage({ order, isEnglish }) {
     `⏳ ההזמנה שלך #${orderId} בוטלה אוטומטית כי היא לא אושרה בזמן.`,
     "",
     "🛒 המוצרים שהיו שמורים עבורך הוחזרו למלאי.",
-    "אפשר להתחיל הזמנה חדשה בכל רגע — פשוט כתוב מה תרצה להזמין.",
+    "אפשר להתחיל הזמנה חדשה בכל רגע - פשוט כתוב מה תרצה להזמין.",
   ].join("\n");
 }
 
