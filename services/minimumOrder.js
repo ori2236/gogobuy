@@ -247,15 +247,15 @@ function buildSuggestionLine(action, idx, isEnglish) {
 
   if (isEnglish) {
     const priceText = promo
-      ? `${promo} — ₪${price}${regular > effective + 0.009 ? ` instead of ₪${fmtMoney(regular)}` : ""}`
+      ? `${promo} - ₪${price}${regular > effective + 0.009 ? ` instead of ₪${fmtMoney(regular)}` : ""}`
       : `₪${price}`;
-    return `${idx + 1}. ${emoji} ${name} — ${priceText}`;
+    return `${idx + 1}. ${emoji} ${name} - ${priceText}`;
   }
 
   const priceText = promo
-    ? `${promo} — ₪${price}${regular > effective + 0.009 ? ` במקום ₪${fmtMoney(regular)}` : ""}`
+    ? `${promo} - ₪${price}${regular > effective + 0.009 ? ` במקום ₪${fmtMoney(regular)}` : ""}`
     : `₪${price}`;
-  return `${idx + 1}. ${emoji} ${name} — ${priceText}`;
+  return `${idx + 1}. ${emoji} ${name} - ${priceText}`;
 }
 
 function methodLabel(method, isEnglish) {
@@ -272,7 +272,7 @@ function buildMinimumOrderMessage({ method, subtotal, minimum, suggestions, isEn
       "🛒 Almost there!",
       "",
       `The products total is ₪${fmtMoney(subtotal)}.`,
-      `The minimum for ${methodLabel(method, true)} is ₪${fmtMoney(minimum)} — delivery fees are not counted in this minimum.`,
+      `The minimum for ${methodLabel(method, true)} is ₪${fmtMoney(minimum)} - delivery fees are not counted in this minimum.`,
       "",
       `Add ₪${fmtMoney(missing)} more in products to finish the order ✅`,
       suggestionLines.length
@@ -291,7 +291,7 @@ function buildMinimumOrderMessage({ method, subtotal, minimum, suggestions, isEn
     "🛒 כמעט סיימנו!",
     "",
     `סכום המוצרים כרגע הוא ₪${fmtMoney(subtotal)}.`,
-    `המינימום ל${methodLabel(method, false)} מהסניף הוא ₪${fmtMoney(minimum)} — דמי משלוח לא נספרים במינימום הזה.`,
+    `המינימום ל${methodLabel(method, false)} מהסניף הוא ₪${fmtMoney(minimum)} - דמי משלוח לא נספרים במינימום הזה.`,
     "",
     `חסרים עוד ₪${fmtMoney(missing)} במוצרים כדי שנוכל לסיים את ההזמנה ✅`,
     suggestionLines.length

@@ -329,7 +329,7 @@ function buildAddressPrompt({ firstName, zones, isEnglish }) {
         "If needed, add apartment/floor/entrance.",
         zonesText ? `\nAvailable delivery areas:\n${zonesText}` : "",
         "",
-        "This does not confirm the order yet — it only lets us prepare the delivery details.",
+        "This does not confirm the order yet - it only lets us prepare the delivery details.",
       ],
       [
         "To continue with delivery, please send the address 🗺️",
@@ -337,7 +337,7 @@ function buildAddressPrompt({ firstName, zones, isEnglish }) {
         `${namePrefix}write settlement, street and house number in one message.`,
         zonesText ? `\nWe deliver to:\n${zonesText}` : "",
         "",
-        "No worries — the order is still editable after you send the address 🛍️",
+        "No worries - the order is still editable after you send the address 🛍️",
       ],
     ];
     return pickRotatingTemplate(templates).filter(Boolean).join("\n");
@@ -365,7 +365,7 @@ function buildAddressPrompt({ firstName, zones, isEnglish }) {
       "אם צריך, אפשר להוסיף דירה/קומה/כניסה.",
       zonesText ? `\nאפשר לבצע משלוח ליישובים:\n${zonesText}` : "",
       "",
-      "זה לא סוגר את ההזמנה סופית — זה רק מאפשר לנו להכין את פרטי המשלוח.",
+      "זה לא סוגר את ההזמנה סופית - זה רק מאפשר לנו להכין את פרטי המשלוח.",
     ],
     [
       "כדי להכין את המשלוח חסרה לנו רק כתובת 🗺️",
@@ -401,7 +401,7 @@ function buildAddressReminder({ firstName, zones, isEnglish, reason }) {
         reasonLine,
         zonesText ? `\nAvailable delivery areas:\n${zonesText}` : "",
         "",
-        "This is still not the final order confirmation — you can keep editing the cart after sending the address 🛒",
+        "This is still not the final order confirmation - you can keep editing the cart after sending the address 🛒",
         "Please send the full address again.",
       ],
       [
@@ -433,7 +433,7 @@ function buildAddressReminder({ firstName, zones, isEnglish, reason }) {
       reasonLine,
       zonesText ? `\nאפשר לבצע משלוח ליישובים:\n${zonesText}` : "",
       "",
-      "זה עדיין לא אישור סופי של ההזמנה — אפשר להמשיך לערוך את הסל אחרי שליחת הכתובת 🛒",
+      "זה עדיין לא אישור סופי של ההזמנה - אפשר להמשיך לערוך את הסל אחרי שליחת הכתובת 🛒",
       "שלח לנו שוב את הכתובת המלאה ונמשיך משם 👇",
     ],
     [

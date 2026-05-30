@@ -183,7 +183,7 @@ function buildEmptyOrderDeletedMsg(orderId, isEnglish = false) {
     ? `ℹ️ We noticed that your order (#${orderId}) was created without products, so it was cancelled.
 If this was a mistake, you can send the order again and we’ll handle it right away 🙏`
     : `ℹ️ שמנו לב שההזמנה שלך (#${orderId}) נוצרה ללא מוצרים ולכן היא בוטלה.
-אם זו טעות — אפשר לשלוח את ההזמנה מחדש ואנחנו נטפל בזה מיד 🙏`;
+אם זו טעות - אפשר לשלוח את ההזמנה מחדש ואנחנו נטפל בזה מיד 🙏`;
 }
 
 async function getShopWhatsAppPhoneNumberId(shopId) {
