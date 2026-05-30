@@ -3,6 +3,7 @@ const db = require("../../config/db");
 const { getPromptFromDB } = require("../../repositories/prompt");
 const { createOrderWithStockReserve } = require("../../utilities/orders");
 const { isEnglishMessage } = require("../../utilities/lang");
+const { botText } = require("../../utilities/i18n");
 const { addMoney, roundTo } = require("../../utilities/decimal");
 const {
   searchProducts,
@@ -43,6 +44,7 @@ module.exports = {
       );
     }
 
+    const isEnglish = isEnglishMessage(message);
     const systemPrompt = await getPromptFromDB(PROMPT_CAT, PROMPT_SUB);
 
     const openQsCtxToPrompt = openQsCtx.length ? JSON.stringify(openQsCtx) : "";
@@ -70,8 +72,7 @@ module.exports = {
       } catch (e2) {
         console.error("Failed to parse model JSON:", e2?.message, answer);
         return {
-          reply:
-            "מצטערים, הייתה תקלה בעיבוד ההזמנה. אפשר לנסח שוב בקצרה מה תרצה להזמין?",
+          reply: botText("createParseError", isEnglish),
           raw: answer,
         };
       }
@@ -86,7 +87,6 @@ module.exports = {
     }
 
     const reqProducts = Array.isArray(parsed?.products) ? parsed.products : [];
-    const isEnglish = isEnglishMessage(message);
 
     console.log("[ORD-CREATE] incoming", {
       message,

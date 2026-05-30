@@ -5,6 +5,7 @@ const {
   normalizeWaNumber,
 } = require("../utilities/dashboardUtils");
 const { ensureFulfillmentSchema } = require("../services/fulfillment");
+const { isEnglishFromCustomerName } = require("../utilities/i18n");
 
 const ALLOWED_STATUSES = new Set([
   "pending",
@@ -103,47 +104,86 @@ async function ensureOrderItemPickerColumns(conn) {
   }
 }
 
-function buildPreparingMsg(orderId) {
-  return `ההזמנה שלך (#${orderId}) התחילה להילקט\nנעדכן אותך כשהיא תהיה מוכנה.`;
+function buildNoteBlock(note, isEnglish) {
+  const cleanNote = String(note || "").trim();
+  if (!cleanNote) return "";
+  return isEnglish
+    ? `
+
+📝 Picker note:
+${cleanNote}`
+    : `
+
+📝 הערה מהמלקט/ת:
+${cleanNote}`;
 }
 
-function buildReadyMsg(orderId, note, fulfillmentMethod) {
+function buildPreparingMsg(orderId, isEnglish = false) {
+  return isEnglish
+    ? `🛒 Your order (#${orderId}) is now being picked.
+We’ll update you when it’s ready ✅`
+    : `🛒 ההזמנה שלך (#${orderId}) התחילה להילקט.
+נעדכן אותך כשהיא תהיה מוכנה ✅`;
+}
+
+function buildReadyMsg(orderId, note, fulfillmentMethod, isEnglish = false) {
   const isDelivery = String(fulfillmentMethod || "") === "delivery";
-  let msg = isDelivery
-    ? `ההזמנה שלך (#${orderId}) מוכנה 🎉
+  let msg;
+
+  if (isEnglish) {
+    msg = isDelivery
+      ? `🎉 Your order (#${orderId}) is ready.
+We’re handing it over to the courier and will update you when it leaves.`
+      : `🎉 Your order (#${orderId}) is ready.
+You can come to the branch to pick it up 🛍️`;
+  } else {
+    msg = isDelivery
+      ? `🎉 ההזמנה שלך (#${orderId}) מוכנה.
 אנחנו מעבירים אותה לשליח, ונעדכן אותך כשהיא יוצאת לדרך.`
-    : `ההזמנה שלך (#${orderId}) מוכנה 🎉
-אפשר להגיע לסניף לאסוף אותה.`;
-  if (note && String(note).trim()) {
-    msg += `
-
-הערה מהמלקט/ת:
-${String(note).trim()}`;
+      : `🎉 ההזמנה שלך (#${orderId}) מוכנה.
+אפשר להגיע לסניף לאסוף אותה 🛍️`;
   }
-  return msg;
+
+  return msg + buildNoteBlock(note, isEnglish);
 }
 
-function buildDeliveringMsg(orderId, note) {
-  let msg = `ההזמנה שלך (#${orderId}) יצאה למשלוח 🏍️
+function buildDeliveringMsg(orderId, note, isEnglish = false) {
+  const msg = isEnglish
+    ? `🏍️ Your order (#${orderId}) is out for delivery.
+The courier is on the way to you.`
+    : `🏍️ ההזמנה שלך (#${orderId}) יצאה למשלוח.
 השליח בדרך אליך.`;
-  if (note && String(note).trim()) {
-    msg += `
-
-הערה מהמלקט/ת:
-${String(note).trim()}`;
-  }
-  return msg;
+  return msg + buildNoteBlock(note, isEnglish);
 }
 
-function buildCompletedMsg(orderId, fulfillmentMethod) {
+function buildCompletedMsg(orderId, fulfillmentMethod, isEnglish = false) {
   const isDelivery = String(fulfillmentMethod || "") === "delivery";
+
+  if (isEnglish) {
+    return isDelivery
+      ? `✅ Thank you for ordering from us 💚
+Your order (#${orderId}) was delivered successfully.
+We’ll be happy to see you again!`
+      : `✅ Thank you for ordering from us 💚
+Your order (#${orderId}) was picked up successfully.
+We’ll be happy to see you again!`;
+  }
+
   return isDelivery
-    ? `תודה שהזמנת אצלנו 💚
+    ? `✅ תודה שהזמנת אצלנו 💚
 ההזמנה שלך (#${orderId}) נמסרה בהצלחה.
 נשמח לראות אותך שוב!`
-    : `תודה שהזמנת אצלנו 💚
+    : `✅ תודה שהזמנת אצלנו 💚
 ההזמנה שלך (#${orderId}) נאספה בהצלחה.
 נשמח לראות אותך שוב!`;
+}
+
+function buildEmptyOrderDeletedMsg(orderId, isEnglish = false) {
+  return isEnglish
+    ? `ℹ️ We noticed that your order (#${orderId}) was created without products, so it was cancelled.
+If this was a mistake, you can send the order again and we’ll handle it right away 🙏`
+    : `ℹ️ שמנו לב שההזמנה שלך (#${orderId}) נוצרה ללא מוצרים ולכן היא בוטלה.
+אם זו טעות — אפשר לשלוח את ההזמנה מחדש ואנחנו נטפל בזה מיד 🙏`;
 }
 
 async function getShopWhatsAppPhoneNumberId(shopId) {
@@ -158,13 +198,6 @@ async function getShopWhatsAppPhoneNumberId(shopId) {
   return row?.phone_number_id || null;
 }
 
-function buildEmptyOrderDeletedMsg(orderId) {
-  return (
-    `שמנו לב שההזמנה שלך (#${orderId}) נוצרה ללא מוצרים ולכן היא בוטלה.\n` +
-    `אם זו טעות – אפשר לשלוח את ההזמנה מחדש ואנחנו נטפל בזה מיד.`
-  );
-}
-
 async function cleanupEmptyPickerOrders(conn, shopId, { limit = 200 } = {}) {
   await conn.beginTransaction();
   try {
@@ -172,7 +205,8 @@ async function cleanupEmptyPickerOrders(conn, shopId, { limit = 200 } = {}) {
       `
       SELECT
         o.id AS order_id,
-        c.phone AS customer_phone
+        c.phone AS customer_phone,
+        c.name AS customer_name
       FROM orders o
       JOIN customer c ON c.id = o.customer_id
       WHERE o.shop_id = ?
@@ -219,6 +253,7 @@ async function cleanupEmptyPickerOrders(conn, shopId, { limit = 200 } = {}) {
     return rows.map((r) => ({
       orderId: Number(r.order_id),
       customerPhone: normalizeWaNumber(r.customer_phone),
+      customerName: r.customer_name,
     }));
   } catch (e) {
     try {
@@ -255,7 +290,10 @@ exports.getPickerOrders = async (req, res) => {
       (async () => {
         for (const x of deletedEmpty) {
           if (!x.customerPhone) continue;
-          const text = buildEmptyOrderDeletedMsg(x.orderId);
+          const text = buildEmptyOrderDeletedMsg(
+            x.orderId,
+            isEnglishFromCustomerName(x.customerName),
+          );
           try {
             await sendWhatsAppText(x.customerPhone, text);
             console.log("[dashboard.cleanupEmptyPickerOrders] WhatsApp sent", {
@@ -564,6 +602,7 @@ exports.updateOrderStatus = async (req, res) => {
 
     const current = rows[0].status;
     const currentOrder = rows[0];
+    const isEnglishCustomer = isEnglishFromCustomerName(currentOrder.customer_name);
     const fulfillmentMethod = String(currentOrder.fulfillment_method || "pickup");
     const isDeliveryOrder = fulfillmentMethod === "delivery";
     const customerPhone = normalizeWaNumber(rows[0].customer_phone);
@@ -667,12 +706,12 @@ exports.updateOrderStatus = async (req, res) => {
 
       const text =
         nextStatus === "preparing"
-          ? buildPreparingMsg(orderId)
+          ? buildPreparingMsg(orderId, isEnglishCustomer)
           : nextStatus === "delivering"
-            ? buildDeliveringMsg(orderId, noteToSend)
+            ? buildDeliveringMsg(orderId, noteToSend, isEnglishCustomer)
             : nextStatus === "completed"
-              ? buildCompletedMsg(orderId, fulfillmentMethod)
-              : buildReadyMsg(orderId, noteToSend, fulfillmentMethod);
+              ? buildCompletedMsg(orderId, fulfillmentMethod, isEnglishCustomer)
+              : buildReadyMsg(orderId, noteToSend, fulfillmentMethod, isEnglishCustomer);
 
       (async () => {
         try {

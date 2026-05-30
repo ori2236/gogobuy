@@ -5,8 +5,8 @@ async function orderReview(order, items, isEnglish, customer_id, shop_id) {
   // no open order
   if (!order) {
     const botPayload = isEnglish
-      ? "You don't have any open orders at the moment. Would you like to start a new order?"
-      : "אין לך הזמנה פתוחה כרגע. תרצה לפתוח הזמנה חדשה?";
+      ? "🛒 You don't have any open orders at the moment. Would you like to start a new order?"
+      : "🛒 אין לך הזמנה פתוחה כרגע. תרצה לפתוח הזמנה חדשה?";
 
     const question = isEnglish
       ? "Would you like to start a new order?"
@@ -31,8 +31,8 @@ async function orderReview(order, items, isEnglish, customer_id, shop_id) {
   // empty order
   if (!items || !items.length) {
     return isEnglish
-      ? `Your order is currently empty (Order: #${order.id}).`
-      : `ההזמנה שלך כרגע ריקה (הזמנה מספר: #${order.id}).`;
+      ? `🛒 Your order is currently empty (Order: #${order.id}).`
+      : `🛒 ההזמנה שלך כרגע ריקה (הזמנה מספר: #${order.id}).`;
   }
 
   const itemsForView = (items || []).map((it) => {

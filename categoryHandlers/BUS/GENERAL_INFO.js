@@ -52,8 +52,8 @@ module.exports = {
 
     if (!info) {
       return isEnglish
-        ? "Sorry, I couldn't find branch information for this store."
-        : "מצטערים, לא מצאתי מידע על הסניף הזה.";
+        ? "ℹ️ Sorry, I couldn't find branch information for this store."
+        : "ℹ️ מצטערים, לא מצאתי מידע על הסניף הזה.";
     }
 
     const userContext = buildGeneralInfoContext({
@@ -81,7 +81,7 @@ module.exports = {
     if (replyText) return replyText;
 
     return isEnglish
-      ? "Sorry, I couldn't generate a branch information answer."
-      : "מצטערים, לא הצלחתי לייצר תשובה לגבי פרטי הסניף.";
+      ? "ℹ️ Sorry, I couldn't generate a branch information answer."
+      : "ℹ️ מצטערים, לא הצלחתי לייצר תשובה לגבי פרטי הסניף.";
   },
 };

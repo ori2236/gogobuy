@@ -97,18 +97,18 @@ const REPLY_CONFIG = {
 
 const NUDGE_VARIANTS = {
   he: [
-    "רוצה שאכין את ההזמנה לשליחה לחנות?\nכתוב \"שלח הזמנה\", או פשוט המשך להוסיף מוצרים.",
-    "נראה שההזמנה כבר מתקדמת יפה. להכין אותה לשליחה לחנות?\nאפשר לכתוב \"שלח הזמנה\", או להמשיך לערוך חופשי.",
-    "תרצה שאעביר אותך לאישור סופי של ההזמנה?\nכתוב \"שלח הזמנה\" כשאתה מוכן, או המשך להוסיף מוצרים.",
-    "אם סיימת לבחור מוצרים, אוכל להכין את ההזמנה לשליחה לחנות.\nכתוב \"שלח הזמנה\", או פשוט המשך להזמין.",
-    "רוצה להתקדם לסיום ההזמנה?\nכתוב \"שלח הזמנה\" ואעביר אותך לאישור סופי, או המשך להוסיף מוצרים.",
+    "🛒 רוצה שאכין את ההזמנה לשליחה לחנות?\n✅ כתוב \"שלח הזמנה\", או פשוט המשך להוסיף מוצרים.",
+    "🛒 נראה שההזמנה כבר מתקדמת יפה. להכין אותה לשליחה לחנות?\n✅ אפשר לכתוב \"שלח הזמנה\", או להמשיך לערוך חופשי.",
+    "🧾 תרצה שאעביר אותך לאישור סופי של ההזמנה?\n✅ כתוב \"שלח הזמנה\" כשאתה מוכן, או המשך להוסיף מוצרים.",
+    "✅ אם סיימת לבחור מוצרים, אוכל להכין את ההזמנה לשליחה לחנות.\n🛒 כתוב \"שלח הזמנה\", או פשוט המשך להזמין.",
+    "🧾 רוצה להתקדם לסיום ההזמנה?\n✅ כתוב \"שלח הזמנה\" ואעביר אותך לאישור סופי, או המשך להוסיף מוצרים.",
   ],
   en: [
-    "Would you like me to prepare this order to be sent to the store?\nWrite \"send order\", or just keep adding products.",
-    "Your order is coming together. Should I prepare it for sending to the store?\nWrite \"send order\", or keep editing freely.",
-    "Ready to move to final order confirmation?\nWrite \"send order\" when you are ready, or keep adding products.",
-    "If you’re done choosing products, I can prepare the order for the store.\nWrite \"send order\", or just continue shopping.",
-    "Would you like to continue to checkout?\nWrite \"send order\" and I’ll move you to final confirmation, or keep adding products.",
+    "🛒 Would you like me to prepare this order to be sent to the store?\n✅ Write \"send order\", or just keep adding products.",
+    "🛒 Your order is coming together. Should I prepare it for sending to the store?\n✅ Write \"send order\", or keep editing freely.",
+    "🧾 Ready to move to final order confirmation?\n✅ Write \"send order\" when you are ready, or keep adding products.",
+    "✅ If you’re done choosing products, I can prepare the order for the store.\n🛒 Write \"send order\", or just continue shopping.",
+    "🧾 Would you like to continue to checkout?\n✅ Write \"send order\" and I’ll move you to final confirmation, or keep adding products.",
   ],
 };
 

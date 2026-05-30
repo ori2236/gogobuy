@@ -8,6 +8,7 @@ const {
 } = require("../../utilities/orders");
 const { addMoney, roundTo } = require("../../utilities/decimal");
 const { isEnglishMessage } = require("../../utilities/lang");
+const { botText } = require("../../utilities/i18n");
 const {
   pickAltTemplate,
   findBestProductForRequest,
@@ -947,12 +948,12 @@ module.exports = {
     if (!message || !customer_id || !shop_id) {
       throw new Error("modifyOrder: missing message/customer_id/shop_id");
     }
+    const isEnglishEarly = isEnglishMessage(message);
     const order = activeOrder || (await getOrder(order_id));
     if (!order) {
-      return "כדי לערוך הזמנה צריך להיות הזמנה פעילה. להתחיל הזמנה חדשה?";
+      return botText("modifyNoActiveOrder", isEnglishEarly);
     }
 
-    const isEnglishEarly = isEnglishMessage(message);
     if (!["pending", "confirmed"].includes(String(order.status))) {
       return isEnglishEarly
         ? `Order (#${order.id}) can't be modified at this stage.`

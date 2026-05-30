@@ -17,6 +17,7 @@ const {
   buildActiveOrderSignals,
 } = require("../utilities/orders");
 const { detectIsEnglish } = require("../utilities/lang");
+const { botText } = require("../utilities/i18n");
 const { checkIfToCancelOrder } = require("../categoryHandlers/ORD/CANCEL");
 const { checkIfToCheckoutOrder } = require("../categoryHandlers/ORD/CHECKOUT");
 const { answerOrderStatus } = require("../categoryHandlers/ORD/STATUS");
@@ -105,20 +106,7 @@ function isWrongOpenOrderClarification(text) {
 }
 
 function buildNoActiveOrderReply(message) {
-  const isEnglish = detectIsEnglish(message);
-  if (isEnglish) {
-    return [
-      "There is no open order right now.",
-      "If the previous order was cancelled automatically, its products were returned to stock.",
-      "To start a new order, just write the products you would like to buy.",
-    ].join("\n");
-  }
-
-  return [
-    "אין לך הזמנה פתוחה כרגע.",
-    "אם הכוונה להזמנה הקודמת — היא כבר בוטלה אוטומטית והמוצרים חזרו למלאי.",
-    "כדי להתחיל הזמנה חדשה, פשוט כתוב את המוצרים שתרצה להזמין.",
-  ].join("\n");
+  return botText("noActiveOrder", detectIsEnglish(message));
 }
 
 async function saveAndReturnUnclassifiedReply({
@@ -401,7 +389,7 @@ async function processMessage(
   });
 
   if (parsed.type === "clarify") {
-    let clarifyText = parsed.text || "לא התקבלה תשובה מהמודל.";
+    let clarifyText = parsed.text || botText("modelNoReply", detectIsEnglish(effectiveMessage));
 
     // Defensive state guard: the classifier prompt contains a clarification that is valid
     // only when ACTIVE_ORDER_EXISTS=true. In vague follow-ups after an automatic expiry,
@@ -435,8 +423,7 @@ async function processMessage(
     }
 
     if (!isValidCategorySub(category, subcategory)) {
-      const apology =
-        "מצטערים, לא הצלחנו להבין את הבקשה. נשמח אם תנוסח שוב בקצרה";
+      const apology = botText("invalidIntent", detectIsEnglish(effectiveMessage));
       await saveChat({
         customer_id,
         shop_id,
@@ -535,7 +522,7 @@ async function processMessage(
       });
 
       const fallback = prependTextToBotPayload(
-        "כרגע אין לנו תמיכה בבקשות מסוג זה",
+        botText("unsupportedRequest", detectIsEnglish(effectiveMessage)),
         conversationGreetingPrefix,
       );
       return fallback;
@@ -587,7 +574,7 @@ async function processMessage(
       message: effectiveMessage,
     });
     const finalUnclassifiedReply = prependTextToBotPayload(
-      replyText || "לא התקבלה תשובה מהמודל.",
+      replyText || botText("modelNoReply", detectIsEnglish(effectiveMessage)),
       conversationGreetingPrefix,
     );
 

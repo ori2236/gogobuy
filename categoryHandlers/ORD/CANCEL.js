@@ -113,12 +113,12 @@ async function checkIfToCancelOrder({
 
     if (!result) {
       botText = isEnglish
-        ? "There was a problem cancelling your order. Please try again or contact the shop."
-        : "הייתה בעיה בביטול ההזמנה. אפשר לנסות שוב או ליצור קשר עם החנות.";
+        ? "⚠️ There was a problem cancelling your order. Please try again or contact the shop."
+        : "⚠️ הייתה בעיה בביטול ההזמנה. אפשר לנסות שוב או ליצור קשר עם החנות.";
     } else {
       botText = isEnglish
-        ? `Your order (#${activeOrder.id}) has been cancelled.`
-        : `ההזמנה שלך (#${activeOrder.id}) בוטלה.`;
+        ? `✅ Your order (#${activeOrder.id}) has been cancelled.`
+        : `✅ ההזמנה שלך (#${activeOrder.id}) בוטלה.`;
     }
   } else {
     //not canceling
@@ -132,8 +132,8 @@ async function checkIfToCancelOrder({
     );
 
     botText = isEnglish
-      ? `Your order (#${activeOrder.id}) was not cancelled. Anything else you'd like to do?`
-      : `ההזמנה שלך (#${activeOrder.id}) לא בוטלה. יש דבר נוסף שתרצה לעשות?`;
+      ? `ℹ️ Your order (#${activeOrder.id}) was not cancelled. Anything else you'd like to do?`
+      : `ℹ️ ההזמנה שלך (#${activeOrder.id}) לא בוטלה. יש דבר נוסף שתרצה לעשות?`;
   }
 
   await saveChat({
@@ -151,8 +151,8 @@ async function askToCancelOrder(activeOrder, isEnglish, customer_id, shop_id) {
   let botPayload;
   if (!activeOrder) {
     botPayload = isEnglish
-      ? "You don't have any open orders at the moment. Would you like to start a new order?"
-      : "אין לך הזמנה פתוחה כרגע. תרצה לפתוח הזמנה חדשה?";
+      ? "🛒 You don't have any open orders at the moment. Would you like to start a new order?"
+      : "🛒 אין לך הזמנה פתוחה כרגע. תרצה לפתוח הזמנה חדשה?";
 
     const question = botPayload.split(". ")[1];
 
@@ -182,13 +182,13 @@ async function askToCancelOrder(activeOrder, isEnglish, customer_id, shop_id) {
 
   if (res.affectedRows === 0) {
     return isEnglish
-      ? `Order (#${activeOrder.id}) can't be cancelled at this stage.`
-      : `אי אפשר לבטל את ההזמנה (#${activeOrder.id}) בשלב הזה.`;
+      ? `ℹ️ Order (#${activeOrder.id}) can't be cancelled at this stage.`
+      : `ℹ️ אי אפשר לבטל את ההזמנה (#${activeOrder.id}) בשלב הזה.`;
   }
 
   return isEnglish
-    ? `To cancel your order (#${activeOrder.id}), reply with the order number only: ${activeOrder.id}`
-    : `כדי לבטל את ההזמנה שלך (#${activeOrder.id}), השב עם מספר ההזמנה בלבד: ${activeOrder.id}`;
+    ? `🔢 To cancel your order (#${activeOrder.id}), reply with the order number only: ${activeOrder.id}`
+    : `🔢 כדי לבטל את ההזמנה שלך (#${activeOrder.id}), השב עם מספר ההזמנה בלבד: ${activeOrder.id}`;
 }
 
 module.exports = {

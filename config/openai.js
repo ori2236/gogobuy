@@ -77,9 +77,7 @@ async function chat({
 
   const { data } = await req.withResponse();
   
-  return (
-    data?.choices?.[0]?.message?.content?.trim() || "לא התקבלה תשובה מהמודל."
-  );
+  return data?.choices?.[0]?.message?.content?.trim() || "";
 }
 
 module.exports = { chat };

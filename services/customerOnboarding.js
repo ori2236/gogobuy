@@ -176,6 +176,16 @@ const NEED_FULL_NAME_REPLIES_EN = [
     "Before opening the order, the system needs your full name.",
     "Please send first name and last name, and we will continue right away 👇",
   ].join("\n\n"),
+  [
+    "We would love to open your order, but we are still waiting for your full name 🙂",
+    "Without first name and last name, we cannot save a personal cart in the system.",
+    "Just write your full name and we will continue right away 🛒",
+  ].join("\n\n"),
+  [
+    "We are almost ready to continue with your cart 🛍️",
+    "First, we need your first name and last name so the order is saved properly.",
+    "Write your full name here and we will continue exactly where we stopped 😊",
+  ].join("\n\n"),
 ];
 
 function pickRandom(items) {

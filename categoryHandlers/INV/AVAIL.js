@@ -26,6 +26,21 @@ function dlog(...args) {
 }
 
 
+function withAvailabilityEmoji(text) {
+  const clean = String(text || "").trim();
+  if (!clean) return clean;
+  if (/^[\p{Emoji_Presentation}\p{Extended_Pictographic}]/u.test(clean)) {
+    return clean;
+  }
+  if (/not in stock|out of stock|חסר|אין לנו|לא מצאתי|couldn’t|לא הצלחתי/i.test(clean)) {
+    return `🔍 ${clean}`;
+  }
+  if (/only|רק|פחות מהכמות|not enough/i.test(clean)) {
+    return `⚠️ ${clean}`;
+  }
+  return `✅ ${clean}`;
+}
+
 function joinNames(names, isEnglish) {
   if (!names || !names.length) return "";
   if (names.length === 1) return names[0];
@@ -148,9 +163,9 @@ async function checkAvailability({
       parsed = parseModelAnswer(answer);
     } catch (e2) {
       console.error("[INV.AVAIL] parseModelAnswer failed:", e2);
-      const botPayload = isEnglish
+      const botPayload = withAvailabilityEmoji(isEnglish
         ? "Sorry, I couldn’t understand which products you want me to check. Can you please write again which product you’re asking about?"
-        : "מצטערים, לא הבנו על איזה מוצר אתה שואל. תוכל לכתוב שוב בקצרה על איזה מוצר לבדוק מלאי?";
+        : "מצטערים, לא הבנו על איזה מוצר אתה שואל. תוכל לכתוב שוב בקצרה על איזה מוצר לבדוק מלאי?");
       await saveOpenQuestionsAvail(botPayload, customer_id, shop_id);
       return botPayload;
     }
@@ -187,9 +202,9 @@ async function checkAvailability({
   const hasClarify = clarifyQuestionsFromModel.length > 0;
 
   if (!hasProducts && !hasClarify) {
-    const botPayload = isEnglish
+    const botPayload = withAvailabilityEmoji(isEnglish
       ? "I couldn’t identify any specific product in your question. Can you please write which product you want me to check?"
-      : "לא הצלחתי לזהות על איזה מוצר בדיוק אתה שואל. תוכל לכתוב את שם המוצר שתרצה שאבדוק?";
+      : "לא הצלחתי לזהות על איזה מוצר בדיוק אתה שואל. תוכל לכתוב את שם המוצר שתרצה שאבדוק?");
 
     await saveOpenQuestionsAvail(botPayload, customer_id, shop_id);
     return botPayload;
@@ -745,7 +760,7 @@ async function checkAvailability({
       : "ניסיתי להבין על איזה מוצר לבדוק מלאי, אבל לא הצלחתי. תוכל לכתוב שוב על איזה מוצר אתה שואל?";
   }
 
-  return body;
+  return withAvailabilityEmoji(body);
 }
 
 module.exports = {

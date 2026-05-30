@@ -11,6 +11,8 @@ const { sendDeferredCheckoutNudge } = require("../utilities/checkoutNudge");
 const {
   getShopByIncomingPhoneId,
 } = require("../repositories/shopWhatsappPhone");
+const { detectIsEnglish } = require("../utilities/lang");
+const { botText } = require("../utilities/i18n");
 
 const VERIFY_TOKEN = (process.env.WHATSAPP_VERIFY_TOKEN || "").trim();
 
@@ -104,7 +106,7 @@ router.post("/webhooks", async (req, res) => {
 
     (async () => {
       try {
-        let reply = "תודה";
+        let reply = botText("webhookDefaultAck", detectIsEnglish(messageText));
         let botResp = null;
 
         if (messageText) {
@@ -128,6 +130,8 @@ router.post("/webhooks", async (req, res) => {
           if (typeof botResp === "string") reply = botResp;
           else if (botResp?.message) reply = String(botResp.message);
           else if (botResp?.reply) reply = String(botResp.reply);
+        } else {
+          return;
         }
 
         await sendWhatsAppText(from, reply, incomingPhoneNumberId);

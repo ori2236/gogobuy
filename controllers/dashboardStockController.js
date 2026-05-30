@@ -10,6 +10,7 @@ const {
 const { rebuildTokenWeightsForShop } = require("../services/buildTokenWeights");
 const { fetchCategoriesMap } = require("../repositories/categories");
 const { recalculateOrderTotalWithFulfillment } = require("../services/fulfillment");
+const { isEnglishFromCustomerName } = require("../utilities/i18n");
 
 const DELETE_FROM_ORDER_STATUSES = [
   "pending",
@@ -146,20 +147,45 @@ function fmtIls(n) {
   return Number.isFinite(x) ? `₪${x.toFixed(2)}` : null;
 }
 
-function buildProductDeletedMsg({ orderId, productName, altNames, newTotal }) {
-  let msg =
-    `עדכון חשוב לגבי ההזמנה שלך (#${orderId}):\n` +
-    `המוצר "${productName}" כבר לא נמכר ולכן הוסר מההזמנה.`;
-
+function buildProductDeletedMsg({
+  orderId,
+  productName,
+  altNames,
+  newTotal,
+  isEnglish = false,
+}) {
   const money = fmtIls(newTotal);
-  if (money) msg += `\nהסכום עודכן, ועכשיו הוא ${money}.`;
-  else msg += `\nהסכום עודכן בהתאם.`;
+
+  if (isEnglish) {
+    let msg =
+      `⚠️ Important update about your order (#${orderId})\n\n` +
+      `🛒 The product "${productName}" is no longer sold, so it was removed from your order.`;
+
+    if (money) msg += `\n💰 The total was updated and is now ${money}.`;
+    else msg += `\n💰 The total was updated accordingly.`;
+
+    if (Array.isArray(altNames) && altNames.length) {
+      msg += `\n\n🔁 Alternatives that may work for you:\n• ${altNames.join("\n• ")}`;
+      msg += `\n\nIf you want one of the alternatives, just write the product name you’d like to add.`;
+    } else {
+      msg += `\n\n🔁 If you want an alternative, write what you’re looking for and we’ll suggest something suitable.`;
+    }
+
+    return msg;
+  }
+
+  let msg =
+    `⚠️ עדכון חשוב לגבי ההזמנה שלך (#${orderId})\n\n` +
+    `🛒 המוצר "${productName}" כבר לא נמכר ולכן הוסר מההזמנה.`;
+
+  if (money) msg += `\n💰 הסכום עודכן, ועכשיו הוא ${money}.`;
+  else msg += `\n💰 הסכום עודכן בהתאם.`;
 
   if (Array.isArray(altNames) && altNames.length) {
-    msg += `\n\nחלופות שאולי יתאימו:\n• ${altNames.join("\n• ")}`;
-    msg += `\n\nאם תרצה חלופה אחרת כתוב מה אתה מעדיף.`;
+    msg += `\n\n🔁 חלופות שאולי יתאימו לך:\n• ${altNames.join("\n• ")}`;
+    msg += `\n\nאם תרצה חלופה, אפשר פשוט לכתוב את שם המוצר שתרצה להוסיף.`;
   } else {
-    msg += `\n\nאם תרצה חלופה כתוב מה אתה מחפש ונציע משהו מתאים.`;
+    msg += `\n\n🔁 אם תרצה חלופה, כתוב מה אתה מחפש ונציע משהו מתאים.`;
   }
 
   return msg;
@@ -668,7 +694,8 @@ exports.deleteStockProduct = async (req, res) => {
       `
       SELECT DISTINCT
         o.id AS order_id,
-        c.phone AS customer_phone
+        c.phone AS customer_phone,
+        c.name AS customer_name
       FROM order_item oi
       JOIN orders o ON o.id = oi.order_id
       JOIN customer c ON c.id = o.customer_id
@@ -768,10 +795,17 @@ exports.deleteStockProduct = async (req, res) => {
             p.name,
             [],
           );
-          const altNames = (altRows || [])
-            .map((r) => String(r.name || "").trim())
-            .filter(Boolean)
-            .slice(0, 3);
+          const buildAltNames = (isEnglish) =>
+            (altRows || [])
+              .map((r) =>
+                String(
+                  isEnglish
+                    ? r.display_name_en || r.name || ""
+                    : r.name || r.display_name_en || "",
+                ).trim(),
+              )
+              .filter(Boolean)
+              .slice(0, 3);
 
           const priceByOrder = new Map();
           const CHUNK = 500;
@@ -794,15 +828,20 @@ exports.deleteStockProduct = async (req, res) => {
             .map((x) => ({
               order_id: Number(x.order_id),
               phone: normalizeWaNumber(x.customer_phone),
+              customer_name: x.customer_name,
             }))
             .filter((t) => t.order_id > 0 && t.phone);
 
           for (const t of targets) {
+            const isEnglishCustomer = isEnglishFromCustomerName(t.customer_name);
             const msg = buildProductDeletedMsg({
               orderId: t.order_id,
-              productName: p.name,
-              altNames,
+              productName: isEnglishCustomer
+                ? p.display_name_en || p.name
+                : p.name || p.display_name_en,
+              altNames: buildAltNames(isEnglishCustomer),
               newTotal: priceByOrder.get(t.order_id),
+              isEnglish: isEnglishCustomer,
             });
 
             try {

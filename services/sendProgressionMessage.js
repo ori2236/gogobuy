@@ -88,6 +88,23 @@ function isSlowIntent(category, subcategory) {
   return SLOW_INTENTS.has(key);
 }
 
+function progressEmojiForIntentKey(key) {
+  if (key === "ORD.CREATE") return "🛒";
+  if (key === "ORD.MODIFY") return "✏️";
+  if (key === "INV.AVAIL") return "🔎";
+  if (key === "INV.PRICE_AND_SALES") return "💸";
+  return "⏳";
+}
+
+function withProgressEmoji(text, key) {
+  const clean = String(text || "").trim();
+  if (!clean) return clean;
+  if (/^[\p{Emoji_Presentation}\p{Extended_Pictographic}]/u.test(clean)) {
+    return clean;
+  }
+  return `${progressEmojiForIntentKey(key)} ${clean}`;
+}
+
 function createSessionPicker(category, subcategory, isEnglish) {
   const key = `${String(category).toUpperCase()}.${String(subcategory).toUpperCase()}`;
   const lang = isEnglish ? "en" : "he";
@@ -97,8 +114,8 @@ function createSessionPicker(category, subcategory, isEnglish) {
     ? "One moment, I am checking that for you."
     : "רגע אחד, אני בודק את זה.";
 
-  if (!arr.length) return () => fallback;
-  if (arr.length === 1) return () => arr[0];
+  if (!arr.length) return () => withProgressEmoji(fallback, key);
+  if (arr.length === 1) return () => withProgressEmoji(arr[0], key);
 
   let bag = [];
   const refill = () => {
@@ -113,7 +130,7 @@ function createSessionPicker(category, subcategory, isEnglish) {
 
   return () => {
     if (bag.length === 0) refill();
-    return bag.pop();
+    return withProgressEmoji(bag.pop(), key);
   };
 }
 

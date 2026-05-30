@@ -96,15 +96,15 @@ async function checkIfToCheckoutOrder({
 
     if (res.affectedRows === 0) {
       botText = isEnglish
-        ? "There was a problem confirming your order. Please try again or contact the shop."
-        : "הייתה בעיה באישור ההזמנה. אפשר לנסות שוב או ליצור קשר עם החנות.";
+        ? "⚠️ There was a problem confirming your order. Please try again or contact the shop."
+        : "⚠️ הייתה בעיה באישור ההזמנה. אפשר לנסות שוב או ליצור קשר עם החנות.";
     } else {
       await deleteOpenQuestionsByOrderId(activeOrder.id, shop_id);
 
       const noteSuffix = customerNoteToPicker
         ? isEnglish
-          ? "\nI also saved your note for the picker."
-          : "\nשמרתי גם את ההערה שלך למלקט."
+          ? "\n📝 I also saved your note for the picker."
+          : "\n📝 שמרתי גם את ההערה שלך למלקט."
         : "";
 
       const confirmedOrder = await getOrderForCheckout(activeOrder.id, shop_id);
@@ -128,8 +128,8 @@ Pickup total: ₪${Number(confirmedOrder.price || 0).toFixed(2)}.`
       })();
 
       botText = isEnglish
-        ? `Your order (#${activeOrder.id}) has been confirmed and sent to the shop.${noteSuffix}${fulfillmentLine}`
-        : `ההזמנה שלך (#${activeOrder.id}) אושרה ונשלחה לחנות.${noteSuffix}${fulfillmentLine}`;
+        ? `✅ Your order (#${activeOrder.id}) has been confirmed and sent to the shop.${noteSuffix}${fulfillmentLine}`
+        : `✅ ההזמנה שלך (#${activeOrder.id}) אושרה ונשלחה לחנות.${noteSuffix}${fulfillmentLine}`;
     }
   } else {
     await db.query(
@@ -142,8 +142,8 @@ Pickup total: ₪${Number(confirmedOrder.price || 0).toFixed(2)}.`
     );
 
     botText = isEnglish
-      ? `Your order (#${activeOrder.id}) was not checked out. Anything else you'd like to do?`
-      : `ההזמנה שלך (#${activeOrder.id}) לא נשלחה. יש דבר נוסף שתרצה לעשות?`;
+      ? `ℹ️ Your order (#${activeOrder.id}) was not sent. Anything else you'd like to do?`
+      : `ℹ️ ההזמנה שלך (#${activeOrder.id}) לא נשלחה. יש דבר נוסף שתרצה לעשות?`;
   }
 
   await saveChat({
@@ -166,8 +166,8 @@ async function askToCheckoutOrder(
 ) {
   if (!activeOrder) {
     const botPayload = isEnglish
-      ? "You don't have any open orders at the moment. Would you like to start a new order?"
-      : "אין לך הזמנה פתוחה כרגע. תרצה לפתוח הזמנה חדשה?";
+      ? "🛒 You don't have any open orders at the moment. Would you like to start a new order?"
+      : "🛒 אין לך הזמנה פתוחה כרגע. תרצה לפתוח הזמנה חדשה?";
 
     const question = botPayload.split(". ")[1];
     await saveOpenQuestions({
@@ -188,8 +188,8 @@ async function askToCheckoutOrder(
 
   if (activeOrder.status === "confirmed") {
     return isEnglish
-      ? `Your order (#${activeOrder.id}) is already confirmed.`
-      : `ההזמנה שלך (#${activeOrder.id}) כבר מאושרת.`;
+      ? `✅ Your order (#${activeOrder.id}) is already confirmed.`
+      : `✅ ההזמנה שלך (#${activeOrder.id}) כבר מאושרת.`;
   }
 
   const fulfillmentQuestion = await prepareFulfillmentBeforeCheckout({

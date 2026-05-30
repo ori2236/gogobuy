@@ -37,8 +37,9 @@ HINTS
 STATE RULES (ACTIVE_ORDER_EXISTS)
 - If ACTIVE_ORDER_EXISTS=true:
   * ORD.CREATE is not allowed (never output it).
-  * If the user asks to start a new order / “order again” while an order already exists → output:
-    0, יש כבר הזמנה פתוחה. תרצה לערוך את ההזמנה הקיימת או לבטל ולהתחיל חדשה?
+  * If the user asks to start a new order / “order again” while an order already exists → output 0 with ONE short clarification in the same language as the user.
+    Hebrew example: 0, יש כבר הזמנה פתוחה. תרצה לערוך את ההזמנה הקיימת או לבטל ולהתחיל חדשה?
+    English example: 0, You already have an open order. Would you like to edit the current order, or cancel it and start a new one?
 - If ACTIVE_ORDER_EXISTS=false:
   * ORD.MODIFY is not allowed (never output it).
   * If the user uses “edit/modify” language (add/remove/change/replace) but there is no active order → treat it as starting an order and classify as 1, ORD.CREATE

@@ -83,8 +83,8 @@ async function answerPriceAndSales({
         answer,
       );
       const botPayload = isEnglish
-        ? "Sorry, there was a problem understanding your pricing question. Can you rephrase it?"
-        : "מצטערים, הייתה תקלה בהבנת שאלת המחיר. אפשר לנסח שוב?";
+        ? "💰 Sorry, there was a problem understanding your pricing question. Can you rephrase it?"
+        : "💰 מצטערים, הייתה תקלה בהבנת שאלת המחיר. אפשר לנסח שוב?";
       await saveFallbackOpenQuestion(botPayload, customer_id, shop_id);
       return botPayload;
     }
@@ -102,8 +102,8 @@ async function answerPriceAndSales({
 
   if (!hasProducts && !hasClarify) {
     const botPayload = isEnglish
-      ? "I couldn’t identify which product you’re asking about. Can you write the product name?"
-      : "לא הצלחתי לזהות על איזה מוצר אתה שואל. תוכל לכתוב את שם המוצר?";
+      ? "🔍 I couldn’t identify which product you’re asking about. Can you write the product name?"
+      : "🔍 לא הצלחתי לזהות על איזה מוצר אתה שואל. תוכל לכתוב את שם המוצר?";
     await saveFallbackOpenQuestion(botPayload, customer_id, shop_id);
     return botPayload;
   }

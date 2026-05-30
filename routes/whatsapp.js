@@ -1,6 +1,8 @@
 const express = require('express');
 const axios = require('axios');
 require('dotenv').config();
+const { detectIsEnglish } = require('../utilities/lang');
+const { botText } = require('../utilities/i18n');
 
 const router = express.Router();
 
@@ -30,7 +32,7 @@ router.post('/webhook/whatsapp', async (req, res) => {
         messaging_product: "whatsapp",
         to,
         type: "text",
-        text: { body: "שלום, הגעת לעסק שלי" }
+        text: { body: botText('legacyWhatsappWelcome', detectIsEnglish(msg.text?.body || '')) }
       }, {
         headers: {
           Authorization: `Bearer ${ACCESS_TOKEN}`,
