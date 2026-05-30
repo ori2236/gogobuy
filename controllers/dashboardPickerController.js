@@ -580,7 +580,10 @@ exports.updateOrderStatus = async (req, res) => {
         await conn.rollback();
         return res.status(409).json({
           ok: false,
-          message: `Cannot move from ${current} to preparing`,
+          message:
+            current === "cancel_pending"
+              ? "הלקוח שוקל בדיוק לבטל את ההזמנה"
+              : `Cannot move from ${current} to preparing`,
         });
       }
     }
