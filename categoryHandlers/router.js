@@ -63,7 +63,8 @@ const CATEGORY_HANDLERS = {
         ctx.activeOrder,
         ctx.isEnglish,
         ctx.customer_id,
-        ctx.shop_id
+        ctx.shop_id,
+        ctx.maxPerProduct
       ),
   },
   INV: {

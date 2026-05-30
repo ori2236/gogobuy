@@ -19,6 +19,7 @@ function statusText(order, isEnglish) {
       delivering: "sent - the courier is on the way",
       completed: delivery ? "delivered" : "picked up",
       cancel_pending: "waiting for cancel confirmation",
+      expired: "cancelled automatically because it was not confirmed in time",
     };
     return map[status] || status;
   }
@@ -32,6 +33,7 @@ function statusText(order, isEnglish) {
     delivering: "נשלחה - השליח בדרך אליך",
     completed: delivery ? "נמסרה" : "נאספה",
     cancel_pending: "ממתינה לאישור ביטול",
+    expired: "בוטלה אוטומטית כי לא אושרה בזמן",
   };
   return map[status] || status;
 }
@@ -87,7 +89,7 @@ async function getRecentCustomerOrders(customer_id, shop_id, hours = 24) {
     FROM orders
     WHERE customer_id IN (${placeholders})
       AND shop_id = ?
-      AND status IN ('pending','checkout_pending','confirmed','preparing','ready','delivering','completed','cancel_pending')
+      AND status IN ('pending','checkout_pending','confirmed','preparing','ready','delivering','completed','cancel_pending','expired')
       AND (
         created_at >= (NOW() - INTERVAL ? HOUR)
         OR updated_at >= (NOW() - INTERVAL ? HOUR)

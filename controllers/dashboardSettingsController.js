@@ -11,6 +11,8 @@ const SHOP_EXTRA_COLUMNS = {
   kashrut: "VARCHAR(120) DEFAULT NULL",
   about: "TEXT DEFAULT NULL",
   min_order_amount: "DECIMAL(10,2) NOT NULL DEFAULT 0.00",
+  min_delivery_order_amount: "DECIMAL(10,2) NOT NULL DEFAULT 0.00",
+  min_pickup_order_amount: "DECIMAL(10,2) NOT NULL DEFAULT 0.00",
   delivery_fee: "DECIMAL(10,2) NOT NULL DEFAULT 0.00",
   cart_empty_reminder_minutes: "INT UNSIGNED NOT NULL DEFAULT 5",
   stock_release_after_inactive_minutes: "INT UNSIGNED NOT NULL DEFAULT 30",
@@ -120,10 +122,30 @@ async function hasColumn(conn, tableName, columnName) {
 }
 
 async function ensureShopSettingsSchema(conn) {
+  const addedColumns = new Set();
   for (const [column, definition] of Object.entries(SHOP_EXTRA_COLUMNS)) {
     if (!(await hasColumn(conn, "shop", column))) {
       await conn.query(`ALTER TABLE shop ADD COLUMN ${column} ${definition}`);
+      addedColumns.add(column);
     }
+  }
+
+  if (
+    addedColumns.has("min_delivery_order_amount") &&
+    (await hasColumn(conn, "shop", "min_order_amount"))
+  ) {
+    await conn.query(
+      `UPDATE shop SET min_delivery_order_amount = COALESCE(NULLIF(min_order_amount, 0), min_delivery_order_amount)`,
+    );
+  }
+
+  if (
+    addedColumns.has("min_pickup_order_amount") &&
+    (await hasColumn(conn, "shop", "min_order_amount"))
+  ) {
+    await conn.query(
+      `UPDATE shop SET min_pickup_order_amount = COALESCE(NULLIF(min_order_amount, 0), min_pickup_order_amount)`,
+    );
   }
 
   await conn.query(`
@@ -272,6 +294,8 @@ exports.getBusinessSettings = async (req, res) => {
         kashrut,
         about,
         min_order_amount,
+        min_delivery_order_amount,
+        min_pickup_order_amount,
         delivery_fee,
         cart_empty_reminder_minutes,
         stock_release_after_inactive_minutes,
@@ -414,6 +438,8 @@ exports.updateBusinessSettings = async (req, res) => {
         kashrut = ?,
         about = ?,
         min_order_amount = ?,
+        min_delivery_order_amount = ?,
+        min_pickup_order_amount = ?,
         delivery_fee = ?,
         cart_empty_reminder_minutes = ?,
         stock_release_after_inactive_minutes = ?,
@@ -434,6 +460,8 @@ exports.updateBusinessSettings = async (req, res) => {
         cleanText(info.kashrut, 120),
         cleanText(info.about, 4000),
         cleanMoney(info.min_order_amount, 0),
+        cleanMoney(info.min_delivery_order_amount, cleanMoney(info.min_order_amount, 0)),
+        cleanMoney(info.min_pickup_order_amount, cleanMoney(info.min_order_amount, 0)),
         cleanMoney(info.delivery_fee, 0),
         ...(() => {
           const cartReminder = cleanMinutes(info.cart_empty_reminder_minutes, 5, { minActive: 5, fieldName: "cart_empty_reminder_minutes" });

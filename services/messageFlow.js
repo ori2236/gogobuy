@@ -86,6 +86,55 @@ function isOrderStatusQuestion(message) {
   return /(מה\s+עם\s+ההזמנה|איפה\s+ההזמנה|סטטוס\s+הזמנה|מה\s+קורה\s+עם\s+ההזמנה|המשלוח\s+יצא|שליח\s+בדרך|ההזמנה\s+מוכנה|מתי\s+מגיע|מתי\s+מוכן|נשלחה|נאספה|status|tracking|where\s+is\s+my\s+order|is\s+my\s+order\s+ready|delivery\s+sent)/i.test(raw);
 }
 
+
+function isWrongOpenOrderClarification(text) {
+  const raw = String(text || "").toLowerCase();
+  if (!raw) return false;
+  return (
+    raw.includes("יש כבר הזמנה פתוחה") ||
+    raw.includes("כבר יש הזמנה פתוחה") ||
+    raw.includes("already have an open order") ||
+    raw.includes("there is already an open order")
+  );
+}
+
+function buildNoActiveOrderReply(message) {
+  const isEnglish = detectIsEnglish(message);
+  if (isEnglish) {
+    return [
+      "There is no open order right now.",
+      "If the previous order was cancelled automatically, its products were returned to stock.",
+      "To start a new order, just write the products you would like to buy.",
+    ].join("\n");
+  }
+
+  return [
+    "אין לך הזמנה פתוחה כרגע.",
+    "אם הכוונה להזמנה הקודמת — היא כבר בוטלה אוטומטית והמוצרים חזרו למלאי.",
+    "כדי להתחיל הזמנה חדשה, פשוט כתוב את המוצרים שתרצה להזמין.",
+  ].join("\n");
+}
+
+async function saveAndReturnUnclassifiedReply({ customer_id, shop_id, message, reply }) {
+  await saveChat({
+    customer_id,
+    shop_id,
+    sender: "customer",
+    status: "unclassified",
+    message,
+  });
+
+  await saveChat({
+    customer_id,
+    shop_id,
+    sender: "bot",
+    status: "unclassified",
+    message: reply,
+  });
+
+  return reply;
+}
+
 async function processMessage(
   message,
   phone_number,
@@ -123,6 +172,7 @@ async function processMessage(
     activeOrder,
     openQs,
     saveChat,
+    maxPerProduct,
   });
 
   if (fulfillmentReply) return fulfillmentReply;
@@ -226,28 +276,36 @@ async function processMessage(
   });
 
   if (parsed.type === "clarify") {
-    await saveChat({
-      customer_id,
-      shop_id,
-      sender: "customer",
-      status: "unclassified",
-      message,
-    });
+    let clarifyText = parsed.text || "לא התקבלה תשובה מהמודל.";
 
-    //bot's question
-    await saveChat({
+    // Defensive state guard: the classifier prompt contains a clarification that is valid
+    // only when ACTIVE_ORDER_EXISTS=true. In vague follow-ups after an automatic expiry,
+    // the model may still output that text. Never tell the customer there is an open
+    // order when the DB says there is no active order.
+    if (!activeOrder && isWrongOpenOrderClarification(clarifyText)) {
+      clarifyText = buildNoActiveOrderReply(message);
+    }
+
+    return saveAndReturnUnclassifiedReply({
       customer_id,
       shop_id,
-      sender: "bot",
-      status: "unclassified",
-      message: parsed.text,
+      message,
+      reply: clarifyText,
     });
-    return parsed.text || "לא התקבלה תשובה מהמודל.";
   } else if (parsed.type === "classified") {
     const { category, subcategory } = parsed;
     console.log(
       `[classification] category=${category}, subcategory=${subcategory}`,
     );
+
+    if (!activeOrder && category === "ORD" && subcategory === "MODIFY") {
+      return saveAndReturnUnclassifiedReply({
+        customer_id,
+        shop_id,
+        message,
+        reply: buildNoActiveOrderReply(message),
+      });
+    }
 
     if (!isValidCategorySub(category, subcategory)) {
       const apology =

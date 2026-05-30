@@ -161,7 +161,8 @@ async function askToCheckoutOrder(
   activeOrder,
   isEnglish,
   customer_id,
-  shop_id
+  shop_id,
+  maxPerProduct = null
 ) {
   if (!activeOrder) {
     const botPayload = isEnglish
@@ -204,6 +205,8 @@ async function askToCheckoutOrder(
     order_id: activeOrder.id,
     shop_id,
     isEnglish,
+    customer_id,
+    maxPerProduct,
   });
 }
 

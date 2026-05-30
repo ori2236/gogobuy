@@ -32,6 +32,7 @@ const OPEN_Q_TYPES = {
   PRODUCT_RECOMMENDATION: "PRODUCT_RECOMMENDATION",
   BUNDLE_PROMO_ADD: "BUNDLE_PROMO_ADD",
   MULTI_BUNDLE_PROMO_ADD: "MULTI_BUNDLE_PROMO_ADD",
+  MIN_ORDER_TOPUP: "MIN_ORDER_TOPUP",
 };
 
 const MAX_PRODUCT_RECOMMENDATIONS_TO_SEND = 1;
@@ -399,7 +400,7 @@ async function addSuggestionActionsToOrder({
         continue;
       }
 
-      if (!isWeight && Number.isFinite(Number(maxPerProduct))) {
+      if (Number.isFinite(Number(maxPerProduct))) {
         const maxQty = Number(maxPerProduct);
         const remainingToCap = Math.max(0, maxQty - existingQty);
         if (remainingToCap <= 0) {
@@ -407,6 +408,8 @@ async function addSuggestionActionsToOrder({
           continue;
         }
         delta = Math.min(delta, remainingToCap);
+        if (isWeight) delta = roundTo(delta, 3);
+        else delta = Math.trunc(delta);
       }
 
       const stock = Number(product.stock_amount);
@@ -559,15 +562,20 @@ async function handleSuggestionReply({
   if (!actions.length) return null;
 
   let selected = [];
-  if (data.type === OPEN_Q_TYPES.MULTI_BUNDLE_PROMO_ADD) {
+  if (
+    data.type === OPEN_Q_TYPES.MULTI_BUNDLE_PROMO_ADD ||
+    data.type === OPEN_Q_TYPES.MIN_ORDER_TOPUP
+  ) {
     const idxs = selectedActionIndexes(message, actions.length, data);
     if (idxs.length) {
       selected = idxs.map((i) => actions[i]).filter(Boolean);
     } else if (isPositiveReply(message, data)) {
-      selected = actions;
+      selected = actions.length === 1 ? actions : [];
     } else {
       return null;
     }
+
+    if (!selected.length) return null;
   } else {
     if (!isPositiveReply(message, data)) return null;
     selected = actions;
@@ -584,6 +592,12 @@ async function handleSuggestionReply({
   });
 
   if (!res.added.length) {
+    const hitLimit = (res.skipped || []).some((x) => x.reason === "MAX_PER_PRODUCT");
+    if (hitLimit) {
+      return isEnglish
+        ? "This product is already at the maximum quantity allowed for this branch."
+        : "המוצר הזה כבר נמצא בכמות המקסימלית שמותר להזמין מהסניף.";
+    }
     return isEnglish
       ? "I tried to add it, but it is not available right now."
       : "ניסיתי להוסיף, אבל כרגע זה לא זמין במלאי.";
@@ -657,7 +671,7 @@ function buildBundleNudgeActions(rows, { isEnglish, maxPerProduct }) {
 
     if (Number.isFinite(stock) && stock < amountToAdd) continue;
 
-    if (!isWeight && Number.isFinite(Number(maxPerProduct))) {
+    if (Number.isFinite(Number(maxPerProduct))) {
       const maxQty = Number(maxPerProduct);
       if (qty + amountToAdd > maxQty) continue;
     }

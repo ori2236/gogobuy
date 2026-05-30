@@ -8,6 +8,8 @@ const SHOP_EXTRA_COLUMNS = {
   kashrut: "VARCHAR(120) DEFAULT NULL",
   about: "TEXT DEFAULT NULL",
   min_order_amount: "DECIMAL(10,2) NOT NULL DEFAULT 0.00",
+  min_delivery_order_amount: "DECIMAL(10,2) NOT NULL DEFAULT 0.00",
+  min_pickup_order_amount: "DECIMAL(10,2) NOT NULL DEFAULT 0.00",
   delivery_fee: "DECIMAL(10,2) NOT NULL DEFAULT 0.00",
   cart_empty_reminder_minutes: "INT UNSIGNED NOT NULL DEFAULT 5",
   stock_release_after_inactive_minutes: "INT UNSIGNED NOT NULL DEFAULT 30",
@@ -34,10 +36,24 @@ async function hasColumn(columnName) {
 async function ensureShopInfoSchema() {
   if (!schemaReadyPromise) {
     schemaReadyPromise = (async () => {
+      const addedColumns = new Set();
       for (const [column, definition] of Object.entries(SHOP_EXTRA_COLUMNS)) {
         if (!(await hasColumn(column))) {
           await db.query(`ALTER TABLE shop ADD COLUMN ${column} ${definition}`);
+          addedColumns.add(column);
         }
+      }
+
+      if (addedColumns.has("min_delivery_order_amount") && (await hasColumn("min_order_amount"))) {
+        await db.query(
+          `UPDATE shop SET min_delivery_order_amount = COALESCE(NULLIF(min_order_amount, 0), min_delivery_order_amount)`,
+        );
+      }
+
+      if (addedColumns.has("min_pickup_order_amount") && (await hasColumn("min_order_amount"))) {
+        await db.query(
+          `UPDATE shop SET min_pickup_order_amount = COALESCE(NULLIF(min_order_amount, 0), min_pickup_order_amount)`,
+        );
       }
 
       await db.query(`
@@ -98,6 +114,8 @@ async function getShopInfo(shop_id) {
       s.kashrut,
       s.about,
       s.min_order_amount,
+      s.min_delivery_order_amount,
+      s.min_pickup_order_amount,
       s.delivery_fee,
       s.cart_empty_reminder_minutes,
       s.stock_release_after_inactive_minutes,

@@ -23,6 +23,7 @@ const { buildModifyOrderSchema } = require("./schemas/modify.schema");
 const { getExcludeTokensFromReq } = require("../../utilities/tokens");
 const { parseModelAnswer } = require("../../utilities/jsonParse");
 const { buildQuestionsBlock } = require("../../utilities/messageBuilders");
+const { buildQuantityLimitWarningBlock } = require("../../utilities/productQuantityLimit");
 const { recalculateOrderTotalWithFulfillment } = require("../../services/fulfillment");
 const {
   buildOrderSummaryMessage,
@@ -331,20 +332,20 @@ async function applyOrderPatch({
         : !!row.sold_by_weight;
 
       //new quantity
-      if (!sbw) {
-        if (newQty > maxPerProduct) {
-          cappedWarnings.push({
-            name: subjectForReq(s) || display(row),
-            original: newQty,
-            capped: maxPerProduct,
-          });
-          newQty = maxPerProduct;
-        }
-        newQty = Math.trunc(newQty);
-        if (newQty <= 0) continue;
-      } else {
-        newQty = roundTo(newQty, 3);
-        if (newQty <= 0) continue;
+      newQty = sbw ? roundTo(newQty, 3) : Math.trunc(newQty);
+      if (newQty <= 0) continue;
+
+      if (
+        Number.isFinite(Number(maxPerProduct)) &&
+        newQty > maxPerProduct
+      ) {
+        cappedWarnings.push({
+          name: subjectForReq(s) || display(row),
+          original: newQty,
+          capped: maxPerProduct,
+          sold_by_weight: sbw,
+        });
+        newQty = sbw ? roundTo(maxPerProduct, 3) : Math.trunc(maxPerProduct);
       }
 
       const delta = roundTo(newQty - prevQty, 3);
@@ -461,7 +462,6 @@ async function applyOrderPatch({
       if (!(desiredAdd > 0)) continue;
 
       if (
-        !sbw &&
         Number.isFinite(Number(maxPerProduct)) &&
         desiredAdd > maxPerProduct
       ) {
@@ -469,8 +469,9 @@ async function applyOrderPatch({
           name: subjectForReq(p) || p.name || "",
           original: desiredAdd,
           capped: maxPerProduct,
+          sold_by_weight: sbw,
         });
-        desiredAdd = maxPerProduct;
+        desiredAdd = sbw ? roundTo(maxPerProduct, 3) : Math.trunc(maxPerProduct);
       }
 
       const row = await findBestProductForRequest(shop_id, p);
@@ -580,7 +581,21 @@ async function applyOrderPatch({
         const mergeAsWeight = existingIsWeight;
 
         if (mergeAsWeight) {
-          finalQty = roundTo(prevAmount + desiredAdd, 3);
+          const wanted = roundTo(prevAmount + desiredAdd, 3);
+          if (
+            Number.isFinite(Number(maxPerProduct)) &&
+            wanted > maxPerProduct
+          ) {
+            cappedWarnings.push({
+              name: subjectForReq(p) || display(row),
+              original: wanted,
+              capped: maxPerProduct,
+              sold_by_weight: true,
+            });
+            finalQty = roundTo(maxPerProduct, 3);
+          } else {
+            finalQty = wanted;
+          }
           actualDelta = roundTo(finalQty - prevAmount, 3);
         } else {
           const wanted = prevAmount + desiredAdd;
@@ -592,6 +607,7 @@ async function applyOrderPatch({
               name: subjectForReq(p) || display(row),
               original: wanted,
               capped: maxPerProduct,
+              sold_by_weight: false,
             });
             finalQty = maxPerProduct;
           } else {
@@ -605,7 +621,6 @@ async function applyOrderPatch({
         actualDelta = sbw ? roundTo(finalQty, 3) : finalQty;
 
         if (
-          !sbw &&
           Number.isFinite(Number(maxPerProduct)) &&
           finalQty > maxPerProduct
         ) {
@@ -613,8 +628,9 @@ async function applyOrderPatch({
             name: subjectForReq(p) || display(row),
             original: finalQty,
             capped: maxPerProduct,
+            sold_by_weight: sbw,
           });
-          finalQty = maxPerProduct;
+          finalQty = sbw ? roundTo(maxPerProduct, 3) : Math.trunc(maxPerProduct);
           actualDelta = finalQty; // prev is 0
         }
       }
@@ -1064,11 +1080,10 @@ module.exports = {
       });
 
       const cappedWarnings = (txRes.meta && txRes.meta.cappedWarnings) || [];
-      if (cappedWarnings.length) {
-        limitWarningsBlock = isEnglish
-          ? `Note: you can order up to ${maxPerProduct} units per product.`
-          : `שימו לב: ניתן להזמין עד ${maxPerProduct} יחידות מכל מוצר.`;
-      }
+      limitWarningsBlock = buildQuantityLimitWarningBlock({
+        warnings: cappedWarnings,
+        isEnglish,
+      });
 
       const hasQuestions = combinedQuestions.length > 0;
 

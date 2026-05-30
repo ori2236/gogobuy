@@ -48,10 +48,42 @@ function normalizePhone(phone) {
   return String(phone || "").trim().replace(/^\+/, "");
 }
 
+async function ensureExpiredOrderStatusEnum() {
+  const [[row]] = await db.query(
+    `SELECT COLUMN_TYPE
+       FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'orders'
+        AND COLUMN_NAME = 'status'
+      LIMIT 1`,
+  );
+
+  const columnType = String(row?.COLUMN_TYPE || row?.column_type || "");
+  if (columnType.includes("'expired'")) return;
+
+  await db.query(`
+    ALTER TABLE orders
+    MODIFY COLUMN status ENUM(
+      'pending',
+      'checkout_pending',
+      'confirmed',
+      'preparing',
+      'ready',
+      'delivering',
+      'completed',
+      'cancel_pending',
+      'expired'
+    ) NOT NULL
+  `);
+
+  console.log("[inactive-order-lifecycle] orders.status enum includes expired");
+}
+
 async function ensureInactiveOrderLifecycleSchema() {
   if (!schemaReadyPromise) {
     schemaReadyPromise = (async () => {
       await ensureShopInfoSchema();
+      await ensureExpiredOrderStatusEnum();
 
       await db.query(`
         CREATE TABLE IF NOT EXISTS shop_whatsapp_phone (
@@ -88,15 +120,17 @@ async function ensureInactiveOrderLifecycleSchema() {
       await db.query(`
         UPDATE shop
            SET cart_empty_reminder_minutes = 5
-         WHERE cart_empty_reminder_minutes IS NULL
-            OR cart_empty_reminder_minutes = 0
+         WHERE id > 0
+           AND (cart_empty_reminder_minutes IS NULL
+                OR cart_empty_reminder_minutes = 0)
       `);
 
       await db.query(`
         UPDATE shop
            SET stock_release_after_inactive_minutes = 30
-         WHERE stock_release_after_inactive_minutes IS NULL
-            OR stock_release_after_inactive_minutes = 0
+         WHERE id > 0
+           AND (stock_release_after_inactive_minutes IS NULL
+                OR stock_release_after_inactive_minutes = 0)
       `);
 
       try {
@@ -143,7 +177,7 @@ function buildCartReminderMessage({ order, isEnglish }) {
         : `✅ To continue to final confirmation, reply: send order`;
 
     return [
-      `⏰ Small reminder - your order #${orderId} is still waiting for confirmation.`,
+      `⏰ Small reminder — your order #${orderId} is still waiting for confirmation.`,
       "",
       `🛒 We are currently keeping the products reserved for you${total > 0 ? ` (₪${total.toFixed(2)})` : ""}.`,
       `If the order is not confirmed in the next ${minutesLeft}, the products will return to stock automatically.`,
@@ -159,7 +193,7 @@ function buildCartReminderMessage({ order, isEnglish }) {
       : `✅ כדי להתקדם לאישור הסופי, כתוב: שלח הזמנה`;
 
   return [
-    `⏰ תזכורת קטנה - ההזמנה שלך #${orderId} עדיין מחכה לאישור.`,
+    `⏰ תזכורת קטנה — ההזמנה שלך #${orderId} עדיין מחכה לאישור.`,
     "",
     `🛒 כרגע אנחנו שומרים לך את המוצרים במלאי${total > 0 ? ` (₪${total.toFixed(2)})` : ""}.`,
     `אם ההזמנה לא תאושר במהלך ${minutesLeft}, המוצרים יחזרו אוטומטית למלאי לטובת לקוחות אחרים.`,
@@ -177,7 +211,7 @@ function buildStockReleasedMessage({ order, isEnglish }) {
       `⏳ Order #${orderId} was cancelled automatically because it was not confirmed in time.`,
       "",
       "🛒 The reserved products were returned to stock.",
-      "You can start a new order whenever you like - just write what you would like to buy.",
+      "You can start a new order whenever you like — just write what you would like to buy.",
     ].join("\n");
   }
 
@@ -185,7 +219,7 @@ function buildStockReleasedMessage({ order, isEnglish }) {
     `⏳ ההזמנה שלך #${orderId} בוטלה אוטומטית כי היא לא אושרה בזמן.`,
     "",
     "🛒 המוצרים שהיו שמורים עבורך הוחזרו למלאי.",
-    "אפשר להתחיל הזמנה חדשה בכל רגע - פשוט כתוב מה תרצה להזמין.",
+    "אפשר להתחיל הזמנה חדשה בכל רגע — פשוט כתוב מה תרצה להזמין.",
   ].join("\n");
 }
 
@@ -424,8 +458,14 @@ async function releaseOrderStock(order) {
       [Number(order.id), Number(order.shop_id), Number(order.customer_id)],
     );
 
-    await conn.query(`DELETE FROM order_item WHERE order_id = ?`, [Number(order.id)]);
-    await conn.query(`DELETE FROM orders WHERE id = ? AND shop_id = ?`, [Number(order.id), Number(order.shop_id)]);
+    await conn.query(
+      `UPDATE orders
+          SET prev_status = status,
+              status = 'expired',
+              updated_at = NOW(6)
+        WHERE id = ? AND shop_id = ?`,
+      [Number(order.id), Number(order.shop_id)],
+    );
 
     await conn.commit();
     return { released: true, itemCount: items.length };

@@ -3,6 +3,7 @@ const { saveOpenQuestions, closeQuestionsByIds } = require("../utilities/openQue
 const { detectIsEnglish } = require("../utilities/lang");
 const { chat } = require("../config/openai");
 const { getPromptFromDB } = require("../repositories/prompt");
+const { validateMinimumOrderBeforeCheckout } = require("./minimumOrder");
 
 const QUESTION_TYPES = {
   FULFILLMENT_METHOD: "FULFILLMENT_METHOD",
@@ -294,33 +295,95 @@ function buildInvalidFulfillmentChoiceMessage({ isEnglish }) {
   ].join("\n");
 }
 
+function pickRotatingTemplate(templates) {
+  if (!Array.isArray(templates) || templates.length === 0) return null;
+  if (templates.length === 1) return templates[0];
+  const idx = Math.floor(Math.random() * templates.length);
+  return templates[idx];
+}
+
 function buildAddressPrompt({ firstName, zones, isEnglish }) {
   const zonesText = formatZonesList(zones);
+  const namePrefix = customerPrefix(firstName);
+
   if (isEnglish) {
-    return [
-      "Great, we'll prepare a home delivery! 🏍️",
-      "",
-      `${customerPrefix(firstName)}please send your full delivery address: settlement, street and house number.`,
-      "If it's a building, add apartment/floor/entrance.",
-      zonesText ? `\nWe currently deliver to:\n${zonesText}` : "",
-      "",
-      "Send the full address and we'll continue 👇",
-    ].filter(Boolean).join("\n");
+    const templates = [
+      [
+        "Great, we'll prepare a home delivery! 🏍️",
+        "",
+        `${namePrefix}please send your full delivery address: settlement, street and house number.`,
+        "If it's a building, add apartment/floor/entrance.",
+        zonesText ? `\nWe currently deliver to:\n${zonesText}` : "",
+        "",
+        "Important: sending the address is not the final order confirmation ✅",
+        "You can still add, remove or change products after that 🛒",
+        "",
+        "Send the full address and we'll continue 👇",
+      ],
+      [
+        "We're almost there 🛒",
+        "",
+        "For home delivery, I just need a full address:",
+        "📍 Settlement",
+        "🏠 Street and house/building number",
+        "If needed, add apartment/floor/entrance.",
+        zonesText ? `\nAvailable delivery areas:\n${zonesText}` : "",
+        "",
+        "This does not confirm the order yet — it only lets us prepare the delivery details.",
+      ],
+      [
+        "To continue with delivery, please send the address 🗺️",
+        "",
+        `${namePrefix}write settlement, street and house number in one message.`,
+        zonesText ? `\nWe deliver to:\n${zonesText}` : "",
+        "",
+        "No worries — the order is still editable after you send the address 🛍️",
+      ],
+    ];
+    return pickRotatingTemplate(templates).filter(Boolean).join("\n");
   }
 
-  return [
-    "מעולה, נעשה לך משלוח עד הבית! 🏍️",
-    "",
-    `${customerPrefix(firstName)}שלח לנו בבקשה את הכתובת המלאה שלך: יישוב, רחוב ומספר בית.`,
-    "אם זה בניין, אפשר להוסיף דירה/קומה/כניסה.",
-    zonesText ? `\nאנחנו מגיעים כרגע ל:\n${zonesText}` : "",
-    "",
-    "שלח לנו את הכתובת המלאה ומיד נתקדם לסגירת ההזמנה 👇",
-  ].filter(Boolean).join("\n");
+  const templates = [
+    [
+      "מעולה, נעשה לך משלוח עד הבית! 🏍️",
+      "",
+      `${namePrefix}שלח לנו בבקשה את הכתובת המלאה שלך: יישוב, רחוב ומספר בית.`,
+      "אם זה בניין, אפשר להוסיף דירה/קומה/כניסה.",
+      zonesText ? `\nאנחנו מגיעים כרגע ל:\n${zonesText}` : "",
+      "",
+      "חשוב לדעת: שליחת כתובת היא עדיין לא אישור סופי של ההזמנה ✅",
+      "אפשר להמשיך להוסיף, להסיר או לשנות מוצרים גם אחרי זה 🛒",
+      "",
+      "שלח לנו את הכתובת המלאה ונמשיך משם 👇",
+    ],
+    [
+      "אנחנו כמעט שם 🛒",
+      "",
+      "בשביל משלוח עד הבית צריך כתובת מלאה:",
+      "📍 יישוב",
+      "🏠 רחוב ומספר בית",
+      "אם צריך, אפשר להוסיף דירה/קומה/כניסה.",
+      zonesText ? `\nאפשר לבצע משלוח ליישובים:\n${zonesText}` : "",
+      "",
+      "זה לא סוגר את ההזמנה סופית — זה רק מאפשר לנו להכין את פרטי המשלוח.",
+    ],
+    [
+      "כדי להכין את המשלוח חסרה לנו רק כתובת 🗺️",
+      "",
+      `${namePrefix}שלח בבקשה יישוב + רחוב + מספר בית בהודעה אחת.`,
+      zonesText ? `\nאנחנו מגיעים כרגע ל:\n${zonesText}` : "",
+      "",
+      "אל דאגה, ההזמנה עדיין פתוחה לשינויים אחרי שליחת הכתובת 🛍️",
+    ],
+  ];
+
+  return pickRotatingTemplate(templates).filter(Boolean).join("\n");
 }
 
 function buildAddressReminder({ firstName, zones, isEnglish, reason }) {
   const zonesText = formatZonesList(zones);
+  const namePrefix = customerPrefix(firstName);
+
   if (isEnglish) {
     const reasonLine =
       reason === "multiple_zones"
@@ -329,15 +392,29 @@ function buildAddressReminder({ firstName, zones, isEnglish, reason }) {
           ? "The settlement must be one of our supported delivery areas."
           : reason === "missing_house_number"
             ? "Please include a house/building number."
-            : "Without settlement, street and house number we can't close the order for delivery.";
-    return [
-      `${customerPrefix(firstName)}we really want to send the delivery out, but we need an exact address 🗺️`,
-      "",
-      reasonLine,
-      zonesText ? `\nAvailable delivery areas:\n${zonesText}` : "",
-      "",
-      "Please send the full address again.",
-    ].filter(Boolean).join("\n");
+            : "Without settlement, street and house number we can't prepare the delivery details.";
+
+    const templates = [
+      [
+        `${namePrefix}we're almost there, but I need a clearer delivery address 🗺️`,
+        "",
+        reasonLine,
+        zonesText ? `\nAvailable delivery areas:\n${zonesText}` : "",
+        "",
+        "This is still not the final order confirmation — you can keep editing the cart after sending the address 🛒",
+        "Please send the full address again.",
+      ],
+      [
+        "I couldn't save the delivery address yet 📍",
+        "",
+        reasonLine,
+        zonesText ? `\nWe currently deliver to:\n${zonesText}` : "",
+        "",
+        "Send settlement, street and house number. The order will remain editable after that.",
+      ],
+    ];
+
+    return pickRotatingTemplate(templates).filter(Boolean).join("\n");
   }
 
   const reasonLine =
@@ -347,16 +424,29 @@ function buildAddressReminder({ firstName, zones, isEnglish, reason }) {
         ? "היישוב בכתובת חייב להיות אחד מיישובי המשלוח שלנו."
         : reason === "missing_house_number"
           ? "חסר מספר בית/בניין בכתובת."
-          : "בלי יישוב, רחוב ומספר בית לא נוכל להתקדם לסגירת ההזמנה.";
+          : "בלי יישוב, רחוב ומספר בית לא נוכל להכין את פרטי המשלוח.";
 
-  return [
-    `${customerPrefix(firstName)}אנחנו ממש רוצים להוציא אליך את המשלוח, אבל המערכת צריכה כתובת מדויקת... 🗺️`,
-    "",
-    reasonLine,
-    zonesText ? `\nאפשר לבצע משלוח ליישובים:\n${zonesText}` : "",
-    "",
-    "שלח לנו שוב את הכתובת המלאה ונמשיך משם 👇",
-  ].filter(Boolean).join("\n");
+  const templates = [
+    [
+      `${namePrefix}אנחנו כמעט שם, רק צריך כתובת מדויקת יותר 🗺️`,
+      "",
+      reasonLine,
+      zonesText ? `\nאפשר לבצע משלוח ליישובים:\n${zonesText}` : "",
+      "",
+      "זה עדיין לא אישור סופי של ההזמנה — אפשר להמשיך לערוך את הסל אחרי שליחת הכתובת 🛒",
+      "שלח לנו שוב את הכתובת המלאה ונמשיך משם 👇",
+    ],
+    [
+      "לא הצלחתי לשמור את הכתובת למשלוח עדיין 📍",
+      "",
+      reasonLine,
+      zonesText ? `\nאנחנו מגיעים כרגע ל:\n${zonesText}` : "",
+      "",
+      "שלח יישוב, רחוב ומספר בית. ההזמנה תישאר פתוחה לשינויים גם אחרי זה.",
+    ],
+  ];
+
+  return pickRotatingTemplate(templates).filter(Boolean).join("\n");
 }
 
 function buildSavedAddressQuestion({ firstName, address, isEnglish }) {
@@ -827,7 +917,16 @@ async function buildCheckoutInstructionForOrder({ order_id, shop_id, isEnglish }
   return lines.join("\n");
 }
 
-async function moveOrderToCheckoutPending({ order_id, shop_id, isEnglish }) {
+async function moveOrderToCheckoutPending({ order_id, shop_id, isEnglish, customer_id = null, maxPerProduct = null }) {
+  const minimumBlock = await validateMinimumOrderBeforeCheckout({
+    order_id,
+    shop_id,
+    customer_id,
+    isEnglish,
+    maxPerProduct,
+  });
+  if (minimumBlock) return minimumBlock.message;
+
   const [res] = await db.query(
     `UPDATE orders
         SET prev_status = status,
@@ -920,10 +1019,10 @@ async function prepareFulfillmentBeforeCheckout({ activeOrder, isEnglish, custom
   return question;
 }
 
-async function finishFulfillmentStep({ activeOrder, shop_id, isEnglish, prefix = "" }) {
+async function finishFulfillmentStep({ activeOrder, shop_id, isEnglish, prefix = "", customer_id = null, maxPerProduct = null }) {
   if (!activeOrder) return prefix;
   if (activeOrder.status === "pending" || activeOrder.status === "checkout_pending") {
-    const instruction = await moveOrderToCheckoutPending({ order_id: activeOrder.id, shop_id, isEnglish });
+    const instruction = await moveOrderToCheckoutPending({ order_id: activeOrder.id, shop_id, isEnglish, customer_id: customer_id || activeOrder.customer_id, maxPerProduct });
     return [prefix, instruction].filter(Boolean).join("\n\n");
   }
   return prefix || (isEnglish ? "Updated." : "עודכן.");
@@ -951,7 +1050,7 @@ async function saveBotAndCustomer({ message, botText, customer_id, shop_id, save
   return botText;
 }
 
-async function updateDeliveryAddressForOrder({ message, addressText, customer_id, shop_id, activeOrder, isEnglish, saveChat, questionId = null }) {
+async function updateDeliveryAddressForOrder({ message, addressText, customer_id, shop_id, activeOrder, isEnglish, saveChat, questionId = null, maxPerProduct = null }) {
   await ensureFulfillmentSchema();
   if (!activeOrder || !["pending", "checkout_pending", "confirmed"].includes(String(activeOrder.status))) return null;
 
@@ -985,11 +1084,11 @@ async function updateDeliveryAddressForOrder({ message, addressText, customer_id
   });
 
   const prefix = isEnglish ? "Great, I updated the delivery address." : "מעולה, עדכנתי את כתובת המשלוח.";
-  const botText = await finishFulfillmentStep({ activeOrder, shop_id, isEnglish, prefix });
+  const botText = await finishFulfillmentStep({ activeOrder, shop_id, isEnglish, prefix, customer_id, maxPerProduct });
   return saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
 }
 
-async function switchOrderToPickup({ message, customer_id, shop_id, activeOrder, isEnglish, saveChat }) {
+async function switchOrderToPickup({ message, customer_id, shop_id, activeOrder, isEnglish, saveChat, maxPerProduct = null }) {
   const shop = await getShopFulfillment(shop_id);
   if (!toBool(shop?.supports_pickup)) {
     const botText = isEnglish ? "This branch does not support pickup." : "הסניף הזה לא תומך באיסוף עצמי.";
@@ -1003,6 +1102,8 @@ async function switchOrderToPickup({ message, customer_id, shop_id, activeOrder,
     shop_id,
     isEnglish,
     prefix: isEnglish ? "No problem, I changed the order to store pickup." : "אין בעיה, שיניתי את ההזמנה לאיסוף עצמי מהחנות.",
+    customer_id,
+    maxPerProduct,
   });
   return saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
 }
@@ -1042,7 +1143,7 @@ async function switchOrderToDelivery({ message, customer_id, shop_id, activeOrde
   return saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
 }
 
-async function confirmSavedDeliveryAddress({ message, customer_id, shop_id, activeOrder, isEnglish, saveChat, questionId = null }) {
+async function confirmSavedDeliveryAddress({ message, customer_id, shop_id, activeOrder, isEnglish, saveChat, questionId = null, maxPerProduct = null }) {
   const savedAddress = await getDefaultCustomerAddress(customer_id, shop_id);
   if (!savedAddress) {
     if (questionId) await closeQuestionsByIds([questionId]);
@@ -1073,17 +1174,19 @@ async function confirmSavedDeliveryAddress({ message, customer_id, shop_id, acti
     shop_id,
     isEnglish,
     prefix: isEnglish ? "Great, I saved the delivery to your saved address." : "מעולה, שמרתי את המשלוח לכתובת השמורה.",
+    customer_id,
+    maxPerProduct,
   });
   return saveBotAndCustomer({ message, botText, customer_id, shop_id, saveChat });
 }
 
-async function handleFulfillmentIntentResult({ intentResult, message, customer_id, shop_id, activeOrder, isEnglish, saveChat, questionId = null }) {
+async function handleFulfillmentIntentResult({ intentResult, message, customer_id, shop_id, activeOrder, isEnglish, saveChat, questionId = null, maxPerProduct = null }) {
   const intent = normalizeFulfillmentIntent(intentResult?.intent);
   const confidence = Number(intentResult?.confidence || 0);
   if (!intent || intent === "not_fulfillment" || confidence < 0.55) return null;
 
   if (intent === "choose_pickup") {
-    return switchOrderToPickup({ message, customer_id, shop_id, activeOrder, isEnglish, saveChat });
+    return switchOrderToPickup({ message, customer_id, shop_id, activeOrder, isEnglish, saveChat, maxPerProduct });
   }
 
   if (intent === "choose_delivery") {
@@ -1091,7 +1194,7 @@ async function handleFulfillmentIntentResult({ intentResult, message, customer_i
   }
 
   if (intent === "confirm_saved_address") {
-    return confirmSavedDeliveryAddress({ message, customer_id, shop_id, activeOrder, isEnglish, saveChat, questionId });
+    return confirmSavedDeliveryAddress({ message, customer_id, shop_id, activeOrder, isEnglish, saveChat, questionId, maxPerProduct });
   }
 
   if (intent === "different_address") {
@@ -1110,6 +1213,7 @@ async function handleFulfillmentIntentResult({ intentResult, message, customer_i
       isEnglish,
       saveChat,
       questionId,
+      maxPerProduct,
     });
   }
 
@@ -1124,6 +1228,7 @@ async function handleDirectFulfillmentChangeRequest({
   isEnglish,
   saveChat,
   allowMethodOnly = false,
+  maxPerProduct = null,
 }) {
   if (!activeOrder) return null;
   if (!["pending", "checkout_pending", "confirmed"].includes(String(activeOrder.status))) return null;
@@ -1137,6 +1242,7 @@ async function handleDirectFulfillmentChangeRequest({
       activeOrder,
       isEnglish,
       saveChat,
+      maxPerProduct,
     });
   }
 
@@ -1161,6 +1267,7 @@ async function handleDirectFulfillmentChangeRequest({
       activeOrder,
       isEnglish,
       saveChat,
+      maxPerProduct,
     });
   }
 
@@ -1173,10 +1280,11 @@ async function handleDirectFulfillmentChangeRequest({
     activeOrder,
     isEnglish,
     saveChat,
+    maxPerProduct,
   });
 }
 
-async function handleFulfillmentReply({ message, customer_id, shop_id, activeOrder, openQs, saveChat }) {
+async function handleFulfillmentReply({ message, customer_id, shop_id, activeOrder, openQs, saveChat, maxPerProduct = null }) {
   if (!activeOrder) return null;
   await ensureFulfillmentSchema();
 
@@ -1184,7 +1292,7 @@ async function handleFulfillmentReply({ message, customer_id, shop_id, activeOrd
   const question = getLatestFulfillmentQuestion(openQs);
 
   if (!question) {
-    return handleDirectFulfillmentChangeRequest({ message, customer_id, shop_id, activeOrder, isEnglish, saveChat });
+    return handleDirectFulfillmentChangeRequest({ message, customer_id, shop_id, activeOrder, isEnglish, saveChat, maxPerProduct });
   }
 
   const type = String(question.product_name || "").trim();
@@ -1212,6 +1320,7 @@ async function handleFulfillmentReply({ message, customer_id, shop_id, activeOrd
         isEnglish,
         saveChat,
         questionId: question.id,
+        maxPerProduct,
       });
     }
 
@@ -1230,6 +1339,7 @@ async function handleFulfillmentReply({ message, customer_id, shop_id, activeOrd
         isEnglish,
         saveChat,
         questionId: question.id,
+        maxPerProduct,
       });
       if (handled) return handled;
     }
@@ -1251,6 +1361,7 @@ async function handleFulfillmentReply({ message, customer_id, shop_id, activeOrd
         isEnglish,
         saveChat,
         questionId: question.id,
+        maxPerProduct,
       });
       if (handled) return handled;
     }
@@ -1278,6 +1389,8 @@ async function handleFulfillmentReply({ message, customer_id, shop_id, activeOrd
       shop_id,
       isEnglish,
       prefix: isEnglish ? "Great, I saved the delivery address." : "מעולה, שמרתי את כתובת המשלוח.",
+      customer_id,
+      maxPerProduct,
     });
     return saveBoth(botText);
   }

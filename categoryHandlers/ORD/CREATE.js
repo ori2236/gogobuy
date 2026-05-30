@@ -17,6 +17,7 @@ const { normalizeIncomingQuestions } = require("../../utilities/normalize");
 const { buildCreateOrderSchema } = require("./schemas/create.schema");
 const { parseModelAnswer } = require("../../utilities/jsonParse");
 const { buildQuestionsBlock } = require("../../utilities/messageBuilders");
+const { buildQuantityLimitWarningBlock } = require("../../utilities/productQuantityLimit");
 const {
   buildOrderSummaryMessage,
 } = require("../../utilities/orderSummaryMessage");
@@ -229,6 +230,7 @@ module.exports = {
           name: nameForWarning,
           original: amt,
           capped: maxPerProduct,
+          sold_by_weight: isWeight,
         });
 
         amt = maxPerProduct;
@@ -482,14 +484,10 @@ module.exports = {
     const hasQuestions =
       Array.isArray(combinedQuestions) && combinedQuestions.length > 0;
 
-    let limitWarningsBlock = "";
-    if (cappedWarnings.length) {
-      if (isEnglish) {
-        limitWarningsBlock = `Note: you can order up to ${maxPerProduct} units per product.`;
-      } else {
-        limitWarningsBlock = `שימו לב: ניתן להזמין עד ${maxPerProduct} יחידות מכל מוצר.`;
-      }
-    }
+    const limitWarningsBlock = buildQuantityLimitWarningBlock({
+      warnings: cappedWarnings,
+      isEnglish,
+    });
 
     let fractionalWarningsBlock = "";
     if (fractionalWarnings.length) {
