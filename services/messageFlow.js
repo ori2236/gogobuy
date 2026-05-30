@@ -25,6 +25,11 @@ const { startSlowProgression } = require("./sendProgressionMessage");
 const { handleSuggestionReply } = require("./orderSuggestions");
 const { handleFulfillmentReply } = require("./fulfillment");
 const {
+  handlePendingCustomerName,
+  requestFullNameBeforeOrder,
+  shouldRequireNameBeforeOrder,
+} = require("./customerOnboarding");
+const {
   handleCheckoutNudgeReply,
   attachCheckoutNudgeIfNeeded,
 } = require("../utilities/checkoutNudge");
@@ -135,6 +140,37 @@ async function saveAndReturnUnclassifiedReply({ customer_id, shop_id, message, r
   return reply;
 }
 
+function prependTextToBotPayload(payload, prefix) {
+  const cleanPrefix = String(prefix || "").trim();
+  if (!cleanPrefix) return payload;
+
+  const currentText = normalizeOutboundMessage(payload);
+  const mergedText = currentText ? `${cleanPrefix}\n\n${currentText}` : cleanPrefix;
+
+  if (!payload || typeof payload === "string") return mergedText;
+  if (typeof payload !== "object") return mergedText;
+
+  if (typeof payload.reply === "string") {
+    return { ...payload, reply: mergedText };
+  }
+
+  if (typeof payload.message === "string") {
+    return { ...payload, message: mergedText };
+  }
+
+  if (payload.message && typeof payload.message.reply === "string") {
+    return {
+      ...payload,
+      message: {
+        ...payload.message,
+        reply: mergedText,
+      },
+    };
+  }
+
+  return { ...payload, reply: mergedText };
+}
+
 async function processMessage(
   message,
   phone_number,
@@ -159,6 +195,36 @@ async function processMessage(
     }, 800);
   }
 
+  let effectiveMessage = message;
+  let onboardingPrefix = "";
+
+  const pendingNameResult = await handlePendingCustomerName({
+    customer_id,
+    message,
+  });
+
+  if (pendingNameResult?.type === "need_name_reply") {
+    return saveAndReturnUnclassifiedReply({
+      customer_id,
+      shop_id,
+      message,
+      reply: pendingNameResult.reply,
+    });
+  }
+
+  if (pendingNameResult?.type === "name_saved") {
+    await saveChat({
+      customer_id,
+      shop_id,
+      sender: "customer",
+      status: "classified",
+      message,
+    });
+
+    effectiveMessage = pendingNameResult.pendingMessage || message;
+    onboardingPrefix = pendingNameResult.prefix || "";
+  }
+
   const activeOrder = await getActiveOrder(customer_id, shop_id);
   const order_id = activeOrder ? activeOrder.id : null;
   const items = activeOrder ? await getOrderItems(activeOrder.id) : [];
@@ -166,7 +232,7 @@ async function processMessage(
   const openQs = await fetchOpenQuestions(customer_id, shop_id, 20);
 
   const fulfillmentReply = await handleFulfillmentReply({
-    message,
+    message: effectiveMessage,
     customer_id,
     shop_id,
     activeOrder,
@@ -179,7 +245,7 @@ async function processMessage(
 
   const checkoutReply = await checkIfToCheckoutOrder({
     activeOrder,
-    message,
+    message: effectiveMessage,
     customer_id,
     shop_id,
     saveChat,
@@ -189,7 +255,7 @@ async function processMessage(
 
   const cancelReply = await checkIfToCancelOrder({
     activeOrder,
-    message,
+    message: effectiveMessage,
     customer_id,
     shop_id,
     saveChat,
@@ -198,7 +264,7 @@ async function processMessage(
   if (cancelReply) return cancelReply;
 
   const checkoutNudgeReply = await handleCheckoutNudgeReply({
-    message,
+    message: effectiveMessage,
     customer_id,
     shop_id,
     activeOrder,
@@ -209,7 +275,7 @@ async function processMessage(
   if (checkoutNudgeReply) return checkoutNudgeReply;
 
   const suggestionReply = await handleSuggestionReply({
-    message,
+    message: effectiveMessage,
     customer_id,
     shop_id,
     activeOrder,
@@ -223,7 +289,7 @@ async function processMessage(
       shop_id,
       sender: "customer",
       status: "classified",
-      message,
+      message: effectiveMessage,
     });
 
     await saveChat({
@@ -237,12 +303,12 @@ async function processMessage(
     return suggestionReply;
   }
 
-  if (isOrderStatusQuestion(message)) {
+  if (isOrderStatusQuestion(effectiveMessage)) {
     const statusReply = await answerOrderStatus({
-      message,
+      message: effectiveMessage,
       customer_id,
       shop_id,
-      isEnglish: detectIsEnglish(message),
+      isEnglish: detectIsEnglish(effectiveMessage),
     });
 
     await saveChat({
@@ -250,7 +316,7 @@ async function processMessage(
       shop_id,
       sender: "customer",
       status: "classified",
-      message,
+      message: effectiveMessage,
     });
 
     await saveChat({
@@ -267,7 +333,7 @@ async function processMessage(
   const closedQs = await fetchRecentClosedQuestions(customer_id, shop_id, 5);
 
   const { parsed, replyText, history } = await classifyIncoming({
-    message,
+    message: effectiveMessage,
     customer_id,
     shop_id,
     sig,
@@ -283,13 +349,13 @@ async function processMessage(
     // the model may still output that text. Never tell the customer there is an open
     // order when the DB says there is no active order.
     if (!activeOrder && isWrongOpenOrderClarification(clarifyText)) {
-      clarifyText = buildNoActiveOrderReply(message);
+      clarifyText = buildNoActiveOrderReply(effectiveMessage);
     }
 
     return saveAndReturnUnclassifiedReply({
       customer_id,
       shop_id,
-      message,
+      message: effectiveMessage,
       reply: clarifyText,
     });
   } else if (parsed.type === "classified") {
@@ -302,8 +368,8 @@ async function processMessage(
       return saveAndReturnUnclassifiedReply({
         customer_id,
         shop_id,
-        message,
-        reply: buildNoActiveOrderReply(message),
+        message: effectiveMessage,
+        reply: buildNoActiveOrderReply(effectiveMessage),
       });
     }
 
@@ -315,7 +381,7 @@ async function processMessage(
         shop_id,
         sender: "customer",
         status: "unclassified",
-        message,
+        message: effectiveMessage,
       });
 
       await saveChat({
@@ -328,18 +394,37 @@ async function processMessage(
       return apology;
     }
 
+    if (category === "ORD" && subcategory === "CREATE") {
+      const nameRequired = await shouldRequireNameBeforeOrder(customer_id);
+
+      if (nameRequired) {
+        const nameRequestReply = await requestFullNameBeforeOrder({
+          customer_id,
+          shop_id,
+          message: effectiveMessage,
+        });
+
+        return saveAndReturnUnclassifiedReply({
+          customer_id,
+          shop_id,
+          message: effectiveMessage,
+          reply: nameRequestReply,
+        });
+      }
+    }
+
     await saveChat({
       customer_id,
       shop_id,
       sender: "customer",
       status: "classified",
-      message,
+      message: effectiveMessage,
     });
 
     const openQsCtx = buildOpenQuestionsContextForPrompt(openQs);
-    const isEnglish = detectIsEnglish(message);
+    const isEnglish = detectIsEnglish(effectiveMessage);
     const ctx = {
-      message,
+      message: effectiveMessage,
       customer_id,
       shop_id,
       history,
@@ -395,6 +480,8 @@ async function processMessage(
       isEnglish,
     });
 
+    botPayload = prependTextToBotPayload(botPayload, onboardingPrefix);
+
     const botText = normalizeOutboundMessage(botPayload);
     await saveChat({
       customer_id,
@@ -426,7 +513,7 @@ async function processMessage(
       shop_id,
       sender: "customer",
       status: "unclassified",
-      message,
+      message: effectiveMessage,
     });
     await saveChat({
       customer_id,
