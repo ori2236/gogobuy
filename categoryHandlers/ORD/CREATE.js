@@ -1,6 +1,7 @@
 const { chat } = require("../../config/openai");
 const db = require("../../config/db");
 const { getPromptFromDB } = require("../../repositories/prompt");
+const { appendProductSearchPromptAppendix } = require("../../services/productSearchPromptAppendix");
 const { createOrderWithStockReserve } = require("../../utilities/orders");
 const { isEnglishMessage } = require("../../utilities/lang");
 const { botText } = require("../../utilities/i18n");
@@ -45,7 +46,9 @@ module.exports = {
     }
 
     const isEnglish = isEnglishMessage(message);
-    const systemPrompt = await getPromptFromDB(PROMPT_CAT, PROMPT_SUB);
+    const systemPrompt = appendProductSearchPromptAppendix(
+      await getPromptFromDB(PROMPT_CAT, PROMPT_SUB),
+    );
 
     const openQsCtxToPrompt = openQsCtx.length ? JSON.stringify(openQsCtx) : "";
 

@@ -1,5 +1,6 @@
 const { chat } = require("../../config/openai");
 const { getPromptFromDB } = require("../../repositories/prompt");
+const { appendProductSearchPromptAppendix } = require("../../services/productSearchPromptAppendix");
 const { searchProducts } = require("../../services/products");
 const {
   answerPriceCompareFlow,
@@ -54,7 +55,9 @@ async function answerPriceAndSales({
     );
   }
 
-  const dbPrompt = await getPromptFromDB(PROMPT_CAT, PROMPT_SUB);
+  const dbPrompt = appendProductSearchPromptAppendix(
+    await getPromptFromDB(PROMPT_CAT, PROMPT_SUB),
+  );
   const systemPrompt = [dbPrompt, PROMOTION_LIST_PROMPT_APPENDIX]
     .filter(Boolean)
     .join("\n\n");
@@ -96,6 +99,21 @@ async function answerPriceAndSales({
   const clarifyQuestionsFromModel = Array.isArray(parsed.questions)
     ? parsed.questions
     : [];
+
+  dlog(
+    "productRequests:",
+    productRequests.map((p, idx) => ({
+      idx,
+      name: p.name,
+      outputName: p.outputName,
+      original_user_text: p.original_user_text,
+      search_terms: p.search_terms,
+      category: p.category,
+      subCategory: p["sub-category"] || p.sub_category,
+      price_intent: p.price_intent,
+      exclude_tokens: p.exclude_tokens,
+    })),
+  );
 
   const hasProducts = productRequests.length > 0;
   const hasClarify = clarifyQuestionsFromModel.length > 0;

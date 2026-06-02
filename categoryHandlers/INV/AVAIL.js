@@ -1,5 +1,6 @@
 const { chat } = require("../../config/openai");
 const { getPromptFromDB } = require("../../repositories/prompt");
+const { appendProductSearchPromptAppendix } = require("../../services/productSearchPromptAppendix");
 const {
   buildAlternativeQuestions,
   searchVariants,
@@ -142,7 +143,9 @@ async function checkAvailability({
     throw new Error("INV.AVAIL: customer_id is required");
   }
 
-  const systemPrompt = await getPromptFromDB(PROMPT_CAT, PROMPT_SUB);
+  const systemPrompt = appendProductSearchPromptAppendix(
+      await getPromptFromDB(PROMPT_CAT, PROMPT_SUB),
+    );
 
   const answer = await chat({
     message,
@@ -185,6 +188,8 @@ async function checkAvailability({
       name: p.name,
       searchTerm: p.searchTerm,
       outputName: p.outputName,
+      original_user_text: p.original_user_text,
+      search_terms: p.search_terms,
       availability_intent: p.availability_intent,
       category: p.category,
       subCategory: p["sub-category"] || p.sub_category,

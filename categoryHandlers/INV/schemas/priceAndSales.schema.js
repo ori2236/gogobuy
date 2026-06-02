@@ -16,6 +16,8 @@ const PRICE_INTENT_ENUM = [
 const COMMON_PRODUCT_PROPS = {
   name: { anyOf: [{ type: "string", minLength: 1 }, { type: "null" }] },
   outputName: { anyOf: [{ type: "string", minLength: 1 }, { type: "null" }] },
+  original_user_text: { anyOf: [{ type: "string", minLength: 1 }, { type: "null" }] },
+  search_terms: { type: "array", items: { type: "string", minLength: 1 } },
   amount: { type: "number", minimum: 0.001 },
   units: { anyOf: [{ type: "integer", minimum: 1 }, { type: "null" }] },
   sold_by_weight: { type: "boolean" },
@@ -30,6 +32,8 @@ const COMMON_PRODUCT_PROPS = {
 const COMMON_PRODUCT_REQUIRED = [
   "name",
   "outputName",
+  "original_user_text",
+  "search_terms",
   "amount",
   "units",
   "sold_by_weight",

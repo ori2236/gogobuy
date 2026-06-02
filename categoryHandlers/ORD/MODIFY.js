@@ -1,6 +1,7 @@
 const { chat } = require("../../config/openai");
 const db = require("../../config/db");
 const { getPromptFromDB } = require("../../repositories/prompt");
+const { appendProductSearchPromptAppendix } = require("../../services/productSearchPromptAppendix");
 const {
   getOrder,
   fetchActivePromotionsMap,
@@ -974,7 +975,9 @@ module.exports = {
             )
           )[0];
 
-    const systemPrompt = await getPromptFromDB(PROMPT_CAT, PROMPT_SUB);
+    const systemPrompt = appendProductSearchPromptAppendix(
+      await getPromptFromDB(PROMPT_CAT, PROMPT_SUB),
+    );
 
     const userContext = [
       `- OPEN_QUESTIONS: ${JSON.stringify(openQsCtx)}`,

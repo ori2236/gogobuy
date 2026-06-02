@@ -37,6 +37,192 @@ function compactRows(rows = []) {
   }));
 }
 
+
+function normalizeSearchPhrase(value) {
+  if (value === null || value === undefined) return "";
+  return String(value)
+    .normalize("NFKC")
+    .replace(/[\u2018\u2019\u201A\u201B\u2032\u0060]/g, "'")
+    .replace(/[\u05F3]/g, "'")
+    .replace(/[\u201C\u201D\u201E\u201F\u2033\u05F4]/g, '"')
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function termKey(value) {
+  const normalized = normalizeSearchPhrase(value).toLowerCase();
+  const tokens = tokenizeName(normalized);
+  return tokens.length ? tokens.join(" ") : normalized;
+}
+
+function pushSearchTerm(out, seen, value, source) {
+  const term = normalizeSearchPhrase(value);
+  if (!term) return;
+
+  const key = termKey(term);
+  if (!key || seen.has(key)) return;
+
+  const tokens = tokenizeName(term);
+  if (!tokens.length) return;
+
+  seen.add(key);
+  out.push({ term, source, tokens });
+}
+
+function buildProductSearchTerms(req = {}) {
+  const out = [];
+  const seen = new Set();
+
+  const original = req?.original_user_text;
+  const name = req?.name;
+  const outputName = req?.outputName;
+  const searchTerm = req?.searchTerm;
+  const outputSearchTerm = req?.outputSearchTerm;
+
+  pushSearchTerm(out, seen, original, "original_user_text");
+
+  const nameText = normalizeSearchPhrase(name);
+  const searchText = normalizeSearchPhrase(searchTerm);
+  if (nameText && searchText && termKey(nameText) !== termKey(searchText)) {
+    pushSearchTerm(out, seen, `${nameText} ${searchText}`, "name+searchTerm");
+  }
+
+  pushSearchTerm(out, seen, name, "name");
+  pushSearchTerm(out, seen, outputName, "outputName");
+
+  if (Array.isArray(req?.search_terms)) {
+    for (const term of req.search_terms) {
+      pushSearchTerm(out, seen, term, "search_terms");
+    }
+  }
+
+  pushSearchTerm(out, seen, searchTerm, "searchTerm");
+  pushSearchTerm(out, seen, outputSearchTerm, "outputSearchTerm");
+
+  return out;
+}
+
+function compactSearchTerms(terms = []) {
+  return terms.map((t) => ({
+    source: t.source,
+    term: t.term,
+    tokens: t.tokens,
+  }));
+}
+
+async function queryRowsByTokens({
+  shop_id,
+  category = null,
+  subCategories = null,
+  tokenGroup,
+  includeStockFilter = true,
+}) {
+  let sql = `
+    SELECT id, name, display_name_en, price, stock_amount, category, sub_category
+    FROM product
+    WHERE shop_id = ?
+  `;
+  const params = [shop_id];
+
+  if (includeStockFilter) {
+    sql += ` AND (stock_amount IS NULL OR stock_amount > 0)`;
+  }
+
+  if (category) {
+    sql += ` AND category = ?`;
+    params.push(category);
+  }
+
+  if (Array.isArray(subCategories) && subCategories.length) {
+    sql += ` AND sub_category IN (${subCategories.map(() => "?").join(",")})`;
+    params.push(...subCategories);
+  } else if (typeof subCategories === "string" && subCategories.trim()) {
+    sql += ` AND sub_category = ?`;
+    params.push(subCategories.trim());
+  }
+
+  for (const t of tokenGroup.tokens) {
+    sql += `
+      AND (
+        name COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
+        OR display_name_en COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
+      )
+    `;
+    params.push(t, t);
+  }
+
+  matchLog("queryRowsByTokens.query", {
+    source: tokenGroup.source,
+    term: tokenGroup.term,
+    tokens: tokenGroup.tokens,
+    category,
+    subCategories,
+    includeStockFilter,
+    sql,
+    params,
+  });
+
+  const [rows] = await db.query(sql, params);
+
+  matchLog("queryRowsByTokens.rows", {
+    source: tokenGroup.source,
+    term: tokenGroup.term,
+    tokens: tokenGroup.tokens,
+    rows: compactRows(rows || []),
+  });
+
+  return rows || [];
+}
+
+async function findBestByTermGroups({
+  shop_id,
+  termGroups,
+  excludeTokens,
+  category = null,
+  subCategories = null,
+  debugLabel = "",
+  includeStockFilter = true,
+}) {
+  for (const tokenGroup of termGroups) {
+    const rows = await queryRowsByTokens({
+      shop_id,
+      category,
+      subCategories,
+      tokenGroup,
+      includeStockFilter,
+    });
+
+    const best = await pickBestWeighted({
+      shop_id,
+      rows,
+      reqTokens: tokenGroup.tokens,
+      excludeTokens,
+      debugLabel: `${debugLabel}:${tokenGroup.source}:${tokenGroup.term}`,
+    });
+
+    if (best) {
+      matchLog("findBestByTermGroups.best", {
+        debugLabel,
+        matchedBy: {
+          source: tokenGroup.source,
+          term: tokenGroup.term,
+          tokens: tokenGroup.tokens,
+        },
+        matchedRow: {
+          id: Number(best.id),
+          name: best.name,
+          display_name_en: best.display_name_en,
+          category: best.category,
+          sub_category: best.sub_category,
+        },
+      });
+      return best;
+    }
+  }
+
+  return null;
+}
+
 async function pickBestWeighted({
   shop_id,
   rows,
@@ -180,7 +366,8 @@ async function findBestProductForRequest(shop_id, req) {
     ? subCandidates.filter((s) => s !== primarySub)
     : [];
 
-  const reqTokens = tokenizeName(nameRaw);
+  const searchTerms = buildProductSearchTerms(req);
+  const reqTokens = searchTerms.length ? searchTerms[0].tokens : tokenizeName(nameRaw);
   const excludeTokens = getExcludeTokensFromReq(req);
 
   matchLog("findBestProductForRequest.start", {
@@ -193,13 +380,14 @@ async function findBestProductForRequest(shop_id, req) {
       primarySub,
       subCandidates,
       otherSubs,
+      finalSearchTerms: compactSearchTerms(searchTerms),
       reqTokens,
       excludeTokens,
     },
   });
 
-  if (!reqTokens.length) {
-    matchLog("findBestProductForRequest.noReqTokens", {
+  if (!searchTerms.length) {
+    matchLog("findBestProductForRequest.noSearchTerms", {
       shop_id,
       req,
       category,
@@ -232,19 +420,19 @@ async function findBestProductForRequest(shop_id, req) {
         LIMIT 1
       `;
 
-      matchLog("findBestProductForRequest.query.noTokens.primary", {
+      matchLog("findBestProductForRequest.query.noTerms.primary", {
         sql,
         params,
       });
 
       const [rows] = await db.query(sql, params);
 
-      matchLog("findBestProductForRequest.rows.noTokens.primary", {
+      matchLog("findBestProductForRequest.rows.noTerms.primary", {
         rows: compactRows(rows),
       });
 
       if (rows && rows.length) {
-        matchLog("findBestProductForRequest.return.noTokens.primary", rows[0]);
+        matchLog("findBestProductForRequest.return.noTerms.primary", rows[0]);
         return rows[0];
       }
 
@@ -273,20 +461,20 @@ async function findBestProductForRequest(shop_id, req) {
           LIMIT 1
         `;
 
-        matchLog("findBestProductForRequest.query.noTokens.otherSubs", {
+        matchLog("findBestProductForRequest.query.noTerms.otherSubs", {
           sql: sql2,
           params: params2,
         });
 
         const [rows2] = await db.query(sql2, params2);
 
-        matchLog("findBestProductForRequest.rows.noTokens.otherSubs", {
+        matchLog("findBestProductForRequest.rows.noTerms.otherSubs", {
           rows: compactRows(rows2),
         });
 
         if (rows2 && rows2.length) {
           matchLog(
-            "findBestProductForRequest.return.noTokens.otherSubs",
+            "findBestProductForRequest.return.noTerms.otherSubs",
             rows2[0],
           );
           return rows2[0];
@@ -294,164 +482,73 @@ async function findBestProductForRequest(shop_id, req) {
       }
     }
 
-    matchLog("findBestProductForRequest.return.noTokens.null", { req });
+    matchLog("findBestProductForRequest.return.noTerms.null", { req });
     return null;
   }
 
   if (category && primarySub) {
-    {
-      let sql = `
-        SELECT id, name, display_name_en, price, stock_amount, category, sub_category
-        FROM product
-        WHERE shop_id = ?
-          AND category = ?
-          AND sub_category = ?
-      `;
-      const params = [shop_id, category, primarySub];
-
-      for (const t of reqTokens) {
-        sql += `
-          AND (
-            name COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
-            OR display_name_en COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
-          )
-        `;
-        params.push(t, t);
-      }
-
-      matchLog("findBestProductForRequest.query.primarySub", {
-        sql,
-        params,
-      });
-
-      const [rows] = await db.query(sql, params);
-
-      matchLog("findBestProductForRequest.rows.primarySub", {
-        rows: compactRows(rows),
-      });
-
-      const best = await pickBestWeighted({
-        shop_id,
-        rows,
-        reqTokens,
-        excludeTokens,
-        debugLabel: "primarySub",
-      });
-
-      if (best) {
-        matchLog("findBestProductForRequest.return.primarySub", best);
-        return best;
-      }
+    const bestPrimary = await findBestByTermGroups({
+      shop_id,
+      termGroups: searchTerms,
+      excludeTokens,
+      category,
+      subCategories: primarySub,
+      debugLabel: "primarySub",
+    });
+    if (bestPrimary) {
+      matchLog("findBestProductForRequest.return.primarySub", bestPrimary);
+      return bestPrimary;
     }
 
     if (otherSubs.length) {
-      let sql = `
-        SELECT id, name, display_name_en, price, stock_amount, category, sub_category
-        FROM product
-        WHERE shop_id = ?
-          AND category = ?
-          AND sub_category IN (${otherSubs.map(() => "?").join(",")})
-      `;
-      const params = [shop_id, category, ...otherSubs];
-
-      for (const t of reqTokens) {
-        sql += `
-          AND (
-            name COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
-            OR display_name_en COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
-          )
-        `;
-        params.push(t, t);
-      }
-
-      matchLog("findBestProductForRequest.query.otherSubs", {
-        sql,
-        params,
-      });
-
-      const [rows] = await db.query(sql, params);
-
-      matchLog("findBestProductForRequest.rows.otherSubs", {
-        rows: compactRows(rows),
-      });
-
-      const best = await pickBestWeighted({
+      const bestOther = await findBestByTermGroups({
         shop_id,
-        rows,
-        reqTokens,
+        termGroups: searchTerms,
         excludeTokens,
+        category,
+        subCategories: otherSubs,
         debugLabel: "otherSubs",
       });
-
-      if (best) {
-        matchLog("findBestProductForRequest.return.otherSubs", best);
-        return best;
+      if (bestOther) {
+        matchLog("findBestProductForRequest.return.otherSubs", bestOther);
+        return bestOther;
       }
     }
   }
 
-  {
-    let sql = `
-      SELECT id, name, display_name_en, price, stock_amount, category, sub_category
-      FROM product
-      WHERE shop_id = ?
-        AND (stock_amount IS NULL OR stock_amount > 0)
-    `;
-    const params = [shop_id];
-
-    if (category) {
-      sql += ` AND category = ?`;
-      params.push(category);
-    }
-
-    for (const t of reqTokens) {
-      sql += `
-        AND (
-          name COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
-          OR display_name_en COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
-        )
-      `;
-      params.push(t, t);
-    }
-
-    matchLog("findBestProductForRequest.query.categoryWide", {
-      sql,
-      params,
+  if (category) {
+    const bestCategoryWide = await findBestByTermGroups({
+      shop_id,
+      termGroups: searchTerms,
+      excludeTokens,
+      category,
+      subCategories: null,
+      debugLabel: "categoryWide",
     });
-
-    const [rowsAll] = await db.query(sql, params);
-
-    matchLog("findBestProductForRequest.rows.categoryWide.beforeExclude", {
-      rows: compactRows(rowsAll),
-    });
-
-    const rows = filterRowsByExcludeTokens(rowsAll, excludeTokens);
-
-    matchLog("findBestProductForRequest.rows.categoryWide.afterExclude", {
-      rows: compactRows(rows),
-    });
-
-    if (rows && rows.length) {
-      const best = await pickBestWeighted({
-        shop_id,
-        rows,
-        reqTokens,
-        excludeTokens,
-        debugLabel: "categoryWide",
-      });
-
-      if (best) {
-        matchLog("findBestProductForRequest.return.categoryWide", best);
-        return best;
-      }
+    if (bestCategoryWide) {
+      matchLog("findBestProductForRequest.return.categoryWide", bestCategoryWide);
+      return bestCategoryWide;
     }
+  }
+
+  const bestShopWide = await findBestByTermGroups({
+    shop_id,
+    termGroups: searchTerms,
+    excludeTokens,
+    category: null,
+    subCategories: null,
+    debugLabel: "shopWide",
+  });
+  if (bestShopWide) {
+    matchLog("findBestProductForRequest.return.shopWide", bestShopWide);
+    return bestShopWide;
   }
 
   matchLog("findBestProductForRequest.return.null", {
     req,
     category,
     primarySub,
-    reqTokens,
+    finalSearchTerms: compactSearchTerms(searchTerms),
     excludeTokens,
   });
 
@@ -521,6 +618,9 @@ async function searchProducts(shop_id, products) {
         category: row.category,
         sub_category: row.sub_category,
         requested_name: req?.name || null,
+        requested_original_user_text: req?.original_user_text || null,
+        requested_search_terms: Array.isArray(req?.search_terms) ? req.search_terms : [],
+        final_search_terms: compactSearchTerms(buildProductSearchTerms(req)),
         requested_amount: Number.isFinite(n) ? n : 1,
         requested_units: Number.isFinite(u) && u > 0 ? u : null,
         sold_by_weight: weightFlag === true,
@@ -537,6 +637,9 @@ async function searchProducts(shop_id, products) {
         originalIndex: i,
         requested_name: req?.name || null,
         requested_output_name: req?.outputName || null,
+        requested_original_user_text: req?.original_user_text || null,
+        requested_search_terms: Array.isArray(req?.search_terms) ? req.search_terms : [],
+        final_search_terms: compactSearchTerms(buildProductSearchTerms(req)),
         requested_amount: Number.isFinite(n) ? n : 1,
         category: req?.category || null,
         sub_category: req?.["sub-category"] || req?.sub_category || null,
@@ -564,7 +667,9 @@ async function fetchAlternatives(
 ) {
   if (!category && !subCategory) return [];
 
-  const reqTokens = tokenizeName(requestedName || "");
+  const reqTokens = typeof requestedName === "object"
+    ? (buildProductSearchTerms(requestedName)[0]?.tokens || [])
+    : tokenizeName(requestedName || "");
 
   async function fetchByCatSub(cat, sub, useGroup = true) {
     const params = [shop_id];
@@ -846,7 +951,11 @@ async function searchVariants(
     excludeTokens = [],
   } = {},
 ) {
-  const tokens = tokenizeName(searchTerm || "");
+  const searchTermGroups = buildProductSearchTerms({
+    original_user_text: searchTerm,
+    name: searchTerm,
+  });
+  const tokens = searchTermGroups[0]?.tokens || [];
 
   let sql = `
     SELECT id, name, display_name_en, price, stock_amount, category, sub_category
@@ -915,4 +1024,6 @@ module.exports = {
   pickAltTemplate,
 
   searchVariants,
+
+  buildProductSearchTerms,
 };
