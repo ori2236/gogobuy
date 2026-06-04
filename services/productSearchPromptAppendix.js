@@ -19,6 +19,8 @@ Rules for search_terms:
 - Include outputName/searchTerm/outputSearchTerm when relevant and available in the schema.
 - You may include singular/plural or wording variants only when you are confident they refer to the same product.
 - Do not invent strange variants, unrelated categories, brands, package sizes, flavors, weights, or volumes.
+- Never return or add a supplier/brand/manufacturer name by itself as the product name or as a standalone search term unless the customer explicitly wrote only that brand as the thing they want to search.
+- For generic requests like "חלב כלשהו", "איזה חלב", "any milk", keep the product type in the name/search_terms (for example "חלב"), and do not replace it with a supplier/brand such as a dairy company name.
 - Keep the list short, usually 1-4 terms.
 - If unsure, return a short conservative list rather than broad guesses.
 - Use [] when no useful extra terms exist.

@@ -14,14 +14,17 @@ const SHOP_EXTRA_COLUMNS = {
   cart_empty_reminder_minutes: "INT UNSIGNED NOT NULL DEFAULT 5",
   stock_release_after_inactive_minutes: "INT UNSIGNED NOT NULL DEFAULT 30",
   max_order_quantity_per_product: "INT UNSIGNED NOT NULL DEFAULT 10",
+  order_same_day_cutoff_time: "TIME NOT NULL DEFAULT '15:00:00'",
+  delivery_arrival_start_time: "TIME DEFAULT NULL",
+  delivery_arrival_end_time: "TIME DEFAULT NULL",
 };
 
 let schemaReadyPromise = null;
 
-async function hasColumn(columnName) {
+async function getShopColumnInfo(columnName) {
   const [rows] = await db.query(
     `
-    SELECT 1
+    SELECT IS_NULLABLE, COLUMN_DEFAULT, DATA_TYPE, COLUMN_TYPE
     FROM INFORMATION_SCHEMA.COLUMNS
     WHERE TABLE_SCHEMA = DATABASE()
       AND TABLE_NAME = 'shop'
@@ -30,7 +33,11 @@ async function hasColumn(columnName) {
     `,
     [columnName],
   );
-  return rows.length > 0;
+  return rows[0] || null;
+}
+
+async function hasColumn(columnName) {
+  return Boolean(await getShopColumnInfo(columnName));
 }
 
 async function ensureShopInfoSchema() {
@@ -54,6 +61,20 @@ async function ensureShopInfoSchema() {
         await db.query(
           `UPDATE shop SET min_pickup_order_amount = COALESCE(NULLIF(min_order_amount, 0), min_pickup_order_amount)`,
         );
+      }
+
+      const cutoffColumn = await getShopColumnInfo("order_same_day_cutoff_time");
+      if (cutoffColumn) {
+        await db.query(
+          `UPDATE shop SET order_same_day_cutoff_time = '15:00:00' WHERE order_same_day_cutoff_time IS NULL`,
+        );
+
+        const defaultValue = String(cutoffColumn.COLUMN_DEFAULT || "");
+        if (cutoffColumn.IS_NULLABLE === "YES" || defaultValue !== "15:00:00") {
+          await db.query(
+            `ALTER TABLE shop MODIFY COLUMN order_same_day_cutoff_time TIME NOT NULL DEFAULT '15:00:00'`,
+          );
+        }
       }
 
       await db.query(`
@@ -119,7 +140,10 @@ async function getShopInfo(shop_id) {
       s.delivery_fee,
       s.cart_empty_reminder_minutes,
       s.stock_release_after_inactive_minutes,
-      s.max_order_quantity_per_product
+      s.max_order_quantity_per_product,
+      TIME_FORMAT(s.order_same_day_cutoff_time, '%H:%i') AS order_same_day_cutoff_time,
+      TIME_FORMAT(s.delivery_arrival_start_time, '%H:%i') AS delivery_arrival_start_time,
+      TIME_FORMAT(s.delivery_arrival_end_time, '%H:%i') AS delivery_arrival_end_time
     FROM shop s
     WHERE s.id = ?
     LIMIT 1

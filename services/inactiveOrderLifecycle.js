@@ -48,6 +48,10 @@ function normalizePhone(phone) {
   return String(phone || "").trim().replace(/^\+/, "");
 }
 
+function getLateReminderGraceMinutes() {
+  return asPositiveInt(process.env.INACTIVE_ORDER_LATE_REMINDER_GRACE_MINUTES, 10);
+}
+
 async function ensureExpiredOrderStatusEnum() {
   const [[row]] = await db.query(
     `SELECT COLUMN_TYPE
@@ -246,10 +250,14 @@ async function fetchOrdersForReminder(limit = DEFAULT_BATCH_SIZE) {
       swp.phone_number_id,
       COALESCE(items.item_count, 0) AS item_count,
       TIMESTAMPDIFF(MINUTE, o.updated_at, NOW(6)) AS inactive_minutes,
-      GREATEST(
-        0,
-        s.stock_release_after_inactive_minutes - TIMESTAMPDIFF(MINUTE, o.updated_at, NOW(6))
-      ) AS minutes_until_release,
+      CASE
+        WHEN TIMESTAMPDIFF(MINUTE, o.updated_at, NOW(6)) >= s.stock_release_after_inactive_minutes
+          THEN ?
+        ELSE GREATEST(
+          0,
+          s.stock_release_after_inactive_minutes - TIMESTAMPDIFF(MINUTE, o.updated_at, NOW(6))
+        )
+      END AS minutes_until_release,
       n.cart_reminder_sent_at
     FROM orders o
     JOIN customer c ON c.id = o.customer_id
@@ -271,12 +279,11 @@ async function fetchOrdersForReminder(limit = DEFAULT_BATCH_SIZE) {
       AND s.cart_empty_reminder_minutes > 0
       AND s.stock_release_after_inactive_minutes > s.cart_empty_reminder_minutes
       AND TIMESTAMPDIFF(MINUTE, o.updated_at, NOW(6)) >= s.cart_empty_reminder_minutes
-      AND TIMESTAMPDIFF(MINUTE, o.updated_at, NOW(6)) < s.stock_release_after_inactive_minutes
       AND (n.cart_reminder_sent_at IS NULL OR n.cart_reminder_sent_at < o.updated_at)
     ORDER BY o.updated_at ASC
     LIMIT ?
     `,
-    [Number(limit)],
+    [getLateReminderGraceMinutes(), Number(limit)],
   );
 
   return rows || [];
@@ -340,10 +347,12 @@ async function fetchOrdersForStockRelease(limit = DEFAULT_BATCH_SIZE) {
       s.name AS shop_name,
       s.stock_release_after_inactive_minutes,
       swp.phone_number_id,
+      n.cart_reminder_sent_at,
       TIMESTAMPDIFF(MINUTE, o.updated_at, NOW(6)) AS inactive_minutes
     FROM orders o
     JOIN customer c ON c.id = o.customer_id
     JOIN shop s ON s.id = o.shop_id
+    LEFT JOIN order_lifecycle_notice n ON n.order_id = o.id
     LEFT JOIN (
       SELECT shop_id, MIN(phone_number_id) AS phone_number_id
       FROM shop_whatsapp_phone
@@ -353,10 +362,16 @@ async function fetchOrdersForStockRelease(limit = DEFAULT_BATCH_SIZE) {
     WHERE o.status IN ('pending', 'checkout_pending')
       AND s.stock_release_after_inactive_minutes > 0
       AND TIMESTAMPDIFF(MINUTE, o.updated_at, NOW(6)) >= s.stock_release_after_inactive_minutes
+      AND n.cart_reminder_sent_at IS NOT NULL
+      AND n.cart_reminder_sent_at >= o.updated_at
+      AND (
+        n.cart_reminder_sent_at < DATE_ADD(o.updated_at, INTERVAL s.stock_release_after_inactive_minutes MINUTE)
+        OR TIMESTAMPDIFF(MINUTE, n.cart_reminder_sent_at, NOW(6)) >= ?
+      )
     ORDER BY o.updated_at ASC
     LIMIT ?
     `,
-    [Number(limit)],
+    [getLateReminderGraceMinutes(), Number(limit)],
   );
 
   return rows || [];
@@ -377,9 +392,11 @@ async function releaseOrderStock(order) {
         o.price,
         o.updated_at,
         s.stock_release_after_inactive_minutes,
+        n.cart_reminder_sent_at,
         TIMESTAMPDIFF(MINUTE, o.updated_at, NOW(6)) AS inactive_minutes
       FROM orders o
       JOIN shop s ON s.id = o.shop_id
+      LEFT JOIN order_lifecycle_notice n ON n.order_id = o.id
       WHERE o.id = ? AND o.shop_id = ?
       FOR UPDATE
       `,
@@ -396,6 +413,25 @@ async function releaseOrderStock(order) {
     if (!(releaseAfter > 0) || inactiveMinutes < releaseAfter) {
       await conn.rollback();
       return { released: false, reason: "not_expired" };
+    }
+
+    const reminderAt = lockedOrder.cart_reminder_sent_at
+      ? new Date(lockedOrder.cart_reminder_sent_at).getTime()
+      : NaN;
+    const updatedAt = lockedOrder.updated_at
+      ? new Date(lockedOrder.updated_at).getTime()
+      : NaN;
+
+    if (!Number.isFinite(reminderAt) || !Number.isFinite(updatedAt) || reminderAt < updatedAt) {
+      await conn.rollback();
+      return { released: false, reason: "reminder_not_sent" };
+    }
+
+    const scheduledReleaseAt = updatedAt + releaseAfter * 60_000;
+    const lateGraceMs = getLateReminderGraceMinutes() * 60_000;
+    if (reminderAt >= scheduledReleaseAt && Date.now() - reminderAt < lateGraceMs) {
+      await conn.rollback();
+      return { released: false, reason: "late_reminder_grace" };
     }
 
     const [items] = await conn.query(
@@ -500,8 +536,8 @@ async function runInactiveOrderLifecycleOnce() {
   workerState.running = true;
 
   try {
-    const released = await processStockReleaseBatch();
     const reminders = await processReminderBatch();
+    const released = await processStockReleaseBatch();
     if (released || reminders) {
       console.log("[inactive-order-lifecycle]", { released, reminders });
     }

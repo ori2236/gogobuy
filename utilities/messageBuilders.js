@@ -1,7 +1,8 @@
 const { normalizeIncomingQuestions } = require("../utilities/normalize");
 const { promoToShortText } = require("../utilities/promotions");
+const { boldProductName } = require("./productMessaging");
 
-const bold = (s) => (s ? `*${s}*` : "");
+const bold = (s) => (s ? `*${String(s).replace(/[*_~`]+/g, "")}*` : "");
 
 function buildItemsBlock({ items, isEnglish, mode }) {
   if (!Array.isArray(items) || !items.length) return "";
@@ -21,6 +22,7 @@ function buildItemsBlock({ items, isEnglish, mode }) {
     if (!it || !it.name) continue;
 
     const name = it.name;
+    const boldName = boldProductName(name);
     const qty = Number(it.amount);
     if (!Number.isFinite(qty) || qty <= 0) continue;
 
@@ -63,7 +65,7 @@ function buildItemsBlock({ items, isEnglish, mode }) {
       // unit items
       if (qty === 1) {
         // show final line price (maybe promo)
-        lines.push(`• ${name} - ₪${lineTotal.toFixed(2)}${promoBadge}`);
+        lines.push(`• ${boldName} - ₪${lineTotal.toFixed(2)}${promoBadge}`);
       } else {
         const eachSuffix = isEnglish ? "each" : "ליח'";
 
@@ -76,7 +78,7 @@ function buildItemsBlock({ items, isEnglish, mode }) {
           : `₪${unitPrice.toFixed(2)} ${eachSuffix}`;
 
         lines.push(
-          `• ${name} × ${qty} - ₪${lineTotal.toFixed(
+          `• ${boldName} × ${qty} - ₪${lineTotal.toFixed(
             2,
           )} (${eachText})${promoBadge}`,
         );
@@ -88,7 +90,7 @@ function buildItemsBlock({ items, isEnglish, mode }) {
     if (units) {
       if (isEnglish) {
         lines.push(
-          `• ${name} × ${qty} - ₪${lineTotal.toFixed(2)}${
+          `• ${boldName} × ${qty} - ₪${lineTotal.toFixed(2)}${
             hasUnitPrice
               ? ` (₪${unitPrice.toFixed(2)} per kg, approx for ${units} units)`
               : ""
@@ -96,7 +98,7 @@ function buildItemsBlock({ items, isEnglish, mode }) {
         );
       } else {
         lines.push(
-          `• ${name} × ${qty} - ₪${lineTotal.toFixed(2)}${
+          `• ${boldName} × ${qty} - ₪${lineTotal.toFixed(2)}${
             hasUnitPrice
               ? ` (₪${unitPrice.toFixed(2)} לק"ג, מחיר משוערך ל${units} יחידות)`
               : ""
@@ -106,13 +108,13 @@ function buildItemsBlock({ items, isEnglish, mode }) {
     } else {
       if (isEnglish) {
         lines.push(
-          `• ${name} × ${qty} - ₪${lineTotal.toFixed(2)}${
+          `• ${boldName} × ${qty} - ₪${lineTotal.toFixed(2)}${
             hasUnitPrice ? ` (₪${unitPrice.toFixed(2)} per kg)` : ""
           }${promoBadge}`,
         );
       } else {
         lines.push(
-          `• ${name} × ${qty} - ₪${lineTotal.toFixed(2)}${
+          `• ${boldName} × ${qty} - ₪${lineTotal.toFixed(2)}${
             hasUnitPrice ? ` (₪${unitPrice.toFixed(2)} לק"ג)` : ""
           }${promoBadge}`,
         );

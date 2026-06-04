@@ -26,6 +26,10 @@ const {
 const {
   buildBundlePromotionFollowUps,
 } = require("../../services/orderSuggestions");
+const {
+  areProductAlternativesEnabled,
+  buildUnavailableProductsBlock,
+} = require("../../utilities/productMessaging");
 
 const PROMPT_CAT = "ORD";
 const PROMPT_SUB = "CREATE";
@@ -165,6 +169,8 @@ module.exports = {
       return finalMessage;
     }
 
+    const suggestAlternatives = areProductAlternativesEnabled();
+
     const { found, notFound } = await searchProducts(shop_id, reqProducts);
 
     console.log(
@@ -271,11 +277,13 @@ module.exports = {
       ? orderRes.insufficient.length
       : 0;
 
-    const notFoundEligibleCount = notFound.filter((nf) => {
-      const cat = (nf.category || "").trim();
-      const sub = (nf.sub_category || "").trim();
-      return !!cat || !!sub;
-    }).length;
+    const notFoundEligibleCount = suggestAlternatives
+      ? notFound.filter((nf) => {
+          const cat = (nf.category || "").trim();
+          const sub = (nf.sub_category || "").trim();
+          return !!cat || !!sub;
+        }).length
+      : 0;
 
     const baseQuestionsCount = filteredModelQuestions.length;
     const forceShort =
@@ -283,24 +291,34 @@ module.exports = {
 
     const altLimit = forceShort ? 2 : 3;
 
-    const { altQuestions, alternativesMap } = await buildAlternativeQuestions(
-      shop_id,
-      notFound,
-      foundIdsSet,
-      isEnglish,
-      "",
-      {
-        baseQuestionsCount,
-        forceShort,
-        threshold: 3,
-        shortLimit: 2,
-        longLimit: 3,
-      },
-    );
+    const { altQuestions, alternativesMap } = suggestAlternatives
+      ? await buildAlternativeQuestions(
+          shop_id,
+          notFound,
+          foundIdsSet,
+          isEnglish,
+          "",
+          {
+            baseQuestionsCount,
+            forceShort,
+            threshold: 3,
+            shortLimit: 2,
+            longLimit: 3,
+          },
+        )
+      : { altQuestions: [], alternativesMap: {} };
+
+    const unavailableProductsBlock = suggestAlternatives
+      ? ""
+      : buildUnavailableProductsBlock({
+          notFound,
+          insufficient: orderRes.insufficient || [],
+          isEnglish,
+        });
 
     // questions about the stock
     const stockAltQuestions = [];
-    if (Array.isArray(orderRes.insufficient) && orderRes.insufficient.length) {
+    if (suggestAlternatives && Array.isArray(orderRes.insufficient) && orderRes.insufficient.length) {
       for (const miss of orderRes.insufficient) {
         const reqName = (
           isEnglish
@@ -403,7 +421,7 @@ module.exports = {
         .map((q) => `• ${q.question}`)
         .join("\n");
 
-      const finalMessage = [summaryLine, questionsLines]
+      const finalMessage = [summaryLine, unavailableProductsBlock, questionsLines]
         .filter(Boolean)
         .join("\n\n");
 
@@ -526,6 +544,7 @@ module.exports = {
 
     const finalMessage = [
       orderSummaryBlock,
+      unavailableProductsBlock,
       limitWarningsBlock,
       fractionalWarningsBlock,
       questionsBlock,

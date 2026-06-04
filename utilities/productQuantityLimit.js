@@ -1,3 +1,5 @@
+const { boldProductName } = require("./productMessaging");
+
 function normalizeMaxPerProduct(maxPerProduct, fallback = 10) {
   const n = Number(maxPerProduct);
   if (!Number.isFinite(n) || n <= 0) return fallback;
@@ -29,7 +31,7 @@ function buildQuantityLimitWarningBlock({ warnings, isEnglish }) {
           soldByWeight: !!w.sold_by_weight,
           isEnglish: true,
         });
-        return `• ${w.name}: you asked for ${formatQuantity(w.original)} ${unit}, so I added ${formatQuantity(w.capped)} ${unit}.`;
+        return `• ${boldProductName(w.name)}: you asked for ${formatQuantity(w.original)} ${unit}, so I added ${formatQuantity(w.capped)} ${unit}.`;
       }),
     ].join("\n");
   }
@@ -41,7 +43,7 @@ function buildQuantityLimitWarningBlock({ warnings, isEnglish }) {
         soldByWeight: !!w.sold_by_weight,
         isEnglish: false,
       });
-      return `• ${w.name}: ביקשת ${formatQuantity(w.original)} ${unit}, שמתי ${formatQuantity(w.capped)} ${unit}.`;
+      return `• ${boldProductName(w.name)}: ביקשת ${formatQuantity(w.original)} ${unit}, שמתי ${formatQuantity(w.capped)} ${unit}.`;
     }),
   ].join("\n");
 }

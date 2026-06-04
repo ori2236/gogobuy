@@ -33,6 +33,12 @@ const {
 const {
   buildBundlePromotionFollowUps,
 } = require("../../services/orderSuggestions");
+const {
+  areProductAlternativesEnabled,
+  buildModifyNotSoldLine,
+  buildModifyOutOfStockLine,
+  buildModifyUnavailableBlock,
+} = require("../../utilities/productMessaging");
 
 const PROMPT_CAT = "ORD";
 const PROMPT_SUB = "MODIFY";
@@ -147,6 +153,8 @@ async function applyOrderPatch({
 }) {
   const conn = await db.getConnection();
   const stockQuestions = [];
+  const stockNotices = [];
+  const suggestAlternatives = areProductAlternativesEnabled();
   let altTemplateIdx = 0;
 
   const threshold = 3;
@@ -385,48 +393,63 @@ async function applyOrderPatch({
           row.amount = newQty;
           row.sold_by_weight = sbw ? 1 : 0;
         } else {
-          const tpl = pickAltTemplate(isEnglish, altTemplateIdx++);
           const mainName = display(row);
+          let alts = [];
 
-          const excludeTokens = getExcludeTokensFromReq(s);
+          if (suggestAlternatives) {
+            const tpl = pickAltTemplate(isEnglish, altTemplateIdx++);
+            const excludeTokens = getExcludeTokensFromReq(s);
 
-          const alts = await fetchAlternatives(
-            shop_id,
-            row.category || prod?.category || null,
-            row.sub_category || prod?.sub_category || null,
-            [Number(row.product_id)],
-            nextAltLimit(),
-            mainName,
-            excludeTokens,
-          );
+            alts = await fetchAlternatives(
+              shop_id,
+              row.category || prod?.category || null,
+              row.sub_category || prod?.sub_category || null,
+              [Number(row.product_id)],
+              nextAltLimit(),
+              mainName,
+              excludeTokens,
+            );
 
-          const altNames = alts.map((a) => display(a));
+            const altNames = alts.map((a) => display(a));
+
+            stockQuestions.push({
+              name: mainName,
+              question: altNames.length
+                ? isEnglish
+                  ? `${mainName} is short on stock for the requested increase (requested +${delta}, available ${
+                      stock === Infinity ? "unlimited" : stock
+                    }). ${tpl(mainName, altNames)}`
+                  : `${mainName} חסר במלאי להגדלה שביקשת (תוספת ${delta}, זמינות ${
+                      stock === Infinity ? "לא מוגבל" : stock
+                    }). ${tpl(mainName, altNames)}`
+                : isEnglish
+                  ? `${mainName} is short on stock for the requested increase (requested +${delta}, available ${
+                      stock === Infinity ? "unlimited" : stock
+                    }). Would you like a replacement or should I keep the current quantity?`
+                  : `${mainName} חסר במלאי להגדלה שביקשת (תוספת ${delta}, זמינות ${
+                      stock === Infinity ? "לא מוגבל" : stock
+                    }). להציע חלופה או להשאיר את הכמות הנוכחית?`,
+              options: altNames,
+            });
+          } else {
+            stockNotices.push(
+              buildModifyOutOfStockLine(
+                {
+                  name: mainName,
+                  requestedAmount: delta,
+                  available: stock === Infinity ? null : stock,
+                  keepCurrent: true,
+                },
+                isEnglish,
+              ),
+            );
+          }
 
           insufficientExistingIncreases.push({
             name: mainName,
             requested_delta: delta,
             available: stock === Infinity ? null : stock,
             alternatives: alts,
-          });
-
-          stockQuestions.push({
-            name: mainName,
-            question: altNames.length
-              ? isEnglish
-                ? `${mainName} is short on stock for the requested increase (requested +${delta}, available ${
-                    stock === Infinity ? "unlimited" : stock
-                  }). ${tpl(mainName, altNames)}`
-                : `${mainName} חסר במלאי להגדלה שביקשת (תוספת ${delta}, זמינות ${
-                    stock === Infinity ? "לא מוגבל" : stock
-                  }). ${tpl(mainName, altNames)}`
-              : isEnglish
-                ? `${mainName} is short on stock for the requested increase (requested +${delta}, available ${
-                    stock === Infinity ? "unlimited" : stock
-                  }). Would you like a replacement or should I keep the current quantity?`
-                : `${mainName} חסר במלאי להגדלה שביקשת (תוספת ${delta}, זמינות ${
-                    stock === Infinity ? "לא מוגבל" : stock
-                  }). להציע חלופה או להשאיר את הכמות הנוכחית?`,
-            options: altNames,
           });
         }
       } else {
@@ -497,21 +520,40 @@ async function applyOrderPatch({
           : null,
       });
 
-      // product not found in shop -> ask alternatives
+      // product not found in shop
       if (!row) {
         const cat = (p.category || "").trim() || null;
         const sub = (p["sub-category"] || p.sub_category || "").trim() || null;
 
-        const excludeTokens = getExcludeTokensFromReq(p);
-        const alts = await fetchAlternatives(
-          shop_id,
-          cat,
-          sub,
-          [],
-          nextAltLimit(),
-          p.name,
-          excludeTokens,
-        );
+        let alts = [];
+        if (suggestAlternatives) {
+          const excludeTokens = getExcludeTokensFromReq(p);
+          alts = await fetchAlternatives(
+            shop_id,
+            cat,
+            sub,
+            [],
+            nextAltLimit(),
+            p.name,
+            excludeTokens,
+          );
+
+          const altNames = alts.map((a) => display(a));
+          const tpl = pickAltTemplate(isEnglish, altTemplateIdx++);
+          const subject = subjectForReq(p);
+
+          stockQuestions.push({
+            name: p.name,
+            question: altNames.length
+              ? tpl(subject, altNames)
+              : isEnglish
+                ? `Couldn't find "${subject}". Would you like a replacement or should I skip it?`
+                : `לא מצאתי "${p.name}". להציע חלופה או לדלג?`,
+            options: altNames,
+          });
+        } else {
+          stockNotices.push(buildModifyNotSoldLine(subjectForReq(p) || p.name, isEnglish));
+        }
 
         notFoundAdds.push({
           requested: {
@@ -521,20 +563,6 @@ async function applyOrderPatch({
             sub_category: sub,
           },
           alternatives: alts,
-        });
-
-        const altNames = alts.map((a) => display(a));
-        const tpl = pickAltTemplate(isEnglish, altTemplateIdx++);
-        const subject = subjectForReq(p);
-
-        stockQuestions.push({
-          name: p.name,
-          question: altNames.length
-            ? tpl(subject, altNames)
-            : isEnglish
-              ? `Couldn't find "${subject}". Would you like a replacement or should I skip it?`
-              : `לא מצאתי "${p.name}". להציע חלופה או לדלג?`,
-          options: altNames,
         });
 
         continue;
@@ -717,47 +745,61 @@ async function applyOrderPatch({
           ? (row.display_name_en && row.display_name_en.trim()) || row.name
           : row.name;
 
-        const excludeTokens = getExcludeTokensFromReq(p);
+        let alts = [];
+        if (suggestAlternatives) {
+          const excludeTokens = getExcludeTokensFromReq(p);
 
-        const alts = await fetchAlternatives(
-          shop_id,
-          prod?.category || row.category || null,
-          prod?.sub_category || row.sub_category || null,
-          [pid],
-          nextAltLimit(),
-          mainName,
-          excludeTokens,
-        );
+          alts = await fetchAlternatives(
+            shop_id,
+            prod?.category || row.category || null,
+            prod?.sub_category || row.sub_category || null,
+            [pid],
+            nextAltLimit(),
+            mainName,
+            excludeTokens,
+          );
+
+          const altNames = alts.map((a) => display(a));
+          const tpl = pickAltTemplate(isEnglish, altTemplateIdx++);
+          const subject = subjectForReq(p);
+
+          stockQuestions.push({
+            name: p.name,
+            question: altNames.length
+              ? isEnglish
+                ? `${mainName} is short on stock (requested ${actualDelta}, available ${
+                    stock === Infinity ? "unlimited" : stock
+                  }). ${tpl(subject, altNames)}`
+                : `${mainName} חסר במלאי (התבקשה כמות ${actualDelta}, זמינות ${
+                    stock === Infinity ? "לא מוגבל" : stock
+                  }). ${tpl(p.name, altNames)}`
+              : isEnglish
+                ? `${mainName} is short on stock (requested ${actualDelta}, available ${
+                    stock === Infinity ? "unlimited" : stock
+                  }). Would you like a replacement or should I skip it?`
+                : `${mainName} חסר במלאי (התבקשה כמות ${actualDelta}, זמינות ${
+                    stock === Infinity ? "לא מוגבל" : stock
+                  }). להציע חלופה או לדלג?`,
+            options: altNames,
+          });
+        } else {
+          stockNotices.push(
+            buildModifyOutOfStockLine(
+              {
+                name: mainName,
+                requestedAmount: actualDelta,
+                available: stock === Infinity ? null : stock,
+              },
+              isEnglish,
+            ),
+          );
+        }
 
         insufficientNewAdds.push({
           name: row.name,
           requested: actualDelta,
           available: stock === Infinity ? null : stock,
           alternatives: alts,
-        });
-
-        const altNames = alts.map((a) => display(a));
-        const tpl = pickAltTemplate(isEnglish, altTemplateIdx++);
-        const subject = subjectForReq(p);
-
-        stockQuestions.push({
-          name: p.name,
-          question: altNames.length
-            ? isEnglish
-              ? `${mainName} is short on stock (requested ${actualDelta}, available ${
-                  stock === Infinity ? "unlimited" : stock
-                }). ${tpl(subject, altNames)}`
-              : `${mainName} חסר במלאי (התבקשה כמות ${actualDelta}, זמינות ${
-                  stock === Infinity ? "לא מוגבל" : stock
-                }). ${tpl(p.name, altNames)}`
-            : isEnglish
-              ? `${mainName} is short on stock (requested ${actualDelta}, available ${
-                  stock === Infinity ? "unlimited" : stock
-                }). Would you like a replacement or should I skip it?`
-              : `${mainName} חסר במלאי (התבקשה כמות ${actualDelta}, זמינות ${
-                  stock === Infinity ? "לא מוגבל" : stock
-                }). להציע חלופה או לדלג?`,
-          options: altNames,
         });
       }
     }
@@ -840,6 +882,7 @@ async function applyOrderPatch({
         };
       }),
       questions: stockQuestions,
+      noticesBlock: buildModifyUnavailableBlock(stockNotices, isEnglish),
       meta: {
         removedApplied,
         qtyIncreased,
@@ -1111,7 +1154,7 @@ module.exports = {
           .map((q) => `• ${q.question}`)
           .join("\n");
 
-        return [summaryLine, questionsLines].filter(Boolean).join("\n\n");
+        return [summaryLine, txRes.noticesBlock, questionsLines].filter(Boolean).join("\n\n");
       }
 
       //there is items in the order
@@ -1163,6 +1206,7 @@ module.exports = {
 
       const finalMessage = [
         orderSummaryBlock,
+        txRes.noticesBlock,
         limitWarningsBlock,
         questionsBlock,
       ]

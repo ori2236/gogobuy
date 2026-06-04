@@ -17,6 +17,9 @@ const SHOP_EXTRA_COLUMNS = {
   cart_empty_reminder_minutes: "INT UNSIGNED NOT NULL DEFAULT 5",
   stock_release_after_inactive_minutes: "INT UNSIGNED NOT NULL DEFAULT 30",
   max_order_quantity_per_product: "INT UNSIGNED NOT NULL DEFAULT 10",
+  order_same_day_cutoff_time: "TIME NOT NULL DEFAULT '15:00:00'",
+  delivery_arrival_start_time: "TIME DEFAULT NULL",
+  delivery_arrival_end_time: "TIME DEFAULT NULL",
 };
 
 const DAYS = [0, 1, 2, 3, 4, 5, 6];
@@ -106,10 +109,10 @@ function cleanDate(value) {
   return s;
 }
 
-async function hasColumn(conn, tableName, columnName) {
+async function getColumnInfo(conn, tableName, columnName) {
   const [rows] = await conn.query(
     `
-    SELECT 1
+    SELECT IS_NULLABLE, COLUMN_DEFAULT, DATA_TYPE, COLUMN_TYPE
     FROM INFORMATION_SCHEMA.COLUMNS
     WHERE TABLE_SCHEMA = DATABASE()
       AND TABLE_NAME = ?
@@ -118,7 +121,11 @@ async function hasColumn(conn, tableName, columnName) {
     `,
     [tableName, columnName],
   );
-  return rows.length > 0;
+  return rows[0] || null;
+}
+
+async function hasColumn(conn, tableName, columnName) {
+  return Boolean(await getColumnInfo(conn, tableName, columnName));
 }
 
 async function ensureShopSettingsSchema(conn) {
@@ -146,6 +153,20 @@ async function ensureShopSettingsSchema(conn) {
     await conn.query(
       `UPDATE shop SET min_pickup_order_amount = COALESCE(NULLIF(min_order_amount, 0), min_pickup_order_amount)`,
     );
+  }
+
+  const cutoffColumn = await getColumnInfo(conn, "shop", "order_same_day_cutoff_time");
+  if (cutoffColumn) {
+    await conn.query(
+      `UPDATE shop SET order_same_day_cutoff_time = '15:00:00' WHERE order_same_day_cutoff_time IS NULL`,
+    );
+
+    const defaultValue = String(cutoffColumn.COLUMN_DEFAULT || "");
+    if (cutoffColumn.IS_NULLABLE === "YES" || defaultValue !== "15:00:00") {
+      await conn.query(
+        `ALTER TABLE shop MODIFY COLUMN order_same_day_cutoff_time TIME NOT NULL DEFAULT '15:00:00'`,
+      );
+    }
   }
 
   await conn.query(`
@@ -299,7 +320,10 @@ exports.getBusinessSettings = async (req, res) => {
         delivery_fee,
         cart_empty_reminder_minutes,
         stock_release_after_inactive_minutes,
-        max_order_quantity_per_product
+        max_order_quantity_per_product,
+        TIME_FORMAT(order_same_day_cutoff_time, '%H:%i') AS order_same_day_cutoff_time,
+        TIME_FORMAT(delivery_arrival_start_time, '%H:%i') AS delivery_arrival_start_time,
+        TIME_FORMAT(delivery_arrival_end_time, '%H:%i') AS delivery_arrival_end_time
       FROM shop
       WHERE id = ?
       LIMIT 1
@@ -419,6 +443,27 @@ exports.updateBusinessSettings = async (req, res) => {
     const address = cleanRequiredText(info.address, "Address", 255);
 
     await ensureShopSettingsSchema(conn);
+
+    const orderSameDayCutoffTime = cleanTime(info.order_same_day_cutoff_time) || "15:00:00";
+    const deliveryArrivalStartTime = cleanTime(
+      info.delivery_arrival_start_time ?? info.deliveryArrivalStartTime,
+    );
+    const deliveryArrivalEndTime = cleanTime(
+      info.delivery_arrival_end_time ?? info.deliveryArrivalEndTime,
+    );
+
+    if ((deliveryArrivalStartTime && !deliveryArrivalEndTime) || (!deliveryArrivalStartTime && deliveryArrivalEndTime)) {
+      const err = new Error("בשעות הגעה ללקוחות צריך למלא גם שעת התחלה וגם שעת סיום");
+      err.status = 400;
+      throw err;
+    }
+
+    if (deliveryArrivalStartTime && deliveryArrivalEndTime && deliveryArrivalStartTime >= deliveryArrivalEndTime) {
+      const err = new Error("שעת סיום ההגעה חייבת להיות אחרי שעת ההתחלה");
+      err.status = 400;
+      throw err;
+    }
+
     await conn.beginTransaction();
 
     await conn.query(
@@ -443,7 +488,10 @@ exports.updateBusinessSettings = async (req, res) => {
         delivery_fee = ?,
         cart_empty_reminder_minutes = ?,
         stock_release_after_inactive_minutes = ?,
-        max_order_quantity_per_product = ?
+        max_order_quantity_per_product = ?,
+        order_same_day_cutoff_time = ?,
+        delivery_arrival_start_time = ?,
+        delivery_arrival_end_time = ?
       WHERE id = ?
       `,
       [
@@ -474,6 +522,9 @@ exports.updateBusinessSettings = async (req, res) => {
           }
           return [cartReminder, stockRelease, maxPerProduct];
         })(),
+        orderSameDayCutoffTime,
+        deliveryArrivalStartTime,
+        deliveryArrivalEndTime,
         shopId,
       ],
     );

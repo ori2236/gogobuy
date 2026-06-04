@@ -1,5 +1,6 @@
 const db = require("../config/db");
 const { addDec, addMoney, mulMoney } = require("./decimal");
+const { areProductAlternativesEnabled } = require("./productMessaging");
 
 function mergeDuplicateLineItems(lineItems) {
   const byId = new Map();
@@ -264,15 +265,17 @@ async function createOrderWithStockReserve({
         ]);
         const exclude = Array.from(excludeSet);
 
-        const alts = await fetchAlternativesWithStock(
-          shop_id,
-          p.category,
-          p.sub_category,
-          reqQty,
-          exclude,
-          3,
-          conn
-        );
+        const alts = areProductAlternativesEnabled()
+          ? await fetchAlternativesWithStock(
+              shop_id,
+              p.category,
+              p.sub_category,
+              reqQty,
+              exclude,
+              3,
+              conn
+            )
+          : [];
 
         insufficient.push({
           product_id: p.id,
