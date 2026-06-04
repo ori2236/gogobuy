@@ -18,8 +18,8 @@ const SHOP_EXTRA_COLUMNS = {
   stock_release_after_inactive_minutes: "INT UNSIGNED NOT NULL DEFAULT 30",
   max_order_quantity_per_product: "INT UNSIGNED NOT NULL DEFAULT 10",
   order_same_day_cutoff_time: "TIME NOT NULL DEFAULT '15:00:00'",
-  delivery_arrival_start_time: "TIME DEFAULT NULL",
-  delivery_arrival_end_time: "TIME DEFAULT NULL",
+  delivery_arrival_start_time: "TIME NOT NULL DEFAULT '16:00:00'",
+  delivery_arrival_end_time: "TIME NOT NULL DEFAULT '18:00:00'",
 };
 
 const DAYS = [0, 1, 2, 3, 4, 5, 6];
@@ -168,6 +168,11 @@ async function ensureShopSettingsSchema(conn) {
       );
     }
   }
+
+  await conn.query(`UPDATE shop SET delivery_arrival_start_time = '16:00:00' WHERE delivery_arrival_start_time IS NULL`);
+  await conn.query(`UPDATE shop SET delivery_arrival_end_time = '18:00:00' WHERE delivery_arrival_end_time IS NULL`);
+  await conn.query(`ALTER TABLE shop MODIFY COLUMN delivery_arrival_start_time TIME NOT NULL DEFAULT '16:00:00'`);
+  await conn.query(`ALTER TABLE shop MODIFY COLUMN delivery_arrival_end_time TIME NOT NULL DEFAULT '18:00:00'`);
 
   await conn.query(`
     CREATE TABLE IF NOT EXISTS shop_regular_hours (
@@ -447,10 +452,10 @@ exports.updateBusinessSettings = async (req, res) => {
     const orderSameDayCutoffTime = cleanTime(info.order_same_day_cutoff_time) || "15:00:00";
     const deliveryArrivalStartTime = cleanTime(
       info.delivery_arrival_start_time ?? info.deliveryArrivalStartTime,
-    );
+    ) || "16:00:00";
     const deliveryArrivalEndTime = cleanTime(
       info.delivery_arrival_end_time ?? info.deliveryArrivalEndTime,
-    );
+    ) || "18:00:00";
 
     if ((deliveryArrivalStartTime && !deliveryArrivalEndTime) || (!deliveryArrivalStartTime && deliveryArrivalEndTime)) {
       const err = new Error("בשעות הגעה ללקוחות צריך למלא גם שעת התחלה וגם שעת סיום");

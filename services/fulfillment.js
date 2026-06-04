@@ -1,5 +1,5 @@
 const db = require("../config/db");
-const { buildDeliveryTimingMessage, calculateDeliveryTiming } = require("../utilities/deliveryTiming");
+const { buildDeliveryTimingMessage, buildStoredDeliveryTimingMessage, calculateDeliveryTiming } = require("../utilities/deliveryTiming");
 const { saveOpenQuestions, closeQuestionsByIds } = require("../utilities/openQuestions");
 const { detectIsEnglish } = require("../utilities/lang");
 const { chat } = require("../config/openai");
@@ -873,17 +873,11 @@ function buildFulfillmentSummaryForCheckout(order, isEnglish) {
       lines.push("📦 Receiving method: home delivery");
       if (order.delivery_address) lines.push(`📍 Address: ${order.delivery_address}`);
       if (Number(order.delivery_fee) > 0) lines.push(`🏍️ Delivery fee: ₪${fmtMoney(order.delivery_fee)}`);
-      if (order.delivery_expected_date && order.delivery_expected_start_time && order.delivery_expected_end_time) {
-        lines.push(`🚚 Estimated arrival: ${order.delivery_expected_date} between ${order.delivery_expected_start_time}-${order.delivery_expected_end_time}`);
-      }
       lines.push(`💰 Total including delivery: ₪${fmtMoney(order.price)}`);
     } else {
       lines.push("📦 אופן קבלה: משלוח עד הבית");
       if (order.delivery_address) lines.push(`📍 כתובת למשלוח: ${order.delivery_address}`);
       if (Number(order.delivery_fee) > 0) lines.push(`🏍️ דמי משלוח: ₪${fmtMoney(order.delivery_fee)}`);
-      if (order.delivery_expected_date && order.delivery_expected_start_time && order.delivery_expected_end_time) {
-        lines.push(`🚚 זמן הגעה משוער: ${order.delivery_expected_date} בין ${order.delivery_expected_start_time}-${order.delivery_expected_end_time}`);
-      }
       lines.push(`💰 סה״כ כולל משלוח: ₪${fmtMoney(order.price)}`);
     }
   } else if (method === "pickup") {
@@ -907,10 +901,21 @@ async function buildCheckoutInstructionForOrder({ order_id, shop_id, isEnglish }
   const lines = [];
   if (summary) lines.push(summary, "");
 
-  if (isDelivery && !(order?.delivery_expected_date && order?.delivery_expected_start_time && order?.delivery_expected_end_time)) {
-    const shop = await getShopFulfillment(shop_id);
-    const deliveryTiming = buildDeliveryTimingMessage({ shop, isEnglish, includeCutoff: true }).text;
-    if (deliveryTiming) lines.push(deliveryTiming, "");
+  if (isDelivery) {
+    const storedDeliveryTiming = buildStoredDeliveryTimingMessage({
+      expectedDate: order?.delivery_expected_date,
+      arrivalStart: order?.delivery_expected_start_time,
+      arrivalEnd: order?.delivery_expected_end_time,
+      isEnglish,
+    });
+
+    if (storedDeliveryTiming) {
+      lines.push(storedDeliveryTiming, "");
+    } else {
+      const shop = await getShopFulfillment(shop_id);
+      const deliveryTiming = buildDeliveryTimingMessage({ shop, isEnglish, includeCutoff: true }).text;
+      if (deliveryTiming) lines.push(deliveryTiming, "");
+    }
   }
 
   if (isEnglish) {
@@ -1062,6 +1067,20 @@ async function finishFulfillmentStep({ activeOrder, shop_id, isEnglish, prefix =
     const instruction = await moveOrderToCheckoutPending({ order_id: activeOrder.id, shop_id, isEnglish, customer_id: customer_id || activeOrder.customer_id, maxPerProduct });
     return [prefix, instruction].filter(Boolean).join("\n\n");
   }
+
+  const order = await getOrderForCheckout(activeOrder.id, shop_id);
+  if (String(order?.fulfillment_method || "") === "delivery") {
+    const storedDeliveryTiming = buildStoredDeliveryTimingMessage({
+      expectedDate: order.delivery_expected_date,
+      arrivalStart: order.delivery_expected_start_time,
+      arrivalEnd: order.delivery_expected_end_time,
+      isEnglish,
+    });
+    if (storedDeliveryTiming) {
+      return [prefix || (isEnglish ? "Updated." : "עודכן."), storedDeliveryTiming].filter(Boolean).join("\n\n");
+    }
+  }
+
   return prefix || (isEnglish ? "Updated." : "עודכן.");
 }
 

@@ -16,8 +16,8 @@ const SHOP_EXTRA_COLUMNS = {
   stock_release_after_inactive_minutes: "INT UNSIGNED NOT NULL DEFAULT 30",
   max_order_quantity_per_product: "INT UNSIGNED NOT NULL DEFAULT 10",
   order_same_day_cutoff_time: "TIME NOT NULL DEFAULT '15:00:00'",
-  delivery_arrival_start_time: "TIME DEFAULT NULL",
-  delivery_arrival_end_time: "TIME DEFAULT NULL",
+  delivery_arrival_start_time: "TIME NOT NULL DEFAULT '16:00:00'",
+  delivery_arrival_end_time: "TIME NOT NULL DEFAULT '18:00:00'",
 };
 
 let schemaReadyPromise = null;
@@ -77,6 +77,11 @@ async function ensureShopInfoSchema() {
           );
         }
       }
+
+      await db.query(`UPDATE shop SET delivery_arrival_start_time = '16:00:00' WHERE delivery_arrival_start_time IS NULL`);
+      await db.query(`UPDATE shop SET delivery_arrival_end_time = '18:00:00' WHERE delivery_arrival_end_time IS NULL`);
+      await db.query(`ALTER TABLE shop MODIFY COLUMN delivery_arrival_start_time TIME NOT NULL DEFAULT '16:00:00'`);
+      await db.query(`ALTER TABLE shop MODIFY COLUMN delivery_arrival_end_time TIME NOT NULL DEFAULT '18:00:00'`);
 
       await db.query(`
         CREATE TABLE IF NOT EXISTS shop_regular_hours (
@@ -217,8 +222,8 @@ function buildGeneralInfoContext({ info, regularHours, specialHours, now }) {
     `SHOP_INFO=${JSON.stringify(info || {})}`,
     `DELIVERY_TIMING=${JSON.stringify({
       cutoff_time: info?.order_same_day_cutoff_time || "15:00",
-      arrival_start_time: info?.delivery_arrival_start_time || null,
-      arrival_end_time: info?.delivery_arrival_end_time || null,
+      arrival_start_time: info?.delivery_arrival_start_time || "16:00",
+      arrival_end_time: info?.delivery_arrival_end_time || "18:00",
       no_delivery_days: ["Friday", "Saturday"],
       expected_delivery_date_if_confirmed_now: deliveryTiming.expectedDate,
       expected_delivery_date_text_he: deliveryTiming.expectedDateText,

@@ -76,8 +76,8 @@ function calculateDeliveryTiming({
   isEnglish = false,
 } = {}) {
   const cutoff = normalizeTime(shop?.order_same_day_cutoff_time, "15:00");
-  const arrivalStart = normalizeTime(shop?.delivery_arrival_start_time);
-  const arrivalEnd = normalizeTime(shop?.delivery_arrival_end_time);
+  const arrivalStart = normalizeTime(shop?.delivery_arrival_start_time, "16:00");
+  const arrivalEnd = normalizeTime(shop?.delivery_arrival_end_time, "18:00");
   const hasArrivalWindow = Boolean(arrivalStart && arrivalEnd);
   const current = getIsraelDateParts(now);
   const canDeliverToday = BUSINESS_DAYS.has(current.weekday) && current.time <= cutoff;
@@ -96,6 +96,33 @@ function calculateDeliveryTiming({
     currentWeekday: current.weekday,
     hasArrivalWindow,
   };
+}
+
+
+function buildStoredDeliveryTimingMessage({ expectedDate, arrivalStart, arrivalEnd, isEnglish = false } = {}) {
+  const date = String(expectedDate || "").slice(0, 10);
+  const start = normalizeTime(arrivalStart);
+  const end = normalizeTime(arrivalEnd);
+  const windowText = formatTimeRange(start, end);
+  if (!date || !windowText) return "";
+
+  const current = getIsraelDateParts(new Date());
+  const isToday = date === current.isoDate;
+  const dateText = formatIsoDate(date, isEnglish);
+
+  if (isEnglish) {
+    const when = isToday ? "today" : `on the next business delivery day (${dateText})`;
+    return [
+      `🚚 The delivery is expected to arrive ${when} between ${windowText}.`,
+      "📩 We'll notify you when the delivery leaves the store.",
+    ].join("\n");
+  }
+
+  const when = isToday ? "היום" : `ביום העסקים הבא (${dateText})`;
+  return [
+    `🚚 המשלוח צפוי להגיע ${when} בין ${windowText}.`,
+    "📩 תקבל הודעה כשהמשלוח ייצא מהחנות.",
+  ].join("\n");
 }
 
 function buildDeliveryTimingMessage({ shop, isEnglish = false, now = new Date(), includeCutoff = false } = {}) {
@@ -138,5 +165,6 @@ module.exports = {
   formatIsoDate,
   formatTimeRange,
   calculateDeliveryTiming,
+  buildStoredDeliveryTimingMessage,
   buildDeliveryTimingMessage,
 };
