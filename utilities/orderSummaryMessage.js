@@ -1,5 +1,6 @@
 const { roundTo } = require("./decimal");
 const { buildQuestionsBlock } = require("./messageBuilders");
+const { boldProductName } = require("./productMessaging");
 
 const DEFAULT_EMOJI = "🛒";
 const PROMO_INDENT = "       ";

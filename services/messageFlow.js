@@ -540,13 +540,13 @@ async function processMessage(
     botPayload = prependTextToBotPayload(botPayload, onboardingPrefix);
     botPayload = prependTextToBotPayload(botPayload, conversationGreetingPrefix);
 
-    const botText = normalizeOutboundMessage(botPayload);
+    const outboundText = normalizeOutboundMessage(botPayload);
     await saveChat({
       customer_id,
       shop_id,
       sender: "bot",
       status: "classified",
-      message: botText,
+      message: outboundText,
     });
 
     if (botPayload && Array.isArray(botPayload.followUpMessages)) {
