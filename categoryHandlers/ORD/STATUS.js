@@ -1,5 +1,6 @@
 const db = require("../../config/db");
 const { detectIsEnglish } = require("../../utilities/lang");
+const { formatIsoDate } = require("../../utilities/deliveryTiming");
 
 function isDelivery(order) {
   return String(order?.fulfillment_method || "").toLowerCase() === "delivery";
@@ -84,6 +85,9 @@ async function getRecentCustomerOrders(customer_id, shop_id, hours = 24) {
       fulfillment_method,
       delivery_address,
       delivery_fee,
+      DATE_FORMAT(delivery_expected_date, '%Y-%m-%d') AS delivery_expected_date,
+      TIME_FORMAT(delivery_expected_start_time, '%H:%i') AS delivery_expected_start_time,
+      TIME_FORMAT(delivery_expected_end_time, '%H:%i') AS delivery_expected_end_time,
       created_at,
       updated_at
     FROM orders
@@ -114,6 +118,9 @@ function formatOrderLine(order, isEnglish) {
     if (method) parts.push(method);
     parts.push(`₪${total}`);
     if (isDelivery(order) && order.delivery_address) parts.push(`address: ${order.delivery_address}`);
+    if (isDelivery(order) && order.delivery_expected_date && order.delivery_expected_start_time && order.delivery_expected_end_time) {
+      parts.push(`estimated arrival: ${formatIsoDate(order.delivery_expected_date, true)} between ${order.delivery_expected_start_time}-${order.delivery_expected_end_time}`);
+    }
     return `• ${parts.join(" - ")}`;
   }
 
@@ -121,6 +128,9 @@ function formatOrderLine(order, isEnglish) {
   if (method) parts.push(method);
   parts.push(`₪${total}`);
   if (isDelivery(order) && order.delivery_address) parts.push(`כתובת: ${order.delivery_address}`);
+  if (isDelivery(order) && order.delivery_expected_date && order.delivery_expected_start_time && order.delivery_expected_end_time) {
+    parts.push(`הגעה משוערת: ${formatIsoDate(order.delivery_expected_date, false)} בין ${order.delivery_expected_start_time}-${order.delivery_expected_end_time}`);
+  }
   return `• ${parts.join(" - ")}`;
 }
 

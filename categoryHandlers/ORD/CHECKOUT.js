@@ -9,6 +9,7 @@ const {
   moveOrderToCheckoutPending,
   getOrderForCheckout,
 } = require("../../services/fulfillment");
+const { buildDeliveryTimingMessage } = require("../../utilities/deliveryTiming");
 
 function parseCheckoutConfirmation(msg) {
   const raw = String(msg || "").trim();
@@ -25,6 +26,17 @@ function parseCheckoutConfirmation(msg) {
     orderId: Number(m[1]),
     note: note || null,
   };
+}
+
+async function getShopDeliveryTimingInfo(shop_id) {
+  const [[shop]] = await db.query(
+    `SELECT id, order_same_day_cutoff_time, delivery_arrival_start_time, delivery_arrival_end_time
+       FROM shop
+      WHERE id = ?
+      LIMIT 1`,
+    [shop_id],
+  );
+  return shop || null;
 }
 
 function buildCheckoutInstruction({ orderId, isEnglish }) {
@@ -107,15 +119,44 @@ async function checkIfToCheckoutOrder({
           : "\n📝 שמרתי גם את ההערה שלך למלקט."
         : "";
 
-      const confirmedOrder = await getOrderForCheckout(activeOrder.id, shop_id);
+      let confirmedOrder = await getOrderForCheckout(activeOrder.id, shop_id);
+      let deliveryTimingText = "";
+      if (String(confirmedOrder?.fulfillment_method || "") === "delivery") {
+        const shopDeliveryTiming = await getShopDeliveryTimingInfo(shop_id);
+        const deliveryTiming = buildDeliveryTimingMessage({
+          shop: shopDeliveryTiming,
+          isEnglish,
+          includeCutoff: false,
+        });
+        if (deliveryTiming?.timing?.hasArrivalWindow) {
+          await db.query(
+            `UPDATE orders
+                SET delivery_expected_date = ?,
+                    delivery_expected_start_time = ?,
+                    delivery_expected_end_time = ?
+              WHERE id = ? AND shop_id = ?`,
+            [
+              deliveryTiming.timing.expectedDate,
+              deliveryTiming.timing.arrivalStart,
+              deliveryTiming.timing.arrivalEnd,
+              activeOrder.id,
+              shop_id,
+            ],
+          );
+          confirmedOrder = await getOrderForCheckout(activeOrder.id, shop_id);
+        }
+        deliveryTimingText = deliveryTiming?.text ? `
+${deliveryTiming.text}` : "";
+      }
+
       const fulfillmentLine = (() => {
         if (!confirmedOrder) return "";
         if (String(confirmedOrder.fulfillment_method || "") === "delivery") {
           return isEnglish
             ? `
-Total including delivery: ₪${Number(confirmedOrder.price || 0).toFixed(2)}. Delivery address: ${confirmedOrder.delivery_address || "saved address"}.`
+Total including delivery: ₪${Number(confirmedOrder.price || 0).toFixed(2)}. Delivery address: ${confirmedOrder.delivery_address || "saved address"}.${deliveryTimingText}`
             : `
-סה״כ כולל משלוח: ₪${Number(confirmedOrder.price || 0).toFixed(2)}. כתובת למשלוח: ${confirmedOrder.delivery_address || "הכתובת השמורה"}.`;
+סה״כ כולל משלוח: ₪${Number(confirmedOrder.price || 0).toFixed(2)}. כתובת למשלוח: ${confirmedOrder.delivery_address || "הכתובת השמורה"}.${deliveryTimingText}`;
         }
         if (String(confirmedOrder.fulfillment_method || "") === "pickup") {
           return isEnglish

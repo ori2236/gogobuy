@@ -90,6 +90,9 @@ function isOrderStatusQuestion(message) {
   const asksCartContent = /(מה\s+יש\s+(בסל|בעגלה|בהזמנה)|תראה\s+לי\s+(את\s+)?(הסל|העגלה)|סיכום\s+הזמנה|cart|basket|order summary)/i.test(raw);
   if (asksCartContent) return false;
 
+  const asksGeneralDeliveryTiming = /(עד\s+איזה\s+שעה|שעת\s+קבלת|שעות\s+(הגעה|משלוחים)|באיזה\s+שעות\s+.*משלוחים|מתי\s+משלוחים\s+מגיעים|delivery\s+(hours|window|cutoff)|same[-\s]?day\s+delivery)/i.test(raw);
+  if (asksGeneralDeliveryTiming) return false;
+
   return /(מה\s+עם\s+ההזמנה|איפה\s+ההזמנה|סטטוס\s+הזמנה|מה\s+קורה\s+עם\s+ההזמנה|המשלוח\s+יצא|שליח\s+בדרך|ההזמנה\s+מוכנה|מתי\s+מגיע|מתי\s+מוכן|נשלחה|נאספה|status|tracking|where\s+is\s+my\s+order|is\s+my\s+order\s+ready|delivery\s+sent)/i.test(raw);
 }
 

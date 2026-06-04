@@ -42,7 +42,18 @@ module.exports = {
       throw new Error("BUS.GENERAL_INFO: shop_id is required");
     }
 
-    const systemPrompt = await getPromptFromDB(PROMPT_CAT, PROMPT_SUB);
+    const dbPrompt = await getPromptFromDB(PROMPT_CAT, PROMPT_SUB);
+    const deliveryTimingPrompt = `
+
+DELIVERY TIMING RULES
+- The context may include DELIVERY_TIMING. Use it to answer questions about delivery cutoff time, whether an order can still arrive today, estimated delivery date, and customer arrival window.
+- order_same_day_cutoff_time / cutoff_time means: delivery orders confirmed up to and including this time are intended for same-day delivery, if today is a business delivery day.
+- Orders confirmed after the cutoff are scheduled for the next business delivery day.
+- Friday and Saturday are never delivery days, even if the supermarket is open. Skip them when calculating the next delivery day.
+- delivery_arrival_start_time and delivery_arrival_end_time are the estimated delivery arrival window for customers.
+- If DELIVERY_TIMING contains message_he or message_en in the customer's language, you may use that wording directly.
+- If the delivery timing fields are missing, clearly say the delivery timing information is unavailable.`;
+    const systemPrompt = `${dbPrompt || "You answer branch/store information questions using only the provided context."}${deliveryTimingPrompt}`;
 
     const [info, regularHours, specialHours] = await Promise.all([
       getShopInfo(shop_id),

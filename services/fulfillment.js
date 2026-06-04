@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const { buildDeliveryTimingMessage, calculateDeliveryTiming } = require("../utilities/deliveryTiming");
 const { saveOpenQuestions, closeQuestionsByIds } = require("../utilities/openQuestions");
 const { detectIsEnglish } = require("../utilities/lang");
 const { chat } = require("../config/openai");
@@ -134,6 +135,21 @@ async function ensureFulfillmentSchema(conn = db) {
         "delivery_notes",
         "TEXT DEFAULT NULL AFTER delivery_fee",
       );
+      await addOrdersColumnIfMissing(
+        conn,
+        "delivery_expected_date",
+        "DATE DEFAULT NULL AFTER delivery_notes",
+      );
+      await addOrdersColumnIfMissing(
+        conn,
+        "delivery_expected_start_time",
+        "TIME DEFAULT NULL AFTER delivery_expected_date",
+      );
+      await addOrdersColumnIfMissing(
+        conn,
+        "delivery_expected_end_time",
+        "TIME DEFAULT NULL AFTER delivery_expected_start_time",
+      );
 
       await conn.query(`
         CREATE TABLE IF NOT EXISTS customer_delivery_address (
@@ -205,7 +221,7 @@ function getCustomerFirstName(customer) {
 async function getShopFulfillment(shop_id) {
   await ensureFulfillmentSchema();
   const [[row]] = await db.query(
-    `SELECT id, name, supports_delivery, supports_pickup, delivery_fee FROM shop WHERE id = ? LIMIT 1`,
+    `SELECT id, name, supports_delivery, supports_pickup, delivery_fee, order_same_day_cutoff_time, delivery_arrival_start_time, delivery_arrival_end_time FROM shop WHERE id = ? LIMIT 1`,
     [shop_id],
   );
   return row || null;
@@ -800,6 +816,9 @@ async function applyOrderFulfillment({ order_id, shop_id, method, delivery_addre
              delivery_address = ?,
              delivery_fee = ?,
              delivery_notes = NULL,
+             delivery_expected_date = IF(? = 'delivery', delivery_expected_date, NULL),
+             delivery_expected_start_time = IF(? = 'delivery', delivery_expected_start_time, NULL),
+             delivery_expected_end_time = IF(? = 'delivery', delivery_expected_end_time, NULL),
              updated_at = NOW(6)
        WHERE id = ? AND shop_id = ?
       `,
@@ -807,6 +826,9 @@ async function applyOrderFulfillment({ order_id, shop_id, method, delivery_addre
         normalizedMethod,
         normalizedMethod === "delivery" ? cleanText(stripAddressPrefix(delivery_address), 2000) : null,
         fee,
+        normalizedMethod,
+        normalizedMethod,
+        normalizedMethod,
         Number(order_id),
         Number(shop_id),
       ],
@@ -828,7 +850,10 @@ async function getOrderForCheckout(order_id, shop_id) {
   const [[row]] = await db.query(
     `
     SELECT id, shop_id, customer_id, status, price, fulfillment_method,
-           delivery_address, delivery_fee, delivery_notes
+           delivery_address, delivery_fee, delivery_notes,
+           DATE_FORMAT(delivery_expected_date, '%Y-%m-%d') AS delivery_expected_date,
+           TIME_FORMAT(delivery_expected_start_time, '%H:%i') AS delivery_expected_start_time,
+           TIME_FORMAT(delivery_expected_end_time, '%H:%i') AS delivery_expected_end_time
     FROM orders
     WHERE id = ? AND shop_id = ?
     LIMIT 1
@@ -848,11 +873,17 @@ function buildFulfillmentSummaryForCheckout(order, isEnglish) {
       lines.push("📦 Receiving method: home delivery");
       if (order.delivery_address) lines.push(`📍 Address: ${order.delivery_address}`);
       if (Number(order.delivery_fee) > 0) lines.push(`🏍️ Delivery fee: ₪${fmtMoney(order.delivery_fee)}`);
+      if (order.delivery_expected_date && order.delivery_expected_start_time && order.delivery_expected_end_time) {
+        lines.push(`🚚 Estimated arrival: ${order.delivery_expected_date} between ${order.delivery_expected_start_time}-${order.delivery_expected_end_time}`);
+      }
       lines.push(`💰 Total including delivery: ₪${fmtMoney(order.price)}`);
     } else {
       lines.push("📦 אופן קבלה: משלוח עד הבית");
       if (order.delivery_address) lines.push(`📍 כתובת למשלוח: ${order.delivery_address}`);
       if (Number(order.delivery_fee) > 0) lines.push(`🏍️ דמי משלוח: ₪${fmtMoney(order.delivery_fee)}`);
+      if (order.delivery_expected_date && order.delivery_expected_start_time && order.delivery_expected_end_time) {
+        lines.push(`🚚 זמן הגעה משוער: ${order.delivery_expected_date} בין ${order.delivery_expected_start_time}-${order.delivery_expected_end_time}`);
+      }
       lines.push(`💰 סה״כ כולל משלוח: ₪${fmtMoney(order.price)}`);
     }
   } else if (method === "pickup") {
@@ -875,6 +906,12 @@ async function buildCheckoutInstructionForOrder({ order_id, shop_id, isEnglish }
 
   const lines = [];
   if (summary) lines.push(summary, "");
+
+  if (isDelivery && !(order?.delivery_expected_date && order?.delivery_expected_start_time && order?.delivery_expected_end_time)) {
+    const shop = await getShopFulfillment(shop_id);
+    const deliveryTiming = buildDeliveryTimingMessage({ shop, isEnglish, includeCutoff: true }).text;
+    if (deliveryTiming) lines.push(deliveryTiming, "");
+  }
 
   if (isEnglish) {
     lines.push(

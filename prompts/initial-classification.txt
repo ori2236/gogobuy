@@ -14,7 +14,7 @@ INV.AVAIL - questions about current inventory: whether the store has certain pro
 INV.PRICE_AND_SALES - price or promotion of product(s), any questions on cheaper and pricing
 
 BUS - Business info & policies:
-BUS.GENERAL_INFO - store address, phone, WhatsApp, email, Google Maps link, opening hours, special/holiday hours, delivery support, pickup support, or store kashrut or anything general about the business
+BUS.GENERAL_INFO - store address, phone, WhatsApp, email, Google Maps link, opening hours, special/holiday hours, delivery support, pickup support, delivery cutoff time, delivery arrival window, when deliveries arrive, or store kashrut or anything general about the business
 
 Output MUST be exactly one line:
 - "1, <SUB-CATEGORY>"
@@ -62,5 +62,7 @@ EXAMPLES
 - "מה הטלפון/וואטסאפ שלכם?" -> 1, BUS.GENERAL_INFO
 - "יש לכם סניף בחיפה?" -> 1, BUS.GENERAL_INFO
 - "יש לכם משלוחים?" -> 1, BUS.GENERAL_INFO
+- "עד איזה שעה אפשר להזמין משלוח להיום?" -> 1, BUS.GENERAL_INFO
+- "באיזה שעות המשלוחים מגיעים?" -> 1, BUS.GENERAL_INFO
 
 - "שלום" -> 0, איך אפשר לעזור?

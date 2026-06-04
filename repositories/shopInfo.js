@@ -1,4 +1,5 @@
 const db = require("../config/db");
+const { buildDeliveryTimingMessage, calculateDeliveryTiming } = require("../utilities/deliveryTiming");
 
 const SHOP_EXTRA_COLUMNS = {
   google_maps_url: "VARCHAR(512) DEFAULT NULL",
@@ -198,10 +199,34 @@ async function getSpecialHours(shop_id) {
 }
 
 function buildGeneralInfoContext({ info, regularHours, specialHours, now }) {
+  const deliveryTimingHebrew = buildDeliveryTimingMessage({
+    shop: info,
+    isEnglish: false,
+    includeCutoff: true,
+  });
+  const deliveryTimingEnglish = buildDeliveryTimingMessage({
+    shop: info,
+    isEnglish: true,
+    includeCutoff: true,
+  });
+  const deliveryTiming = calculateDeliveryTiming({ shop: info });
+
   return [
     `NOW_ISRAEL=${now.isoDate}`,
     `NOW_ISRAEL_WEEKDAY=${now.weekday}`,
     `SHOP_INFO=${JSON.stringify(info || {})}`,
+    `DELIVERY_TIMING=${JSON.stringify({
+      cutoff_time: info?.order_same_day_cutoff_time || "15:00",
+      arrival_start_time: info?.delivery_arrival_start_time || null,
+      arrival_end_time: info?.delivery_arrival_end_time || null,
+      no_delivery_days: ["Friday", "Saturday"],
+      expected_delivery_date_if_confirmed_now: deliveryTiming.expectedDate,
+      expected_delivery_date_text_he: deliveryTiming.expectedDateText,
+      expected_arrival_window: deliveryTiming.arrivalWindowText || null,
+      same_day_available_if_confirmed_now: deliveryTiming.isToday,
+      message_he: deliveryTimingHebrew.text || null,
+      message_en: deliveryTimingEnglish.text || null,
+    })}`,
     `REGULAR_HOURS=${JSON.stringify(regularHours || [])}`,
     `SPECIAL_HOURS=${JSON.stringify(specialHours || [])}`,
   ].join("\n");
