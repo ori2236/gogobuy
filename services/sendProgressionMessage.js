@@ -83,6 +83,23 @@ const PROGRESS_TEXTS = {
   },
 };
 
+
+function envFlagEnabled(name, fallback = false) {
+  const raw = process.env[name];
+  if (raw === undefined || raw === null || raw === "") return fallback;
+  const value = String(raw).trim().toLowerCase();
+  if (["1", "true", "yes", "y", "on", "enabled", "enable"].includes(value)) return true;
+  if (["0", "false", "no", "n", "off", "disabled", "disable"].includes(value)) return false;
+  return fallback;
+}
+
+function shouldRepeatProgressMessages() {
+  return (
+    envFlagEnabled("REPEAT_PROGRESS_MESSAGES", false) ||
+    envFlagEnabled("PROGRESS_MESSAGES_REPEAT", false)
+  );
+}
+
 function isSlowIntent(category, subcategory) {
   const key = `${String(category).toUpperCase()}.${String(subcategory).toUpperCase()}`;
   return SLOW_INTENTS.has(key);
@@ -195,9 +212,11 @@ function startSlowProgression({
 
     sendProgressOnce();
 
-    progressInterval = setInterval(() => {
-      sendProgressOnce();
-    }, progressEveryMs);
+    if (shouldRepeatProgressMessages()) {
+      progressInterval = setInterval(() => {
+        sendProgressOnce();
+      }, progressEveryMs);
+    }
   }, firstProgressDelay);
 
   return stop;
