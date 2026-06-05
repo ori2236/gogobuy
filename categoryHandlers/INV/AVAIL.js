@@ -55,6 +55,61 @@ function joinNames(names, isEnglish) {
   return isEnglish ? `${allButLast} and ${last}` : `${allButLast} ו${last}`;
 }
 
+function getAvailabilityIntent(req) {
+  const intentRaw = String(req?.availability_intent || "")
+    .trim()
+    .toUpperCase();
+
+  if (
+    intentRaw === "ASK_VARIANTS" ||
+    intentRaw === "ASK_BRANDS" ||
+    intentRaw === "ASK_BOTH" ||
+    intentRaw === "ASK_QUANTITY"
+  ) {
+    return intentRaw;
+  }
+
+  return "CHECK_AVAILABILITY";
+}
+
+function getReqSubCategory(req) {
+  return String(req?.["sub-category"] || req?.sub_category || "").trim();
+}
+
+function looksLikeBroadProductListWording(req) {
+  const parts = [
+    req?.original_user_text,
+    req?.name,
+    req?.searchTerm,
+    req?.outputName,
+    req?.outputSearchTerm,
+    ...(Array.isArray(req?.search_terms) ? req.search_terms : []),
+  ];
+
+  const text = parts
+    .map((p) => String(p || "").trim())
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  if (!text) return false;
+
+  // Generic category/department wording, not product-specific vocabulary.
+  return /(^|\s)(products?|items?|department|category|section)(\s|$)/i.test(text)
+    || /מוצר(?:ים|י)|קטגור(?:יה|יית)|מחלק(?:ה|ת)/.test(text);
+}
+
+function hasDistinctKeywordFilter(rawName, searchTerm) {
+  const n = String(rawName || "").replace(/\s+/g, " ").trim();
+  const st = String(searchTerm || "").replace(/\s+/g, " ").trim();
+
+  return Boolean(st && (!n || st !== n));
+}
+
+function appendCategoryListingInstructions(systemPrompt) {
+  return `${systemPrompt || ""}\n\nCATEGORY-WIDE AVAILABILITY LISTING OVERRIDE\n- When the customer asks what products/items/options exist in a whole supermarket department/category, return a category-wide ASK_VARIANTS request.\n- For category-wide requests, use: name=null, searchTerm=null, category=<matching allowed category>, sub-category=null, requested_amount=1, availability_intent=ASK_VARIANTS.\n- Do not force a concrete sub-category just because the phrase contains a word that is also a product family. For example, \"מוצרי חלב\" / \"dairy products\" is the whole Dairy & Eggs category, not only Milk.\n- If the category-wide request also has a brand/keyword filter, keep sub-category=null and put only that brand/keyword in searchTerm. Example: \"מוצרי חלב של תנובה\" -> category=\"Dairy & Eggs\", sub-category=null, searchTerm=\"תנובה\".\n- Only choose a concrete sub-category when the customer explicitly asks for that concrete family, e.g. milk, yogurt, cheese, snacks/chips, cleaning spray, bread, vegetables.\n- Do not ask a clarification question for a clearly recognized category-wide listing request.\n`;
+}
+
 async function fetchProductsByNameKeyword(
   shop_id,
   keyword,
@@ -143,9 +198,11 @@ async function checkAvailability({
     throw new Error("INV.AVAIL: customer_id is required");
   }
 
-  const systemPrompt = appendProductSearchPromptAppendix(
+  const systemPrompt = appendCategoryListingInstructions(
+    appendProductSearchPromptAppendix(
       await getPromptFromDB(PROMPT_CAT, PROMPT_SUB),
-    );
+    ),
+  );
 
   const answer = await chat({
     message,
@@ -155,7 +212,7 @@ async function checkAvailability({
       type: "json_schema",
       json_schema: await buildInvAvailSchema(),
     },
-    prompt_cache_key: "inv_avail_v1",
+    prompt_cache_key: "inv_avail_v2_category_listing",
   });
 
   let parsed;
@@ -262,25 +319,14 @@ async function checkAvailability({
 
   for (let i = 0; i < productRequests.length; i++) {
     const req = productRequests[i] || {};
-    const intentRaw = String(req.availability_intent || "")
-      .trim()
-      .toUpperCase();
-
-    let intent = "CHECK_AVAILABILITY";
-    if (
-      intentRaw === "ASK_VARIANTS" ||
-      intentRaw === "ASK_BRANDS" ||
-      intentRaw === "ASK_BOTH" ||
-      intentRaw === "ASK_QUANTITY"
-    ) {
-      intent = intentRaw;
-    }
+    const intent = getAvailabilityIntent(req);
 
     const f = foundByIndex.get(i) || null;
 
     const rawName = (req.name || "").trim();
     const searchTerm = (req.searchTerm || "").trim();
     const outputSearchTerm = (req.outputSearchTerm || "").trim();
+    const originalUserText = (req.original_user_text || "").trim();
 
     const searchTermForText = isEnglish
       ? outputSearchTerm || searchTerm
@@ -316,6 +362,8 @@ async function checkAvailability({
         displayLabel = st;
       } else if (rawName) {
         displayLabel = rawName;
+      } else if (originalUserText) {
+        displayLabel = originalUserText;
       } else {
         displayLabel = displayName;
       }
@@ -326,6 +374,8 @@ async function checkAvailability({
         displayLabel = rawName;
       } else if (searchTerm) {
         displayLabel = searchTerm;
+      } else if (originalUserText) {
+        displayLabel = originalUserText;
       } else {
         displayLabel = displayName;
       }
@@ -477,13 +527,18 @@ async function checkAvailability({
       intent === "ASK_BRANDS" ||
       intent === "ASK_BOTH"
     ) {
-      const cat = (req.category || (f && f.category) || "").trim();
-      const subCategory = (
-        req["sub-category"] ||
-        req.sub_category ||
-        (f && f.sub_category) ||
-        ""
-      ).trim();
+      const reqCategory = (req.category || "").trim();
+      const reqSubCategory = getReqSubCategory(req);
+      const broadProductListWording = looksLikeBroadProductListWording(req);
+      const distinctKeywordFilter = hasDistinctKeywordFilter(
+        rawName,
+        searchTerm,
+      );
+
+      const cat = (reqCategory || (f && f.category) || "").trim();
+      let subCategory = reqCategory
+        ? reqSubCategory
+        : (reqSubCategory || (f && f.sub_category) || "").trim();
 
       if (!cat && !subCategory && searchTerm && !heName) {
         const rows = await fetchProductsByNameKeyword(
@@ -549,10 +604,26 @@ async function checkAvailability({
         continue;
       }
 
-      const effectiveSearchTerm =
+      let effectiveSearchTerm =
         rawName && searchTerm && searchTerm !== rawName
           ? `${rawName} ${searchTerm}`
           : rawName || searchTerm || enNameCandidate || null;
+
+      if (cat && !subCategory && broadProductListWording) {
+        effectiveSearchTerm = distinctKeywordFilter
+          ? searchTerm || outputSearchTerm || null
+          : null;
+      }
+
+      dlog("variant search request:", {
+        idx: i,
+        intent,
+        cat,
+        subCategory,
+        broadProductListWording,
+        distinctKeywordFilter,
+        effectiveSearchTerm,
+      });
 
       const variantsRowsRaw = await searchVariants(shop_id, {
         category: cat || null,
@@ -572,6 +643,15 @@ async function checkAvailability({
           .trim();
 
       if (!variantsRows || !variantsRows.length) {
+        if (cat && !subCategory && !distinctKeywordFilter) {
+          variantLines.push(
+            isEnglish
+              ? `I couldn’t find any in-stock products in ${displayLabel}.`
+              : `לא מצאתי כרגע מוצרים במלאי עבור ${displayLabel}.`,
+          );
+          continue;
+        }
+
         let nameForAlt = rawName || null;
         const nameN = norm(nameForAlt);
         const stN = norm(searchTermForText || searchTerm);

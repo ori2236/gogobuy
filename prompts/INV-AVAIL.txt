@@ -215,7 +215,7 @@ Example 7 - Specific dairy product family of a brand (Hebrew input, English expl
 {
   "products": [
     {
-      "name": "חלב",
+      "name": null,
       "searchTerm": "תנובה",
       "outputName": null,
       "outputSearchTerm": null,
@@ -231,12 +231,12 @@ Example 7 - Specific dairy product family of a brand (Hebrew input, English expl
 
 PRODUCT SEARCH TERMS APPENDIX
 For every product object you return, include these search helper fields in addition to the existing fields:
-- original_user_text: the exact short product phrase from the customer's latest relevant message, in the same language the customer wrote it, or null if there is no clear phrase.
+- original_user_text: the exact short product phrase from the customers latest relevant message, in the same language the customer wrote it, or null if there is no clear phrase.
 - search_terms: an array of short alternative search phrases that may help the backend find the same product.
 
 Rules for original_user_text:
 - Use only the core product phrase the customer actually wrote, not the full sentence.
-- Keep it in the customer's language and wording.
+- Keep it in the customers language and wording.
 - Remove quantities and generic action words when they are not part of the product itself.
 - If the customer referred to a previous product with words like "it", "that one", "אותו", "זה", resolve the reference from the conversation when clear. If the original phrase cannot be recovered, use null.
 

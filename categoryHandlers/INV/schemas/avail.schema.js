@@ -1,5 +1,6 @@
 const {
   buildCategorySubcategoryItemSchemas,
+  buildCategoryNullableSubcategoryItemSchemas,
 } = require("../../productCategories");
 
 const AVAILABILITY_INTENT_ENUM = [
@@ -56,6 +57,22 @@ async function buildInvAvailSchema() {
     COMMON_REQUIRED,
   );
 
+  const CATEGORY_NULLABLE_SUBCATEGORY_ANYOF =
+    await buildCategoryNullableSubcategoryItemSchemas(
+      {
+        name: COMMON_PROPS.name,
+        searchTerm: COMMON_PROPS.searchTerm,
+        outputName: COMMON_PROPS.outputName,
+        original_user_text: COMMON_PROPS.original_user_text,
+        search_terms: COMMON_PROPS.search_terms,
+        outputSearchTerm: COMMON_PROPS.outputSearchTerm,
+        requested_amount: COMMON_PROPS.requested_amount,
+        availability_intent: COMMON_PROPS.availability_intent,
+        exclude_tokens: COMMON_PROPS.exclude_tokens,
+      },
+      COMMON_REQUIRED,
+    );
+
   const NULL_CATEGORY_PAIR_SCHEMA = {
     type: "object",
     additionalProperties: false,
@@ -76,7 +93,11 @@ async function buildInvAvailSchema() {
   };
 
   const PRODUCT_SCHEMA = {
-    anyOf: [NULL_CATEGORY_PAIR_SCHEMA, ...CATEGORY_SUBCATEGORY_ANYOF],
+    anyOf: [
+      NULL_CATEGORY_PAIR_SCHEMA,
+      ...CATEGORY_SUBCATEGORY_ANYOF,
+      ...CATEGORY_NULLABLE_SUBCATEGORY_ANYOF,
+    ],
   };
 
   return {

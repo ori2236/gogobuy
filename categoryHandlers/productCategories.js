@@ -47,7 +47,32 @@ async function buildNullableSubcategorySchemas(commonProps, commonRequired) {
   }));
 }
 
+async function buildCategoryNullableSubcategoryItemSchemas(
+  commonProps,
+  commonRequired,
+) {
+  const categoryMap = await fetchCategoriesMap();
+  const CATEGORY_ENUM = Object.keys(categoryMap).sort();
+
+  return CATEGORY_ENUM.map((cat) => ({
+    type: "object",
+    additionalProperties: false,
+    required: [...commonRequired, "category", "sub-category"],
+    properties: {
+      ...commonProps,
+      category: { type: "string", const: cat },
+      "sub-category": {
+        anyOf: [
+          { type: "string", enum: [...categoryMap[cat]].sort() },
+          { type: "null" },
+        ],
+      },
+    },
+  }));
+}
+
 module.exports = {
   buildCategorySubcategoryItemSchemas,
   buildNullableSubcategorySchemas,
+  buildCategoryNullableSubcategoryItemSchemas,
 };
