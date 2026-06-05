@@ -8,6 +8,7 @@ const {
   normalizeWaNumber,
 } = require("../utilities/dashboardUtils");
 const { rebuildTokenWeightsForShop } = require("../services/buildTokenWeights");
+const { ensureProductDefaultSchema, toBool } = require("../utilities/productDefaultSchema");
 const { fetchCategoriesMap } = require("../repositories/categories");
 const { recalculateOrderTotalWithFulfillment } = require("../services/fulfillment");
 const { isEnglishFromCustomerName } = require("../utilities/i18n");
@@ -124,6 +125,7 @@ function normalizeProductRow(r) {
     display_name_en: r.display_name_en ?? "",
     price: r.price == null ? null : Number(r.price),
     stock_amount: r.stock_amount == null ? null : Number(r.stock_amount),
+    is_default: Number(r.is_default || 0) === 1,
     emoji: cleanEmoji(r.emoji) || cleanEmoji(r.subcategory_emoji),
     subcategory_emoji: cleanEmoji(r.subcategory_emoji),
     category: r.category ?? null,
@@ -200,6 +202,8 @@ exports.getStockCategories = async (req, res) => {
 
     await ensureProductEmojiSchema();
 
+    await ensureProductDefaultSchema();
+
     const [rows] = await db.query(
       `
       SELECT
@@ -244,6 +248,8 @@ exports.listStockProducts = async (req, res) => {
     }
 
     await ensureProductEmojiSchema();
+
+    await ensureProductDefaultSchema();
 
     const q = String(req.query.q ?? "").trim();
     const category = isNonEmptyString(req.query.category)
@@ -337,6 +343,7 @@ exports.listStockProducts = async (req, res) => {
         p.display_name_en,
         p.price,
         p.stock_amount,
+        p.is_default,
         p.emoji,
         ps.emoji AS subcategory_emoji,
         p.category,
@@ -374,11 +381,14 @@ exports.createStockProduct = async (req, res) => {
 
     await ensureProductEmojiSchema();
 
+    await ensureProductDefaultSchema();
+
     const name = String(req.body?.name ?? "").trim();
     const display_name_en = String(req.body?.display_name_en ?? "").trim();
 
     const price = Number(req.body?.price);
     const stock_amount = Number(req.body?.stock_amount);
+    const is_default = toBool(req.body?.is_default, false) ? 1 : 0;
 
     const category = String(req.body?.category ?? "").trim();
     const sub_category = String(req.body?.sub_category ?? "").trim();
@@ -416,9 +426,9 @@ exports.createStockProduct = async (req, res) => {
     const [ins] = await db.query(
       `
       INSERT INTO product
-        (shop_id, name, display_name_en, price, stock_amount, category, sub_category, emoji, created_at, updated_at)
+        (shop_id, name, display_name_en, price, stock_amount, is_default, category, sub_category, emoji, created_at, updated_at)
       VALUES
-        (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       `,
       [
         shopId,
@@ -426,6 +436,7 @@ exports.createStockProduct = async (req, res) => {
         display_name_en,
         price,
         stock_amount,
+        is_default,
         category,
         sub_category,
         emoji,
@@ -434,10 +445,31 @@ exports.createStockProduct = async (req, res) => {
 
     const id = ins.insertId;
 
+    if (is_default) {
+      const [[shopRow]] = await db.query(
+        `SELECT chain_id FROM shop WHERE id = ? LIMIT 1`,
+        [shopId],
+      );
+
+      if (shopRow?.chain_id) {
+        await db.query(
+          `
+          UPDATE product p
+          JOIN shop s ON s.id = p.shop_id
+          SET p.is_default = 1,
+              p.updated_at = CURRENT_TIMESTAMP
+          WHERE s.chain_id = ?
+            AND p.name COLLATE utf8mb4_general_ci = ?
+          `,
+          [shopRow.chain_id, name],
+        );
+      }
+    }
+
     const [rows] = await db.query(
       `
       SELECT
-        p.id, p.shop_id, p.name, p.display_name_en, p.price, p.stock_amount,
+        p.id, p.shop_id, p.name, p.display_name_en, p.price, p.stock_amount, p.is_default,
         p.emoji, ps.emoji AS subcategory_emoji,
         p.category, p.sub_category, p.created_at, p.updated_at
       FROM product p
@@ -472,13 +504,15 @@ exports.updateStockProduct = async (req, res) => {
     }
 
     await ensureProductEmojiSchema(conn);
+    await ensureProductDefaultSchema(conn);
     await conn.beginTransaction();
 
     const [existingRows] = await conn.query(
       `
-      SELECT id, shop_id, name, category, sub_category, emoji
-      FROM product
-      WHERE id = ? AND shop_id = ?
+      SELECT p.id, p.shop_id, p.name, p.category, p.sub_category, p.emoji, s.chain_id
+      FROM product p
+      JOIN shop s ON s.id = p.shop_id
+      WHERE p.id = ? AND p.shop_id = ?
       FOR UPDATE
       `,
       [id, shopId],
@@ -603,6 +637,17 @@ exports.updateStockProduct = async (req, res) => {
       params.push(nextEmoji);
     }
 
+    const hasDefault = Object.prototype.hasOwnProperty.call(
+      req.body || {},
+      "is_default",
+    );
+    const nextIsDefault = hasDefault ? (toBool(req.body.is_default, false) ? 1 : 0) : null;
+
+    if (hasDefault) {
+      sets.push("is_default = ?");
+      params.push(nextIsDefault);
+    }
+
     if (!sets.length) {
       await conn.rollback();
       return res
@@ -618,12 +663,27 @@ exports.updateStockProduct = async (req, res) => {
       params,
     );
 
+    if (hasDefault && existing.chain_id) {
+      const chainProductName = nextName || existing.name;
+      await conn.query(
+        `
+        UPDATE product p
+        JOIN shop s ON s.id = p.shop_id
+        SET p.is_default = ?,
+            p.updated_at = CURRENT_TIMESTAMP
+        WHERE s.chain_id = ?
+          AND p.name COLLATE utf8mb4_general_ci = ?
+        `,
+        [nextIsDefault, existing.chain_id, chainProductName],
+      );
+    }
+
     await conn.commit();
 
     const [rows] = await db.query(
       `
       SELECT
-        p.id, p.shop_id, p.name, p.display_name_en, p.price, p.stock_amount,
+        p.id, p.shop_id, p.name, p.display_name_en, p.price, p.stock_amount, p.is_default,
         p.emoji, ps.emoji AS subcategory_emoji,
         p.category, p.sub_category, p.created_at, p.updated_at
       FROM product p

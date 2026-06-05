@@ -6,8 +6,12 @@ const {
   filterRowsByExcludeTokens,
 } = require("../utilities/tokens");
 const { getSubCategoryCandidates } = require("../repositories/categories");
+const { ensureProductDefaultSchema } = require("../utilities/productDefaultSchema");
 
 const MATCH_DEBUG = process.env.DEBUG_PRODUCT_MATCH === "1";
+const DEFAULT_PRODUCT_SCORE_BONUS = Number.isFinite(Number(process.env.DEFAULT_PRODUCT_SCORE_BONUS))
+  ? Number(process.env.DEFAULT_PRODUCT_SCORE_BONUS)
+  : 2.5;
 
 function matchLog(label, payload = null) {
   if (!MATCH_DEBUG) return;
@@ -34,6 +38,7 @@ function compactRows(rows = []) {
       r.stock_amount === null || r.stock_amount === undefined
         ? null
         : Number(r.stock_amount),
+    is_default: Number(r.is_default || 0) === 1,
   }));
 }
 
@@ -118,7 +123,7 @@ async function queryRowsByTokens({
   includeStockFilter = true,
 }) {
   let sql = `
-    SELECT id, name, display_name_en, price, stock_amount, category, sub_category
+    SELECT id, name, display_name_en, price, stock_amount, is_default, category, sub_category
     FROM product
     WHERE shop_id = ?
   `;
@@ -294,12 +299,19 @@ async function pickBestWeighted({
       });
     }
 
+    const isDefault = Number(m.r.is_default || 0) === 1;
+    const defaultBonus = isDefault ? DEFAULT_PRODUCT_SCORE_BONUS : 0;
+    const matchScore = extraScore - defaultBonus;
+
     scored.push({
       row: m.r,
       candTokens: m.candTokens,
       extraTokens: m.extra,
       extraBreakdown,
       extraScore,
+      defaultBonus,
+      matchScore,
+      isDefault,
       priceScore,
       wordCount,
       extraCount: m.extra.length,
@@ -308,6 +320,7 @@ async function pickBestWeighted({
 
   scored.sort(
     (a, b) =>
+      a.matchScore - b.matchScore ||
       a.extraScore - b.extraScore ||
       a.priceScore - b.priceScore ||
       a.wordCount - b.wordCount ||
@@ -324,6 +337,9 @@ async function pickBestWeighted({
       extraTokens: s.extraTokens,
       extraBreakdown: s.extraBreakdown,
       extraScore: s.extraScore,
+      defaultBonus: s.defaultBonus,
+      matchScore: s.matchScore,
+      isDefault: s.isDefault,
       priceScore: s.priceScore,
       wordCount: s.wordCount,
       extraCount: s.extraCount,
@@ -340,6 +356,9 @@ async function pickBestWeighted({
           name: best.row.name,
           display_name_en: best.row.display_name_en,
           extraScore: best.extraScore,
+          defaultBonus: best.defaultBonus,
+          matchScore: best.matchScore,
+          isDefault: best.isDefault,
           priceScore: best.priceScore,
           wordCount: best.wordCount,
         }
@@ -350,6 +369,8 @@ async function pickBestWeighted({
 }
 
 async function findBestProductForRequest(shop_id, req) {
+  await ensureProductDefaultSchema();
+
   const category = (req?.category || "").trim();
   const subCategoryRaw = (
     req?.["sub-category"] ||
@@ -398,7 +419,7 @@ async function findBestProductForRequest(shop_id, req) {
     if (category && primarySub) {
       const params = [shop_id, category, primarySub];
       let sql = `
-        SELECT id, name, display_name_en, price, stock_amount, category, sub_category
+        SELECT id, name, display_name_en, price, stock_amount, is_default, category, sub_category
         FROM product
         WHERE shop_id = ?
           AND category = ?
@@ -416,7 +437,7 @@ async function findBestProductForRequest(shop_id, req) {
       }
 
       sql += `
-        ORDER BY updated_at DESC, id DESC
+        ORDER BY is_default DESC, updated_at DESC, id DESC
         LIMIT 1
       `;
 
@@ -439,7 +460,7 @@ async function findBestProductForRequest(shop_id, req) {
       if (otherSubs.length) {
         const params2 = [shop_id, category, ...otherSubs];
         let sql2 = `
-          SELECT id, name, display_name_en, price, stock_amount, category, sub_category
+          SELECT id, name, display_name_en, price, stock_amount, is_default, category, sub_category
           FROM product
           WHERE shop_id = ?
             AND category = ?
@@ -457,7 +478,7 @@ async function findBestProductForRequest(shop_id, req) {
         }
 
         sql2 += `
-          ORDER BY updated_at DESC, id DESC
+          ORDER BY is_default DESC, updated_at DESC, id DESC
           LIMIT 1
         `;
 
@@ -625,6 +646,7 @@ async function searchProducts(shop_id, products) {
         requested_units: Number.isFinite(u) && u > 0 ? u : null,
         sold_by_weight: weightFlag === true,
         matched_display_name_en: row.display_name_en,
+        is_default: Number(row.is_default || 0) === 1,
       };
 
       matchLog("searchProducts.item.found", foundItem);
@@ -667,6 +689,8 @@ async function fetchAlternatives(
 ) {
   if (!category && !subCategory) return [];
 
+  await ensureProductDefaultSchema();
+
   const reqTokens = typeof requestedName === "object"
     ? (buildProductSearchTerms(requestedName)[0]?.tokens || [])
     : tokenizeName(requestedName || "");
@@ -674,7 +698,7 @@ async function fetchAlternatives(
   async function fetchByCatSub(cat, sub, useGroup = true) {
     const params = [shop_id];
     let sql = `
-      SELECT id, name, display_name_en, price, stock_amount, category, sub_category
+      SELECT id, name, display_name_en, price, stock_amount, is_default, category, sub_category
       FROM product
       WHERE shop_id = ?
         AND (stock_amount IS NULL OR stock_amount > 0)
@@ -726,10 +750,12 @@ async function fetchAlternatives(
         const score = totalW > 0 ? hitW / totalW : 0;
 
         const isPrimary = sub && String(r.sub_category) === String(sub);
+        const isDefault = Number(r.is_default || 0) === 1;
         return {
           row: r,
           score,
           isPrimary,
+          isDefault,
           wordCount: candTokens.length || 9999,
         };
       });
@@ -739,6 +765,7 @@ async function fetchAlternatives(
         .sort(
           (a, b) =>
             b.score - a.score ||
+            (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0) ||
             (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0) ||
             a.wordCount - b.wordCount ||
             a.row.id - b.row.id,
@@ -752,7 +779,15 @@ async function fetchAlternatives(
       return [...positive, ...zero].slice(0, limit);
     }
 
-    return filteredRows.slice(0, limit);
+    return filteredRows
+      .slice()
+      .sort(
+        (a, b) =>
+          Number(b.is_default || 0) - Number(a.is_default || 0) ||
+          String(a.name || "").localeCompare(String(b.name || ""), "he") ||
+          Number(a.id || 0) - Number(b.id || 0),
+      )
+      .slice(0, limit);
   }
 
   let rows = [];
@@ -909,6 +944,7 @@ async function buildAlternativeQuestions(
       display_name_en: a.display_name_en,
       price: Number(a.price),
       stock_amount: Number(a.stock_amount),
+      is_default: Number(a.is_default || 0) === 1,
       category: a.category,
       sub_category: a.sub_category,
     }));
@@ -951,6 +987,8 @@ async function searchVariants(
     excludeTokens = [],
   } = {},
 ) {
+  await ensureProductDefaultSchema();
+
   const searchTermGroups = buildProductSearchTerms({
     original_user_text: searchTerm,
     name: searchTerm,
@@ -958,7 +996,7 @@ async function searchVariants(
   const tokens = searchTermGroups[0]?.tokens || [];
 
   let sql = `
-    SELECT id, name, display_name_en, price, stock_amount, category, sub_category
+    SELECT id, name, display_name_en, price, stock_amount, is_default, category, sub_category
     FROM product
     WHERE shop_id = ?
       AND (stock_amount IS NULL OR stock_amount > 0)
@@ -1005,7 +1043,7 @@ async function searchVariants(
   }
 
   sql += `
-    ORDER BY name ASC, id DESC
+    ORDER BY is_default DESC, name ASC, id DESC
     LIMIT ?
   `;
   params.push(limit);
