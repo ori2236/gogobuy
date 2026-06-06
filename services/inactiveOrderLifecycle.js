@@ -6,6 +6,8 @@ const { ensureShopInfoSchema } = require("../repositories/shopInfo");
 
 const DEFAULT_INTERVAL_MS = 60_000;
 const DEFAULT_BATCH_SIZE = 25;
+const DEFAULT_IDLE_CUSTOMER_MAX_AGE_MINUTES = 23 * 60;
+const NON_RETRYABLE_WHATSAPP_ERROR_CODES = new Set([131009, 131026, 131047]);
 const PENDING_STATUSES = new Set(["pending", "checkout_pending"]);
 
 let schemaReadyPromise = null;
@@ -48,8 +50,46 @@ function normalizePhone(phone) {
   return String(phone || "").trim().replace(/^\+/, "");
 }
 
+function isProbablyWhatsAppPhone(phone) {
+  const clean = normalizePhone(phone);
+  return /^[1-9]\d{7,14}$/.test(clean);
+}
+
+function getWhatsAppErrorCode(err) {
+  const rawCode = err?.response?.data?.error?.code;
+  const code = Number(rawCode);
+  return Number.isFinite(code) ? code : null;
+}
+
+function isNonRetryableWhatsAppError(err) {
+  const code = getWhatsAppErrorCode(err);
+  return code != null && NON_RETRYABLE_WHATSAPP_ERROR_CODES.has(code);
+}
+
+function describeWhatsAppError(err) {
+  const data = err?.response?.data;
+  if (!data) return err?.message || err;
+
+  const error = data.error || data;
+  return {
+    message: error?.message,
+    code: error?.code,
+    type: error?.type,
+    error_subcode: error?.error_subcode,
+    error_data: error?.error_data,
+    fbtrace_id: error?.fbtrace_id,
+  };
+}
+
 function getLateReminderGraceMinutes() {
   return asPositiveInt(process.env.INACTIVE_ORDER_LATE_REMINDER_GRACE_MINUTES, 10);
+}
+
+function getIdleCustomerReminderMaxAgeMinutes() {
+  return asPositiveInt(
+    process.env.IDLE_CUSTOMER_REMINDER_MAX_AGE_MINUTES,
+    DEFAULT_IDLE_CUSTOMER_MAX_AGE_MINUTES,
+  );
 }
 
 async function ensureExpiredOrderStatusEnum() {
@@ -405,6 +445,7 @@ async function fetchIdleCustomersForReminder(limit = DEFAULT_BATCH_SIZE) {
     WHERE s.idle_customer_reminder_minutes > 0
       AND n.chat_id IS NULL
       AND TIMESTAMPDIFF(MINUTE, lc.created_at, NOW(6)) >= s.idle_customer_reminder_minutes
+      AND TIMESTAMPDIFF(MINUTE, lc.created_at, NOW(6)) <= ?
       AND NOT EXISTS (
         SELECT 1
         FROM orders o
@@ -430,7 +471,7 @@ async function fetchIdleCustomersForReminder(limit = DEFAULT_BATCH_SIZE) {
     ORDER BY lc.created_at ASC
     LIMIT ?
     `,
-    [Number(limit)],
+    [getIdleCustomerReminderMaxAgeMinutes(), Number(limit)],
   );
 
   return rows || [];
@@ -451,12 +492,31 @@ async function sendIdleCustomerReminder(row) {
   const phone = normalizePhone(row.customer_phone);
   if (!phone) return false;
 
+  if (!isProbablyWhatsAppPhone(phone)) {
+    console.warn("[inactive-order-lifecycle.idle-customer-reminder.skip-invalid-phone]", {
+      chatId: row?.chat_id,
+      customerId: row?.customer_id,
+      shopId: row?.shop_id,
+      phone: row?.customer_phone,
+    });
+    return false;
+  }
+
+  const phoneNumberId = String(row.phone_number_id || "").trim();
+  if (!phoneNumberId) {
+    console.warn("[inactive-order-lifecycle.idle-customer-reminder.skip-missing-phone-number-id]", {
+      chatId: row?.chat_id,
+      customerId: row?.customer_id,
+      shopId: row?.shop_id,
+    });
+    return false;
+  }
+
   const isEnglish = detectIsEnglish(row.recent_customer_message);
   const message = buildIdleCustomerReminderMessage({
     shopName: row.shop_name,
     isEnglish,
   });
-  const phoneNumberId = String(row.phone_number_id || "").trim() || null;
 
   await sendWhatsAppText(phone, message, phoneNumberId);
   await saveChat({
@@ -479,11 +539,26 @@ async function processIdleCustomerReminderBatch() {
       await markIdleCustomerReminderSent(row);
       if (didSend) sent += 1;
     } catch (err) {
+      const errorDetails = describeWhatsAppError(err);
       console.error("[inactive-order-lifecycle.idle-customer-reminder]", {
         chatId: row?.chat_id,
         customerId: row?.customer_id,
-        error: err?.response?.data || err?.message || err,
+        shopId: row?.shop_id,
+        phone: row?.customer_phone,
+        phoneNumberId: row?.phone_number_id,
+        error: errorDetails,
       });
+
+      if (isNonRetryableWhatsAppError(err)) {
+        try {
+          await markIdleCustomerReminderSent(row);
+        } catch (markErr) {
+          console.error("[inactive-order-lifecycle.idle-customer-reminder.mark-after-error]", {
+            chatId: row?.chat_id,
+            error: markErr?.message || markErr,
+          });
+        }
+      }
     }
   }
 
