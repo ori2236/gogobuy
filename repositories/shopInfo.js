@@ -13,6 +13,7 @@ const SHOP_EXTRA_COLUMNS = {
   min_pickup_order_amount: "DECIMAL(10,2) NOT NULL DEFAULT 0.00",
   delivery_fee: "DECIMAL(10,2) NOT NULL DEFAULT 0.00",
   cart_empty_reminder_minutes: "INT UNSIGNED NOT NULL DEFAULT 5",
+  idle_customer_reminder_minutes: "INT UNSIGNED NOT NULL DEFAULT 10",
   stock_release_after_inactive_minutes: "INT UNSIGNED NOT NULL DEFAULT 30",
   max_order_quantity_per_product: "INT UNSIGNED NOT NULL DEFAULT 10",
   order_same_day_cutoff_time: "TIME NOT NULL DEFAULT '15:00:00'",
@@ -78,6 +79,7 @@ async function ensureShopInfoSchema() {
         }
       }
 
+      await db.query(`UPDATE shop SET idle_customer_reminder_minutes = 10 WHERE idle_customer_reminder_minutes IS NULL`);
       await db.query(`UPDATE shop SET delivery_arrival_start_time = '16:00:00' WHERE delivery_arrival_start_time IS NULL`);
       await db.query(`UPDATE shop SET delivery_arrival_end_time = '18:00:00' WHERE delivery_arrival_end_time IS NULL`);
       await db.query(`ALTER TABLE shop MODIFY COLUMN delivery_arrival_start_time TIME NOT NULL DEFAULT '16:00:00'`);
@@ -145,6 +147,7 @@ async function getShopInfo(shop_id) {
       s.min_pickup_order_amount,
       s.delivery_fee,
       s.cart_empty_reminder_minutes,
+      s.idle_customer_reminder_minutes,
       s.stock_release_after_inactive_minutes,
       s.max_order_quantity_per_product,
       TIME_FORMAT(s.order_same_day_cutoff_time, '%H:%i') AS order_same_day_cutoff_time,

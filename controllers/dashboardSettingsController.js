@@ -15,6 +15,7 @@ const SHOP_EXTRA_COLUMNS = {
   min_pickup_order_amount: "DECIMAL(10,2) NOT NULL DEFAULT 0.00",
   delivery_fee: "DECIMAL(10,2) NOT NULL DEFAULT 0.00",
   cart_empty_reminder_minutes: "INT UNSIGNED NOT NULL DEFAULT 5",
+  idle_customer_reminder_minutes: "INT UNSIGNED NOT NULL DEFAULT 10",
   stock_release_after_inactive_minutes: "INT UNSIGNED NOT NULL DEFAULT 30",
   max_order_quantity_per_product: "INT UNSIGNED NOT NULL DEFAULT 10",
   order_same_day_cutoff_time: "TIME NOT NULL DEFAULT '15:00:00'",
@@ -169,6 +170,7 @@ async function ensureShopSettingsSchema(conn) {
     }
   }
 
+  await conn.query(`UPDATE shop SET idle_customer_reminder_minutes = 10 WHERE idle_customer_reminder_minutes IS NULL`);
   await conn.query(`UPDATE shop SET delivery_arrival_start_time = '16:00:00' WHERE delivery_arrival_start_time IS NULL`);
   await conn.query(`UPDATE shop SET delivery_arrival_end_time = '18:00:00' WHERE delivery_arrival_end_time IS NULL`);
   await conn.query(`ALTER TABLE shop MODIFY COLUMN delivery_arrival_start_time TIME NOT NULL DEFAULT '16:00:00'`);
@@ -324,6 +326,7 @@ exports.getBusinessSettings = async (req, res) => {
         min_pickup_order_amount,
         delivery_fee,
         cart_empty_reminder_minutes,
+        idle_customer_reminder_minutes,
         stock_release_after_inactive_minutes,
         max_order_quantity_per_product,
         TIME_FORMAT(order_same_day_cutoff_time, '%H:%i') AS order_same_day_cutoff_time,
@@ -492,6 +495,7 @@ exports.updateBusinessSettings = async (req, res) => {
         min_pickup_order_amount = ?,
         delivery_fee = ?,
         cart_empty_reminder_minutes = ?,
+        idle_customer_reminder_minutes = ?,
         stock_release_after_inactive_minutes = ?,
         max_order_quantity_per_product = ?,
         order_same_day_cutoff_time = ?,
@@ -518,6 +522,7 @@ exports.updateBusinessSettings = async (req, res) => {
         cleanMoney(info.delivery_fee, 0),
         ...(() => {
           const cartReminder = cleanMinutes(info.cart_empty_reminder_minutes, 5, { minActive: 5, fieldName: "cart_empty_reminder_minutes" });
+          const idleReminder = cleanMinutes(info.idle_customer_reminder_minutes, 10, { minActive: 0, fieldName: "idle_customer_reminder_minutes" });
           const stockRelease = cleanMinutes(info.stock_release_after_inactive_minutes, 30, { minActive: 30, fieldName: "stock_release_after_inactive_minutes" });
           const maxPerProduct = cleanMinutes(info.max_order_quantity_per_product, 10, { minActive: 10, fieldName: "max_order_quantity_per_product" });
           if (cartReminder >= stockRelease) {
@@ -525,7 +530,7 @@ exports.updateBusinessSettings = async (req, res) => {
             err.status = 400;
             throw err;
           }
-          return [cartReminder, stockRelease, maxPerProduct];
+          return [cartReminder, idleReminder, stockRelease, maxPerProduct];
         })(),
         orderSameDayCutoffTime,
         deliveryArrivalStartTime,

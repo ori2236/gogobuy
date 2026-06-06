@@ -120,6 +120,26 @@ async function ensureInactiveOrderLifecycleSchema() {
       `);
 
       await db.query(`
+        CREATE TABLE IF NOT EXISTS idle_customer_reminder_notice (
+          chat_id BIGINT UNSIGNED NOT NULL,
+          shop_id INT UNSIGNED NOT NULL,
+          customer_id INT UNSIGNED NOT NULL,
+          sent_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+          PRIMARY KEY (chat_id),
+          KEY idx_idle_customer_notice_customer (customer_id, shop_id, sent_at),
+          KEY idx_idle_customer_notice_shop_sent (shop_id, sent_at)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+      `);
+
+      await db.query(`
+        UPDATE shop
+           SET idle_customer_reminder_minutes = 10
+         WHERE id > 0
+           AND idle_customer_reminder_minutes IS NULL
+      `);
+
+      await db.query(`
         UPDATE shop
            SET cart_empty_reminder_minutes = 5
          WHERE id > 0
@@ -212,6 +232,24 @@ function buildStockReleasedMessage({ order, isEnglish }) {
     "",
     "🛒 המוצרים שהיו שמורים עבורך הוחזרו למלאי.",
     "אפשר להתחיל הזמנה חדשה בכל רגע - פשוט כתוב מה תרצה להזמין.",
+  ].join("\n");
+}
+
+function buildIdleCustomerReminderMessage({ shopName, isEnglish }) {
+  const cleanShopName = String(shopName || "").trim();
+
+  if (isEnglish) {
+    return [
+      `👋 Just checking in${cleanShopName ? ` from ${cleanShopName}` : ""}.`,
+      "Would you like to start an order or get help building one?",
+      "You can simply write your shopping list, for example: milk, bread and eggs 🛒",
+    ].join("\n");
+  }
+
+  return [
+    `👋 רק רציתי לבדוק${cleanShopName ? ` מטעם ${cleanShopName}` : ""}.`,
+    "רוצה להתחיל הזמנה או צריך עזרה להרכיב אחת?",
+    "אפשר פשוט לכתוב את רשימת המוצרים, למשל: חלב, לחם וביצים 🛒",
   ].join("\n");
 }
 
@@ -323,6 +361,127 @@ async function processReminderBatch() {
     } catch (err) {
       console.error("[inactive-order-lifecycle.reminder]", {
         orderId: order?.id,
+        error: err?.response?.data || err?.message || err,
+      });
+    }
+  }
+
+  return sent;
+}
+
+async function fetchIdleCustomersForReminder(limit = DEFAULT_BATCH_SIZE) {
+  await ensureInactiveOrderLifecycleSchema();
+
+  const [rows] = await db.query(
+    `
+    SELECT
+      lc.id AS chat_id,
+      lc.customer_id,
+      lc.shop_id,
+      lc.message AS recent_customer_message,
+      lc.created_at AS last_customer_message_at,
+      c.phone AS customer_phone,
+      s.name AS shop_name,
+      s.idle_customer_reminder_minutes,
+      swp.phone_number_id,
+      TIMESTAMPDIFF(MINUTE, lc.created_at, NOW(6)) AS inactive_minutes
+    FROM chat lc
+    JOIN (
+      SELECT customer_id, shop_id, MAX(id) AS last_customer_chat_id
+      FROM chat
+      WHERE sender = 'customer'
+      GROUP BY customer_id, shop_id
+    ) latest
+      ON latest.last_customer_chat_id = lc.id
+    JOIN customer c ON c.id = lc.customer_id
+    JOIN shop s ON s.id = lc.shop_id
+    LEFT JOIN idle_customer_reminder_notice n ON n.chat_id = lc.id
+    LEFT JOIN (
+      SELECT shop_id, MIN(phone_number_id) AS phone_number_id
+      FROM shop_whatsapp_phone
+      WHERE is_active = 1
+      GROUP BY shop_id
+    ) swp ON swp.shop_id = lc.shop_id
+    WHERE s.idle_customer_reminder_minutes > 0
+      AND n.chat_id IS NULL
+      AND TIMESTAMPDIFF(MINUTE, lc.created_at, NOW(6)) >= s.idle_customer_reminder_minutes
+      AND NOT EXISTS (
+        SELECT 1
+        FROM orders o
+        WHERE o.customer_id = lc.customer_id
+          AND o.shop_id = lc.shop_id
+          AND o.status IN ('pending', 'checkout_pending', 'confirmed', 'preparing', 'ready', 'delivering', 'cancel_pending')
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM orders o
+        WHERE o.customer_id = lc.customer_id
+          AND o.shop_id = lc.shop_id
+          AND o.updated_at >= lc.created_at
+      )
+      AND NOT EXISTS (
+        SELECT 1
+        FROM chat newer
+        WHERE newer.customer_id = lc.customer_id
+          AND newer.shop_id = lc.shop_id
+          AND newer.sender = 'customer'
+          AND newer.id > lc.id
+      )
+    ORDER BY lc.created_at ASC
+    LIMIT ?
+    `,
+    [Number(limit)],
+  );
+
+  return rows || [];
+}
+
+async function markIdleCustomerReminderSent(row) {
+  await db.query(
+    `
+    INSERT IGNORE INTO idle_customer_reminder_notice
+      (chat_id, shop_id, customer_id, sent_at, created_at)
+    VALUES (?, ?, ?, NOW(6), NOW(6))
+    `,
+    [Number(row.chat_id), Number(row.shop_id), Number(row.customer_id)],
+  );
+}
+
+async function sendIdleCustomerReminder(row) {
+  const phone = normalizePhone(row.customer_phone);
+  if (!phone) return false;
+
+  const isEnglish = detectIsEnglish(row.recent_customer_message);
+  const message = buildIdleCustomerReminderMessage({
+    shopName: row.shop_name,
+    isEnglish,
+  });
+  const phoneNumberId = String(row.phone_number_id || "").trim() || null;
+
+  await sendWhatsAppText(phone, message, phoneNumberId);
+  await saveChat({
+    customer_id: Number(row.customer_id),
+    shop_id: Number(row.shop_id),
+    sender: "bot",
+    status: "unclassified",
+    message,
+  });
+  return true;
+}
+
+async function processIdleCustomerReminderBatch() {
+  const rows = await fetchIdleCustomersForReminder();
+  let sent = 0;
+
+  for (const row of rows) {
+    try {
+      const didSend = await sendIdleCustomerReminder(row);
+      await markIdleCustomerReminderSent(row);
+      if (didSend) sent += 1;
+    } catch (err) {
+      console.error("[inactive-order-lifecycle.idle-customer-reminder]", {
+        chatId: row?.chat_id,
+        customerId: row?.customer_id,
         error: err?.response?.data || err?.message || err,
       });
     }
@@ -537,11 +696,12 @@ async function runInactiveOrderLifecycleOnce() {
 
   try {
     const reminders = await processReminderBatch();
+    const idleCustomerReminders = await processIdleCustomerReminderBatch();
     const released = await processStockReleaseBatch();
-    if (released || reminders) {
-      console.log("[inactive-order-lifecycle]", { released, reminders });
+    if (released || reminders || idleCustomerReminders) {
+      console.log("[inactive-order-lifecycle]", { released, reminders, idleCustomerReminders });
     }
-    return { released, reminders };
+    return { released, reminders, idleCustomerReminders };
   } catch (err) {
     console.error("[inactive-order-lifecycle.run]", err?.message || err);
     return { error: err };
@@ -582,5 +742,6 @@ module.exports = {
   runInactiveOrderLifecycleOnce,
   startInactiveOrderLifecycleWorker,
   buildCartReminderMessage,
+  buildIdleCustomerReminderMessage,
   buildStockReleasedMessage,
 };
