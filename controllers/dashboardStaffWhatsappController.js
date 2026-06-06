@@ -11,11 +11,60 @@ function shopIdForRequest(req) {
   return req.dashboardUser?.shop_id ? Number(req.dashboardUser.shop_id) : parseShopId(req);
 }
 
+function normalizeMetaError(err) {
+  const metaError = err?.response?.data?.error;
+  if (!metaError) return null;
+
+  const details = String(metaError.details || metaError.message || "").toLowerCase();
+  const code = Number(metaError.code || 0);
+
+  if (
+    code === 132001 ||
+    details.includes("template name does not exist") ||
+    details.includes("does not exist in he") ||
+    details.includes("does not exist in he_il")
+  ) {
+    return {
+      status: 400,
+      message:
+        "תבנית ההתראה עדיין לא אושרה על ידי Meta, או שהיא לא קיימת בחשבון ה-WhatsApp של הסניף. אחרי שהאישור יושלם נסה שוב.",
+    };
+  }
+
+  if (code === 131030 || details.includes("allowed list")) {
+    return {
+      status: 400,
+      message:
+        "המספר הזה עדיין לא מורשה לקבל הודעות ממספר בדיקה של Meta. אם שולחים ממספר עסק אמיתי בפרודקשן, הבעיה הזו לא אמורה להופיע.",
+    };
+  }
+
+  if (code === 132000 || details.includes("parameter") || details.includes("translation")) {
+    return {
+      status: 400,
+      message:
+        "יש חוסר התאמה בין משתני התבנית בקוד לבין התבנית שמוגדרת ב-Meta. צריך לבדוק את מבנה המשתנים של התבנית.",
+    };
+  }
+
+  return null;
+}
+
 function handleError(res, label, err) {
   console.error(`[${label}]`, err?.response?.data || err);
+
+  const normalizedMeta = normalizeMetaError(err);
+  if (normalizedMeta) {
+    return res.status(normalizedMeta.status).json({
+      ok: false,
+      message: normalizedMeta.message,
+      details: err?.response?.data || undefined,
+    });
+  }
+
   return res.status(err.status || 500).json({
     ok: false,
-    message: err.status ? err.message : "Server error",
+    message: err.message || "Server error",
     details: err?.response?.data || undefined,
   });
 }
