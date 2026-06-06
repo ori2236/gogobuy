@@ -10,6 +10,9 @@ const {
   getOrderForCheckout,
 } = require("../../services/fulfillment");
 const { buildDeliveryTimingMessage } = require("../../utilities/deliveryTiming");
+const {
+  notifyStaffNewConfirmedOrder,
+} = require("../../services/staffOrderAlerts");
 
 function parseCheckoutConfirmation(msg) {
   const raw = String(msg || "").trim();
@@ -112,6 +115,16 @@ async function checkIfToCheckoutOrder({
         : "⚠️ הייתה בעיה באישור ההזמנה. אפשר לנסות שוב או ליצור קשר עם החנות.";
     } else {
       await deleteOpenQuestionsByOrderId(activeOrder.id, shop_id);
+
+      notifyStaffNewConfirmedOrder({
+        orderId: activeOrder.id,
+        shopId: shop_id,
+      }).catch((err) => {
+        console.error(
+          "[CHECKOUT] staff WhatsApp alert failed:",
+          err?.response?.data || err.message,
+        );
+      });
 
       const noteSuffix = customerNoteToPicker
         ? isEnglish

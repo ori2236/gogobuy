@@ -275,22 +275,90 @@ function buildStockReleasedMessage({ order, isEnglish }) {
   ].join("\n");
 }
 
-function buildIdleCustomerReminderMessage({ shopName, isEnglish }) {
-  const cleanShopName = String(shopName || "").trim();
+function pickIdleReminderOption(options, seed) {
+  if (!Array.isArray(options) || options.length === 0) return "";
 
-  if (isEnglish) {
-    return [
-      `👋 Just checking in${cleanShopName ? ` from ${cleanShopName}` : ""}.`,
-      "Would you like to start an order or get help building one?",
-      "You can simply write your shopping list, for example: milk, bread and eggs 🛒",
-    ].join("\n");
+  const rawSeed = Number(seed);
+  if (!Number.isFinite(rawSeed)) {
+    return options[Math.floor(Math.random() * options.length)];
   }
 
-  return [
-    `👋 רק רציתי לבדוק${cleanShopName ? ` מטעם ${cleanShopName}` : ""}.`,
-    "רוצה להתחיל הזמנה או צריך עזרה להרכיב אחת?",
-    "אפשר פשוט לכתוב את רשימת המוצרים, למשל: חלב, לחם וביצים 🛒",
-  ].join("\n");
+  return options[Math.abs(Math.floor(rawSeed)) % options.length];
+}
+
+function buildIdleCustomerReminderMessage({ shopName, isEnglish, seed }) {
+  const cleanShopName = String(shopName || "").trim();
+
+  const hebrewOptions = [
+    [
+      "👋 היי, רק רציתי לבדוק אם אתם מסתדרים",
+      "תרצה עזרה בלהרכיב הזמנה חדשה?",
+      "אפשר פשוט לכתוב את רשימת המוצרים, למשל: חלב, לחם וביצים 🛒",
+    ],
+
+    [
+      "👋 היי, ראיתי שהתחלתם שיחה ורציתי לוודא שהכול ברור",
+      "אפשר לעזור לכם להתחיל הזמנה חדשה?",
+      "פשוט כתבו מה אתם צריכים, למשל: עגבניות, גבינה וקפה 🛒",
+    ],
+
+    [
+      "👋 היי, רק בודק אם אתם צריכים עזרה",
+      "רוצים שנעזור לכם להרכיב הזמנה?",
+      "אפשר לשלוח רשימת מוצרים חופשית, ואנחנו כבר נתקדם משם 🛒",
+    ],
+
+    [
+      "👋 היי, אני כאן אם תרצו להמשיך",
+      "אפשר להתחיל הזמנה חדשה או לקבל עזרה בבחירת מוצרים",
+      "פשוט כתבו מה חסר בבית, למשל: חלב, לחם וביצים 🛒",
+    ],
+
+    [
+      `👋 היי${cleanShopName ? `, כאן ${cleanShopName}` : ""}`,
+      "רק רציתי לבדוק אם תרצו עזרה בהתחלת הזמנה חדשה",
+      "אפשר פשוט לשלוח רשימת קניות קצרה או ארוכה, ואעזור לסדר אותה 🛒",
+    ],
+  ];
+
+  const englishOptions = [
+    [
+      "👋 Hey, just checking if you’re managing okay",
+      "Would you like help putting together a new order?",
+      "You can simply write your shopping list, for example: milk, bread and eggs 🛒",
+    ],
+
+    [
+      "👋 Hey, I saw you started a chat and wanted to make sure everything is clear",
+      "Would you like help starting a new order?",
+      "Just write what you need, for example: tomatoes, cheese and coffee 🛒",
+    ],
+
+    [
+      "👋 Hey, just checking if you need any help",
+      "Would you like us to help you build an order?",
+      "You can send a free-text shopping list, and we’ll continue from there 🛒",
+    ],
+
+    [
+      "👋 Hey, I’m here if you’d like to continue",
+      "You can start a new order or get help choosing products",
+      "Just write what you’re missing at home, for example: milk, bread and eggs 🛒",
+    ],
+
+    [
+      `👋 Hey${cleanShopName ? `, this is ${cleanShopName}` : ""}`,
+      "Just checking if you’d like help starting a new order",
+      "You can send a short or long shopping list, and I’ll help organize it 🛒",
+    ],
+  ];
+
+  const selectedLines = pickIdleReminderOption(
+    isEnglish ? englishOptions : hebrewOptions,
+    seed,
+  );
+
+  return selectedLines.join("\n");
 }
 
 async function sendCustomerLifecycleMessage({ order, message }) {
@@ -516,6 +584,7 @@ async function sendIdleCustomerReminder(row) {
   const message = buildIdleCustomerReminderMessage({
     shopName: row.shop_name,
     isEnglish,
+    seed: row.chat_id,
   });
 
   await sendWhatsAppText(phone, message, phoneNumberId);

@@ -46,10 +46,54 @@ async function sendWhatsAppTypingIndicator(message_id, phoneNumberId = null) {
   return data;
 }
 
+async function sendWhatsAppTemplate(
+  to,
+  templateName,
+  languageCode,
+  bodyParams,
+  phoneNumberId = null,
+  tokenOverride = null,
+) {
+  const axios = require("axios");
+  const { getWhatsAppConfig } = require("../config/whatsapp");
+
+  const config = getWhatsAppConfig(phoneNumberId);
+
+  const headers = tokenOverride
+    ? {
+        Authorization: `Bearer ${tokenOverride}`,
+        "Content-Type": "application/json",
+      }
+    : config.headers;
+
+  const payload = {
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to,
+    type: "template",
+    template: {
+      name: templateName,
+      language: {
+        code: languageCode,
+      },
+      components: [
+        {
+          type: "body",
+          parameters: bodyParams,
+        },
+      ],
+    },
+  };
+
+  const { data } = await axios.post(config.url, payload, { headers });
+  return data;
+}
+
 module.exports = {
   sendWhatsAppText,
   sendWhatsAppMarkAsRead,
   sendWhatsAppTypingIndicator,
+  sendWhatsAppTemplate,
 };
 
 /*
