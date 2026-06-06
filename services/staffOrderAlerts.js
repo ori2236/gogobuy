@@ -264,6 +264,22 @@ async function getOrderAlertData(orderId, shopId, conn = db) {
   return rows[0] || null;
 }
 
+async function getShopStaffAlertPhoneNumberId(shopId, conn = db) {
+  const [[row]] = await conn.query(
+    `
+    SELECT phone_number_id
+    FROM shop_whatsapp_phone
+    WHERE shop_id = ?
+      AND is_active = 1
+    ORDER BY id ASC
+    LIMIT 1
+    `,
+    [shopId],
+  );
+
+  return row?.phone_number_id ? String(row.phone_number_id).trim() : null;
+}
+
 function buildBodyParams(order) {
   return [
     {
@@ -343,14 +359,19 @@ async function sendNewOrderTemplateToRecipient({
   shopId,
   recipient,
   allowDuplicate = false,
+  phoneNumberId = null,
 }) {
   const config = getStaffAlertConfig();
   if (!config.enabled) {
     return { status: "skipped", reason: "disabled" };
   }
 
-  if (!config.phoneNumberId) {
-    throw new Error("Missing STAFF_ALERT_WHATSAPP_PHONE_ID or WHATSAPP_PHONE_ID");
+  const alertPhoneNumberId = String(
+    phoneNumberId || config.phoneNumberId || "",
+  ).trim();
+
+  if (!alertPhoneNumberId) {
+    throw new Error("Missing shop WhatsApp phone_number_id for staff alert");
   }
 
   const to = normalizeStaffPhone(recipient.phone);
@@ -373,7 +394,7 @@ async function sendNewOrderTemplateToRecipient({
       config.templateName,
       config.languageCode,
       buildBodyParams(order),
-      config.phoneNumberId,
+      alertPhoneNumberId,
     );
 
     const whatsappMessageId = data?.messages?.[0]?.id || null;
@@ -412,12 +433,14 @@ async function notifyStaffNewConfirmedOrder({ orderId, shopId }) {
     return { sent: 0, failed: 0, skipped: 0 };
   }
 
-  if (!config.phoneNumberId) {
-    console.warn("[staffOrderAlerts] missing STAFF_ALERT_WHATSAPP_PHONE_ID / WHATSAPP_PHONE_ID");
+  await ensureStaffOrderAlertsSchema(db);
+
+  const phoneNumberId = await getShopStaffAlertPhoneNumberId(shopId);
+
+  if (!phoneNumberId) {
+    console.warn("[staffOrderAlerts] missing active shop WhatsApp phone_number_id", { shopId });
     return { sent: 0, failed: 0, skipped: 0 };
   }
-
-  await ensureStaffOrderAlertsSchema(db);
 
   const order = await getOrderAlertData(orderId, shopId);
   if (!order) {
@@ -445,6 +468,7 @@ async function notifyStaffNewConfirmedOrder({ orderId, shopId }) {
         order,
         shopId,
         recipient,
+        phoneNumberId,
       });
 
       if (result.status === "sent") summary.sent += 1;
@@ -490,6 +514,13 @@ async function sendStaffRecipientTestAlert({ shopId, recipientId }) {
     [shopId],
   );
 
+  const phoneNumberId = await getShopStaffAlertPhoneNumberId(shopId);
+  if (!phoneNumberId) {
+    const err = new Error("לא מוגדר מספר WhatsApp פעיל לסניף הזה.");
+    err.status = 400;
+    throw err;
+  }
+
   const order = {
     order_id: "999",
     branch_name: shop?.name || "סניף בדיקה",
@@ -502,6 +533,7 @@ async function sendStaffRecipientTestAlert({ shopId, recipientId }) {
     shopId,
     recipient,
     allowDuplicate: true,
+    phoneNumberId,
   });
 }
 
@@ -509,6 +541,7 @@ module.exports = {
   ensureStaffOrderAlertsSchema,
   normalizeStaffPhone,
   isValidStaffPhone,
+  getShopStaffAlertPhoneNumberId,
   listStaffRecipients,
   createStaffRecipient,
   updateStaffRecipient,
