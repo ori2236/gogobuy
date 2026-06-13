@@ -129,8 +129,17 @@ function compactSearchTerms(terms = []) {
 
 
 function normalizeCustomerDefaultProductIds(ids = []) {
+  const list =
+    ids instanceof Set
+      ? Array.from(ids)
+      : Array.isArray(ids)
+        ? ids
+        : ids && typeof ids[Symbol.iterator] === "function"
+          ? Array.from(ids)
+          : [];
+
   return new Set(
-    (Array.isArray(ids) ? ids : [])
+    list
       .map((id) => Number(id))
       .filter((id) => Number.isFinite(id) && id > 0),
   );
@@ -163,17 +172,26 @@ async function fetchCustomerDefaultProductIds({ shop_id, customer_id }) {
   if (!Number.isFinite(customerId) || customerId <= 0) return new Set();
   if (!Number.isFinite(shopId) || shopId <= 0) return new Set();
 
+  // Important: choose the recent orders *after* verifying they actually have
+  // product rows. During tests and normal conversations a customer can have
+  // fresh empty/temporary orders; those must not hide older real purchases.
   const [rows] = await db.query(
     `
       SELECT DISTINCT oi.product_id
       FROM order_item oi
       JOIN (
-        SELECT id
-        FROM orders
-        WHERE shop_id = ?
-          AND customer_id = ?
-          AND status IN ('confirmed','preparing','ready','delivering','completed')
-        ORDER BY created_at DESC, id DESC
+        SELECT o.id, o.created_at
+        FROM orders o
+        WHERE o.shop_id = ?
+          AND o.customer_id = ?
+          AND o.status IN ('confirmed','preparing','ready','delivering','completed')
+          AND EXISTS (
+            SELECT 1
+            FROM order_item oi_exists
+            WHERE oi_exists.order_id = o.id
+              AND oi_exists.product_id IS NOT NULL
+          )
+        ORDER BY o.created_at DESC, o.id DESC
         LIMIT ?
       ) recent_orders ON recent_orders.id = oi.order_id
       WHERE oi.product_id IS NOT NULL
@@ -187,6 +205,7 @@ async function fetchCustomerDefaultProductIds({ shop_id, customer_id }) {
     shop_id: shopId,
     customer_id: customerId,
     recentOrdersLimit: CUSTOMER_DEFAULT_RECENT_ORDERS_LIMIT,
+    rows: rows || [],
     productIds: Array.from(ids),
   });
 
