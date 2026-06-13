@@ -171,7 +171,7 @@ module.exports = {
 
     const suggestAlternatives = areProductAlternativesEnabled();
 
-    const { found, notFound } = await searchProducts(shop_id, reqProducts);
+    const { found, notFound } = await searchProducts(shop_id, reqProducts, { customer_id });
 
     console.log(
       "[ORD-CREATE] searchProducts.result",

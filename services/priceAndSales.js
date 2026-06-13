@@ -740,7 +740,7 @@ async function answerPriceCompareFlow({
     return { ...p, amount };
   });
 
-  const res = await searchProducts(shop_id, searchRequests);
+  const res = await searchProducts(shop_id, searchRequests, { customer_id });
   const found = res?.found || [];
   const notFound = res?.notFound || [];
 
@@ -2574,7 +2574,7 @@ async function answerCheaperAltFlow({
     return { ...p, amount };
   });
 
-  const res = await searchProducts(shop_id, searchRequests);
+  const res = await searchProducts(shop_id, searchRequests, { customer_id });
   const found = res?.found || [];
   const notFound = res?.notFound || [];
 

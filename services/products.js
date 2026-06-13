@@ -13,6 +13,17 @@ const DEFAULT_PRODUCT_SCORE_BONUS = Number.isFinite(Number(process.env.DEFAULT_P
   ? Number(process.env.DEFAULT_PRODUCT_SCORE_BONUS)
   : 2.5;
 
+// Customer defaults are intentionally binary: if the customer ordered a product
+// in one of their recent completed/confirmed orders, it receives this one-time
+// preference boost. Ordering the same product many times does not increase it.
+const CUSTOMER_PRODUCT_SCORE_BONUS = Number.isFinite(Number(process.env.CUSTOMER_PRODUCT_SCORE_BONUS))
+  ? Number(process.env.CUSTOMER_PRODUCT_SCORE_BONUS)
+  : 5;
+
+const CUSTOMER_DEFAULT_RECENT_ORDERS_LIMIT = Number.isFinite(Number(process.env.CUSTOMER_DEFAULT_RECENT_ORDERS_LIMIT))
+  ? Math.max(1, Math.trunc(Number(process.env.CUSTOMER_DEFAULT_RECENT_ORDERS_LIMIT)))
+  : 10;
+
 function matchLog(label, payload = null) {
   if (!MATCH_DEBUG) return;
   if (payload === null || payload === undefined) {
@@ -39,6 +50,7 @@ function compactRows(rows = []) {
         ? null
         : Number(r.stock_amount),
     is_default: Number(r.is_default || 0) === 1,
+    customer_default: Number(r.customer_default || 0) === 1,
   }));
 }
 
@@ -115,15 +127,82 @@ function compactSearchTerms(terms = []) {
   }));
 }
 
+
+function normalizeCustomerDefaultProductIds(ids = []) {
+  return new Set(
+    (Array.isArray(ids) ? ids : [])
+      .map((id) => Number(id))
+      .filter((id) => Number.isFinite(id) && id > 0),
+  );
+}
+
+function annotateCustomerDefaults(rows = [], customerDefaultProductIds = new Set()) {
+  if (!rows || !rows.length || !customerDefaultProductIds?.size) return rows || [];
+  return rows.map((r) => ({
+    ...r,
+    customer_default: customerDefaultProductIds.has(Number(r.id)) ? 1 : 0,
+  }));
+}
+
+function sortByCustomerThenShopDefault(rows = []) {
+  return (rows || [])
+    .slice()
+    .sort(
+      (a, b) =>
+        Number(b.customer_default || 0) - Number(a.customer_default || 0) ||
+        Number(b.is_default || 0) - Number(a.is_default || 0) ||
+        new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime() ||
+        Number(b.id || 0) - Number(a.id || 0),
+    );
+}
+
+async function fetchCustomerDefaultProductIds({ shop_id, customer_id }) {
+  const customerId = Number(customer_id);
+  const shopId = Number(shop_id);
+
+  if (!Number.isFinite(customerId) || customerId <= 0) return new Set();
+  if (!Number.isFinite(shopId) || shopId <= 0) return new Set();
+
+  const [rows] = await db.query(
+    `
+      SELECT DISTINCT oi.product_id
+      FROM order_item oi
+      JOIN (
+        SELECT id
+        FROM orders
+        WHERE shop_id = ?
+          AND customer_id = ?
+          AND status IN ('confirmed','preparing','ready','delivering','completed')
+        ORDER BY created_at DESC, id DESC
+        LIMIT ?
+      ) recent_orders ON recent_orders.id = oi.order_id
+      WHERE oi.product_id IS NOT NULL
+    `,
+    [shopId, customerId, CUSTOMER_DEFAULT_RECENT_ORDERS_LIMIT],
+  );
+
+  const ids = normalizeCustomerDefaultProductIds((rows || []).map((r) => r.product_id));
+
+  matchLog("fetchCustomerDefaultProductIds.result", {
+    shop_id: shopId,
+    customer_id: customerId,
+    recentOrdersLimit: CUSTOMER_DEFAULT_RECENT_ORDERS_LIMIT,
+    productIds: Array.from(ids),
+  });
+
+  return ids;
+}
+
 async function queryRowsByTokens({
   shop_id,
   category = null,
   subCategories = null,
   tokenGroup,
   includeStockFilter = true,
+  customerDefaultProductIds = new Set(),
 }) {
   let sql = `
-    SELECT id, name, display_name_en, price, stock_amount, is_default, category, sub_category
+    SELECT id, name, display_name_en, price, stock_amount, is_default, category, sub_category, updated_at
     FROM product
     WHERE shop_id = ?
   `;
@@ -176,7 +255,7 @@ async function queryRowsByTokens({
     rows: compactRows(rows || []),
   });
 
-  return rows || [];
+  return annotateCustomerDefaults(rows || [], customerDefaultProductIds);
 }
 
 async function findBestByTermGroups({
@@ -187,6 +266,7 @@ async function findBestByTermGroups({
   subCategories = null,
   debugLabel = "",
   includeStockFilter = true,
+  customerDefaultProductIds = new Set(),
 }) {
   for (const tokenGroup of termGroups) {
     const rows = await queryRowsByTokens({
@@ -195,6 +275,7 @@ async function findBestByTermGroups({
       subCategories,
       tokenGroup,
       includeStockFilter,
+      customerDefaultProductIds,
     });
 
     const best = await pickBestWeighted({
@@ -203,6 +284,7 @@ async function findBestByTermGroups({
       reqTokens: tokenGroup.tokens,
       excludeTokens,
       debugLabel: `${debugLabel}:${tokenGroup.source}:${tokenGroup.term}`,
+      customerDefaultProductIds,
     });
 
     if (best) {
@@ -234,7 +316,10 @@ async function pickBestWeighted({
   reqTokens,
   excludeTokens,
   debugLabel = "",
+  customerDefaultProductIds = new Set(),
 }) {
+  rows = annotateCustomerDefaults(rows, customerDefaultProductIds);
+
   matchLog("pickBestWeighted.input", {
     debugLabel,
     reqTokens,
@@ -299,9 +384,11 @@ async function pickBestWeighted({
       });
     }
 
+    const isCustomerDefault = Number(m.r.customer_default || 0) === 1;
+    const customerBonus = isCustomerDefault ? CUSTOMER_PRODUCT_SCORE_BONUS : 0;
     const isDefault = Number(m.r.is_default || 0) === 1;
     const defaultBonus = isDefault ? DEFAULT_PRODUCT_SCORE_BONUS : 0;
-    const matchScore = extraScore - defaultBonus;
+    const matchScore = extraScore - customerBonus - defaultBonus;
 
     scored.push({
       row: m.r,
@@ -309,8 +396,10 @@ async function pickBestWeighted({
       extraTokens: m.extra,
       extraBreakdown,
       extraScore,
+      customerBonus,
       defaultBonus,
       matchScore,
+      isCustomerDefault,
       isDefault,
       priceScore,
       wordCount,
@@ -337,8 +426,10 @@ async function pickBestWeighted({
       extraTokens: s.extraTokens,
       extraBreakdown: s.extraBreakdown,
       extraScore: s.extraScore,
+      customerBonus: s.customerBonus,
       defaultBonus: s.defaultBonus,
       matchScore: s.matchScore,
+      isCustomerDefault: s.isCustomerDefault,
       isDefault: s.isDefault,
       priceScore: s.priceScore,
       wordCount: s.wordCount,
@@ -356,8 +447,10 @@ async function pickBestWeighted({
           name: best.row.name,
           display_name_en: best.row.display_name_en,
           extraScore: best.extraScore,
+          customerBonus: best.customerBonus,
           defaultBonus: best.defaultBonus,
           matchScore: best.matchScore,
+          isCustomerDefault: best.isCustomerDefault,
           isDefault: best.isDefault,
           priceScore: best.priceScore,
           wordCount: best.wordCount,
@@ -368,8 +461,19 @@ async function pickBestWeighted({
   return best ? best.row : null;
 }
 
-async function findBestProductForRequest(shop_id, req) {
+async function findBestProductForRequest(shop_id, req, opts = {}) {
   await ensureProductDefaultSchema();
+
+  let customerDefaultProductIds = normalizeCustomerDefaultProductIds(
+    opts.customerDefaultProductIds || [],
+  );
+
+  if (!customerDefaultProductIds.size && opts.customer_id) {
+    customerDefaultProductIds = await fetchCustomerDefaultProductIds({
+      shop_id,
+      customer_id: opts.customer_id,
+    });
+  }
 
   const category = (req?.category || "").trim();
   const subCategoryRaw = (
@@ -419,7 +523,7 @@ async function findBestProductForRequest(shop_id, req) {
     if (category && primarySub) {
       const params = [shop_id, category, primarySub];
       let sql = `
-        SELECT id, name, display_name_en, price, stock_amount, is_default, category, sub_category
+        SELECT id, name, display_name_en, price, stock_amount, is_default, category, sub_category, updated_at
         FROM product
         WHERE shop_id = ?
           AND category = ?
@@ -446,7 +550,10 @@ async function findBestProductForRequest(shop_id, req) {
         params,
       });
 
-      const [rows] = await db.query(sql, params);
+      const [rawRows] = await db.query(sql, params);
+      const rows = sortByCustomerThenShopDefault(
+        annotateCustomerDefaults(rawRows || [], customerDefaultProductIds),
+      );
 
       matchLog("findBestProductForRequest.rows.noTerms.primary", {
         rows: compactRows(rows),
@@ -487,7 +594,10 @@ async function findBestProductForRequest(shop_id, req) {
           params: params2,
         });
 
-        const [rows2] = await db.query(sql2, params2);
+        const [rawRows2] = await db.query(sql2, params2);
+        const rows2 = sortByCustomerThenShopDefault(
+          annotateCustomerDefaults(rawRows2 || [], customerDefaultProductIds),
+        );
 
         matchLog("findBestProductForRequest.rows.noTerms.otherSubs", {
           rows: compactRows(rows2),
@@ -515,6 +625,7 @@ async function findBestProductForRequest(shop_id, req) {
       category,
       subCategories: primarySub,
       debugLabel: "primarySub",
+      customerDefaultProductIds,
     });
     if (bestPrimary) {
       matchLog("findBestProductForRequest.return.primarySub", bestPrimary);
@@ -529,6 +640,7 @@ async function findBestProductForRequest(shop_id, req) {
         category,
         subCategories: otherSubs,
         debugLabel: "otherSubs",
+        customerDefaultProductIds,
       });
       if (bestOther) {
         matchLog("findBestProductForRequest.return.otherSubs", bestOther);
@@ -545,6 +657,7 @@ async function findBestProductForRequest(shop_id, req) {
       category,
       subCategories: null,
       debugLabel: "categoryWide",
+      customerDefaultProductIds,
     });
     if (bestCategoryWide) {
       matchLog("findBestProductForRequest.return.categoryWide", bestCategoryWide);
@@ -559,6 +672,7 @@ async function findBestProductForRequest(shop_id, req) {
     category: null,
     subCategories: null,
     debugLabel: "shopWide",
+    customerDefaultProductIds,
   });
   if (bestShopWide) {
     matchLog("findBestProductForRequest.return.shopWide", bestShopWide);
@@ -609,8 +723,18 @@ async function fetchInvDfMap(shop_id, tokens) {
   return map;
 }
 
-async function searchProducts(shop_id, products) {
-  matchLog("searchProducts.start", { shop_id, products });
+async function searchProducts(shop_id, products, opts = {}) {
+  const customerDefaultProductIds = await fetchCustomerDefaultProductIds({
+    shop_id,
+    customer_id: opts.customer_id,
+  });
+
+  matchLog("searchProducts.start", {
+    shop_id,
+    customer_id: opts.customer_id || null,
+    customerDefaultProductIds: Array.from(customerDefaultProductIds),
+    products,
+  });
 
   const found = [];
   const notFound = [];
@@ -623,7 +747,9 @@ async function searchProducts(shop_id, products) {
       req,
     });
 
-    const row = await findBestProductForRequest(shop_id, req);
+    const row = await findBestProductForRequest(shop_id, req, {
+      customerDefaultProductIds,
+    });
 
     if (row) {
       const n = Number(req?.amount);
@@ -647,6 +773,7 @@ async function searchProducts(shop_id, products) {
         sold_by_weight: weightFlag === true,
         matched_display_name_en: row.display_name_en,
         is_default: Number(row.is_default || 0) === 1,
+        customer_default: Number(row.customer_default || 0) === 1,
       };
 
       matchLog("searchProducts.item.found", foundItem);
@@ -1064,4 +1191,5 @@ module.exports = {
   searchVariants,
 
   buildProductSearchTerms,
+  fetchCustomerDefaultProductIds,
 };

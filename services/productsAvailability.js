@@ -1,18 +1,28 @@
-const { findBestProductForRequest } = require("./products");
+const {
+  findBestProductForRequest,
+  fetchCustomerDefaultProductIds,
+} = require("./products");
 const { getExcludeTokensFromReq } = require("../utilities/tokens");
 
-async function findBestProductForAvailability(shop_id, req) {
-  return await findBestProductForRequest(shop_id, req);
+async function findBestProductForAvailability(shop_id, req, opts = {}) {
+  return await findBestProductForRequest(shop_id, req, opts);
 }
 
-async function searchProductsAvailability(shop_id, products) {
+async function searchProductsAvailability(shop_id, products, opts = {}) {
+  const customerDefaultProductIds = await fetchCustomerDefaultProductIds({
+    shop_id,
+    customer_id: opts.customer_id,
+  });
+
   const found = [];
   const notFound = [];
 
   for (let i = 0; i < products.length; i++) {
     const req = products[i];
 
-    const row = await findBestProductForAvailability(shop_id, req);
+    const row = await findBestProductForAvailability(shop_id, req, {
+      customerDefaultProductIds,
+    });
 
     if (row) {
       const n = Number(req?.amount);

@@ -284,7 +284,7 @@ async function checkAvailability({
       return { ...p, amount };
     });
 
-    const res = await searchProductsAvailability(shop_id, searchRequests);
+    const res = await searchProductsAvailability(shop_id, searchRequests, { customer_id });
 
     found = res.found || [];
     notFound = res.notFound || [];

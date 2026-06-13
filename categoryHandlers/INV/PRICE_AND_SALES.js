@@ -244,7 +244,7 @@ async function answerPriceAndSales({
     return { ...p, amount };
   });
 
-  const res = await searchProducts(shop_id, searchRequests);
+  const res = await searchProducts(shop_id, searchRequests, { customer_id });
   const found = res?.found || [];
   const notFound = res?.notFound || [];
 

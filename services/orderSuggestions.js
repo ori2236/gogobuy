@@ -810,7 +810,7 @@ async function getExistingProductIdsInOrder({ order_id }) {
   return new Set((rows || []).map((r) => Number(r.product_id)).filter(Boolean));
 }
 
-async function findAvailableRecommendationMatch({ shop_id, suggestion }) {
+async function findAvailableRecommendationMatch({ shop_id, customer_id, suggestion }) {
   const req = {
     name: suggestion.name,
     outputName: suggestion.name,
@@ -822,7 +822,7 @@ async function findAvailableRecommendationMatch({ shop_id, suggestion }) {
     "sub-category": suggestion["sub-category"] || suggestion.sub_category || "",
   };
 
-  const row = await findBestProductForRequest(shop_id, req);
+  const row = await findBestProductForRequest(shop_id, req, { customer_id });
   if (!row) return null;
 
   const stock = Number(row.stock_amount);
