@@ -171,7 +171,7 @@ module.exports = {
 
     const suggestAlternatives = areProductAlternativesEnabled();
 
-    const { found, notFound } = await searchProducts(shop_id, reqProducts, { customer_id });
+    const { found, notFound } = await searchProducts(shop_id, reqProducts);
 
     console.log(
       "[ORD-CREATE] searchProducts.result",
@@ -535,6 +535,7 @@ module.exports = {
       totalWithPromos,
       totalNoPromos,
       savings,
+      showQuickCheckoutHint: !hasQuestions,
     });
 
     const questionsBlock = buildQuestionsBlock({

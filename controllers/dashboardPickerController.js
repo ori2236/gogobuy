@@ -151,7 +151,7 @@ function buildPackagingBlock(packaging = {}, isEnglish = false) {
         formatHebrewPackagePart(bags, "שקית", "שקיות"),
       ].filter(Boolean);
 
-  const text = parts.join(isEnglish ? " and " : " ו־");
+  const text = parts.join(isEnglish ? " and " : " ו-");
   return isEnglish
     ? `
 

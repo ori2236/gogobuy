@@ -141,12 +141,12 @@ async function answerOrderStatus({ message, customer_id, shop_id, isEnglish }) {
   if (!orders.length) {
     return english
       ? "📦 I couldn't find any orders from the last 24 hours. Would you like to start a new order?"
-      : "📦 לא מצאתי הזמנות שלך מה־24 שעות האחרונות. תרצה לפתוח הזמנה חדשה?";
+      : "📦 לא מצאתי הזמנות שלך מה-24 שעות האחרונות. תרצה לפתוח הזמנה חדשה?";
   }
 
   const header = english
     ? "📦 Here are your orders from the last 24 hours:"
-    : "📦 אלה ההזמנות שלך מה־24 שעות האחרונות:";
+    : "📦 אלה ההזמנות שלך מה-24 שעות האחרונות:";
 
   return [header, "", ...orders.map((order) => formatOrderLine(order, english))].join("\n");
 }

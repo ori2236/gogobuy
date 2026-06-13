@@ -145,7 +145,6 @@ async function repriceOrderItemsWithPromos(
 
 async function applyOrderPatch({
   shop_id,
-  customer_id,
   order_id,
   ops,
   isEnglish,
@@ -500,7 +499,7 @@ async function applyOrderPatch({
         desiredAdd = sbw ? roundTo(maxPerProduct, 3) : Math.trunc(maxPerProduct);
       }
 
-      const row = await findBestProductForRequest(shop_id, p, { customer_id });
+      const row = await findBestProductForRequest(shop_id, p);
 
       matchLog("applyOrderPatch.ops.add.matchedRow", {
         order_id,
@@ -1107,7 +1106,6 @@ module.exports = {
     try {
       const txRes = await applyOrderPatch({
         shop_id,
-        customer_id,
         order_id: order.id,
         ops: patchOps,
         isEnglish,
@@ -1199,6 +1197,7 @@ module.exports = {
         fulfillmentMethod: order.fulfillment_method,
         deliveryAddress: order.delivery_address,
         deliveryFee: order.delivery_fee,
+        showQuickCheckoutHint: !combinedQuestions.length,
       });
 
       const questionsBlock = buildQuestionsBlock({
@@ -1345,6 +1344,7 @@ module.exports = {
         fulfillmentMethod: order.fulfillment_method,
         deliveryAddress: order.delivery_address,
         deliveryFee: order.delivery_fee,
+        showQuickCheckoutHint: !combinedQuestions.length,
       });
 
       const questionsBlock = buildQuestionsBlock({

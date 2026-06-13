@@ -109,6 +109,17 @@ function getStatusEmoji(status) {
   return STATUS_EMOJIS[key] || "📌";
 }
 
+function buildQuickCheckoutHint({ orderId, status, isEnglish }) {
+  const normalizedStatus = String(status || "").toLowerCase();
+  const cleanOrderId = String(orderId || "").trim();
+
+  if (!cleanOrderId || normalizedStatus !== "pending") return "";
+
+  return isEnglish
+    ? `⭐ *To finish your order: send ${cleanOrderId}*`
+    : `⭐ *לסיום ההזמנה: שלח ${cleanOrderId}*`;
+}
+
 function buildQuantitySuffix(item, isEnglish) {
   const amount = Number(item?.amount);
   if (!Number.isFinite(amount) || amount <= 0) return "";
@@ -264,6 +275,7 @@ function buildOrderSummaryMessage({
   fulfillmentMethod = null,
   deliveryAddress = null,
   deliveryFee = null,
+  showQuickCheckoutHint = true,
 } = {}) {
   const normalizedItems = (Array.isArray(items) ? items : [])
     .map(normalizeOrderItemForSummary)
@@ -391,6 +403,21 @@ function buildOrderSummaryMessage({
         ? `${statusEmoji} Order #${orderId} | Status: ${statusText}`
         : `${statusEmoji} הזמנה #${orderId} | סטטוס: ${statusText}`,
     );
+
+    const hasInlineQuestions = Array.isArray(questions) && questions.length > 0;
+
+    if (
+      showQuickCheckoutHint &&
+      normalizedItems.length > 0 &&
+      !hasInlineQuestions
+    ) {
+      const quickCheckoutHint = buildQuickCheckoutHint({
+        orderId,
+        status,
+        isEnglish,
+      });
+      if (quickCheckoutHint) lines.push(quickCheckoutHint);
+    }
   }
 
   const summary = lines.join("\n").trim();
@@ -403,5 +430,6 @@ module.exports = {
   STATUS_EMOJIS,
   buildOrderSummaryMessage,
   buildPromoLine,
+  buildQuickCheckoutHint,
   pickGreeting,
 };
