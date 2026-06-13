@@ -150,6 +150,16 @@ async function ensureFulfillmentSchema(conn = db) {
         "delivery_expected_end_time",
         "TIME DEFAULT NULL AFTER delivery_expected_start_time",
       );
+      await addOrdersColumnIfMissing(
+        conn,
+        "packaging_bags_count",
+        "INT UNSIGNED NOT NULL DEFAULT 0",
+      );
+      await addOrdersColumnIfMissing(
+        conn,
+        "packaging_cartons_count",
+        "INT UNSIGNED NOT NULL DEFAULT 0",
+      );
 
       await conn.query(`
         CREATE TABLE IF NOT EXISTS customer_delivery_address (

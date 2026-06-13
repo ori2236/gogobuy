@@ -118,6 +118,49 @@ ${cleanNote}`
 ${cleanNote}`;
 }
 
+function parsePackagingCount(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(999, Math.floor(n)));
+}
+
+function formatHebrewPackagePart(count, singular, plural) {
+  const n = parsePackagingCount(count);
+  if (!n) return "";
+  return `${n} ${n === 1 ? singular : plural}`;
+}
+
+function formatEnglishPackagePart(count, singular, plural) {
+  const n = parsePackagingCount(count);
+  if (!n) return "";
+  return `${n} ${n === 1 ? singular : plural}`;
+}
+
+function buildPackagingBlock(packaging = {}, isEnglish = false) {
+  const bags = parsePackagingCount(packaging.bags ?? packaging.packaging_bags_count);
+  const cartons = parsePackagingCount(packaging.cartons ?? packaging.packaging_cartons_count);
+  if (!bags && !cartons) return "";
+
+  const parts = isEnglish
+    ? [
+        formatEnglishPackagePart(cartons, "carton", "cartons"),
+        formatEnglishPackagePart(bags, "bag", "bags"),
+      ].filter(Boolean)
+    : [
+        formatHebrewPackagePart(cartons, "קרטון", "קרטונים"),
+        formatHebrewPackagePart(bags, "שקית", "שקיות"),
+      ].filter(Boolean);
+
+  const text = parts.join(isEnglish ? " and " : " ו־");
+  return isEnglish
+    ? `
+
+📦 Packaging: ${text}`
+    : `
+
+📦 אריזה: ${text}`;
+}
+
 function buildPreparingMsg(orderId, isEnglish = false) {
   return isEnglish
     ? `🛒 Your order (#${orderId}) is now being picked.
@@ -126,7 +169,7 @@ We’ll update you when it’s ready ✅`
 נעדכן אותך כשהיא תהיה מוכנה ✅`;
 }
 
-function buildReadyMsg(orderId, note, fulfillmentMethod, isEnglish = false) {
+function buildReadyMsg(orderId, note, fulfillmentMethod, isEnglish = false, packaging = {}) {
   const isDelivery = String(fulfillmentMethod || "") === "delivery";
   let msg;
 
@@ -144,7 +187,7 @@ You can come to the branch to pick it up 🛍️`;
 אפשר להגיע לסניף לאסוף אותה 🛍️`;
   }
 
-  return msg + buildNoteBlock(note, isEnglish);
+  return msg + buildPackagingBlock(packaging, isEnglish) + buildNoteBlock(note, isEnglish);
 }
 
 function buildDeliveringMsg(orderId, note, isEnglish = false) {
@@ -336,6 +379,8 @@ exports.getPickerOrders = async (req, res) => {
         o.delivery_address,
         o.delivery_fee,
         o.delivery_notes,
+        o.packaging_bags_count,
+        o.packaging_cartons_count,
         o.created_at,
         o.updated_at,
         ${pickerNoteSelect},
@@ -414,6 +459,8 @@ exports.getPickerOrders = async (req, res) => {
       delivery_address: o.delivery_address ?? null,
       delivery_fee: o.delivery_fee == null ? 0 : Number(o.delivery_fee),
       delivery_notes: o.delivery_notes ?? null,
+      packaging_bags_count: parsePackagingCount(o.packaging_bags_count),
+      packaging_cartons_count: parsePackagingCount(o.packaging_cartons_count),
       price: o.price == null ? null : Number(o.price),
       payment_method: o.payment_method,
       items: itemsByOrder.get(o.id) || [],
@@ -568,6 +615,19 @@ exports.updateOrderStatus = async (req, res) => {
       ? String(req.body.picker_note || "").trim()
       : null;
 
+    const hasPackagingBagsInBody =
+      Object.prototype.hasOwnProperty.call(req.body || {}, "packaging_bags_count") ||
+      Object.prototype.hasOwnProperty.call(req.body || {}, "packagingBagsCount");
+    const hasPackagingCartonsInBody =
+      Object.prototype.hasOwnProperty.call(req.body || {}, "packaging_cartons_count") ||
+      Object.prototype.hasOwnProperty.call(req.body || {}, "packagingCartonsCount");
+    const packagingBagsFromBody = hasPackagingBagsInBody
+      ? parsePackagingCount(req.body.packaging_bags_count ?? req.body.packagingBagsCount)
+      : null;
+    const packagingCartonsFromBody = hasPackagingCartonsInBody
+      ? parsePackagingCount(req.body.packaging_cartons_count ?? req.body.packagingCartonsCount)
+      : null;
+
     await conn.beginTransaction();
 
     const hasPickerNoteCol = await hasOrdersPickerNoteColumn(conn);
@@ -583,6 +643,8 @@ exports.updateOrderStatus = async (req, res) => {
         o.fulfillment_method,
         o.delivery_address,
         o.delivery_fee,
+        o.packaging_bags_count,
+        o.packaging_cartons_count,
         c.phone AS customer_phone,
         c.name  AS customer_name
         ${noteSelect}
@@ -607,6 +669,10 @@ exports.updateOrderStatus = async (req, res) => {
     const isDeliveryOrder = fulfillmentMethod === "delivery";
     const customerPhone = normalizeWaNumber(rows[0].customer_phone);
     const existingNote = hasPickerNoteCol ? rows[0].picker_note : null;
+    const currentPackagingBags = parsePackagingCount(currentOrder.packaging_bags_count);
+    const currentPackagingCartons = parsePackagingCount(currentOrder.packaging_cartons_count);
+    const packagingBagsToSave = hasPackagingBagsInBody ? packagingBagsFromBody : currentPackagingBags;
+    const packagingCartonsToSave = hasPackagingCartonsInBody ? packagingCartonsFromBody : currentPackagingCartons;
 
     // rules:
     // confirmed -> preparing
@@ -677,6 +743,16 @@ exports.updateOrderStatus = async (req, res) => {
       params.push(pickerNoteFromBody ? pickerNoteFromBody : null);
     }
 
+    if (nextStatus === "ready" && hasPackagingBagsInBody) {
+      sets.push("packaging_bags_count = ?");
+      params.push(packagingBagsToSave);
+    }
+
+    if (nextStatus === "ready" && hasPackagingCartonsInBody) {
+      sets.push("packaging_cartons_count = ?");
+      params.push(packagingCartonsToSave);
+    }
+
     if (sets.length) {
       params.push(orderId);
       await conn.query(
@@ -693,6 +769,8 @@ exports.updateOrderStatus = async (req, res) => {
         id: orderId,
         status: nextStatus,
         fulfillment_method: fulfillmentMethod,
+        packaging_bags_count: packagingBagsToSave,
+        packaging_cartons_count: packagingCartonsToSave,
       },
     });
 
@@ -711,7 +789,10 @@ exports.updateOrderStatus = async (req, res) => {
             ? buildDeliveringMsg(orderId, noteToSend, isEnglishCustomer)
             : nextStatus === "completed"
               ? buildCompletedMsg(orderId, fulfillmentMethod, isEnglishCustomer)
-              : buildReadyMsg(orderId, noteToSend, fulfillmentMethod, isEnglishCustomer);
+              : buildReadyMsg(orderId, noteToSend, fulfillmentMethod, isEnglishCustomer, {
+                  bags: packagingBagsToSave,
+                  cartons: packagingCartonsToSave,
+                });
 
       (async () => {
         try {
