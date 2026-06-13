@@ -1197,7 +1197,6 @@ module.exports = {
         fulfillmentMethod: order.fulfillment_method,
         deliveryAddress: order.delivery_address,
         deliveryFee: order.delivery_fee,
-        showQuickCheckoutHint: !combinedQuestions.length,
       });
 
       const questionsBlock = buildQuestionsBlock({
@@ -1344,7 +1343,6 @@ module.exports = {
         fulfillmentMethod: order.fulfillment_method,
         deliveryAddress: order.delivery_address,
         deliveryFee: order.delivery_fee,
-        showQuickCheckoutHint: !combinedQuestions.length,
       });
 
       const questionsBlock = buildQuestionsBlock({

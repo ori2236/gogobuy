@@ -5,6 +5,7 @@ const { saveOpenQuestions, closeQuestionsByIds, fetchOpenQuestions } = require("
 const { detectIsEnglish } = require("./lang");
 const { getActiveOrder, getOrderItems } = require("./orders");
 const { askToCheckoutOrder } = require("../categoryHandlers/ORD/CHECKOUT");
+const { buildQuickCheckoutHint } = require("./orderSummaryMessage");
 
 const CHECKOUT_NUDGE_TYPE = "CHECKOUT_NUDGE";
 const CHECKOUT_NUDGE_NAME = "checkout_nudge";
@@ -97,18 +98,18 @@ const REPLY_CONFIG = {
 
 const NUDGE_VARIANTS = {
   he: [
-    "🛒 רוצה שאכין את ההזמנה לשליחה לחנות?\n✅ כתוב \"שלח הזמנה\", או פשוט המשך להוסיף מוצרים.",
-    "🛒 נראה שההזמנה כבר מתקדמת יפה. להכין אותה לשליחה לחנות?\n✅ אפשר לכתוב \"שלח הזמנה\", או להמשיך לערוך חופשי.",
-    "🧾 תרצה שאעביר אותך לאישור סופי של ההזמנה?\n✅ כתוב \"שלח הזמנה\" כשאתה מוכן, או המשך להוסיף מוצרים.",
-    "✅ אם סיימת לבחור מוצרים, אוכל להכין את ההזמנה לשליחה לחנות.\n🛒 כתוב \"שלח הזמנה\", או פשוט המשך להזמין.",
-    "🧾 רוצה להתקדם לסיום ההזמנה?\n✅ כתוב \"שלח הזמנה\" ואעביר אותך לאישור סופי, או המשך להוסיף מוצרים.",
+    "🛒 רוצה שאכין את ההזמנה לשליחה לחנות?\n✅ כתוב \"סיים\", או פשוט המשך להוסיף מוצרים.",
+    "🛒 נראה שההזמנה כבר מתקדמת יפה. להכין אותה לשליחה לחנות?\n✅ אפשר לכתוב \"סיים\", או להמשיך לערוך חופשי.",
+    "🧾 תרצה שאעביר אותך לאישור סופי של ההזמנה?\n✅ כתוב \"סיים\" כשאתה מוכן, או המשך להוסיף מוצרים.",
+    "✅ אם סיימת לבחור מוצרים, אוכל להכין את ההזמנה לשליחה לחנות.\n🛒 כתוב \"סיים\", או פשוט המשך להזמין.",
+    "🧾 רוצה להתקדם לסיום ההזמנה?\n✅ כתוב \"סיים\" ואעביר אותך לאישור סופי, או המשך להוסיף מוצרים.",
   ],
   en: [
-    "🛒 Would you like me to prepare this order to be sent to the store?\n✅ Write \"send order\", or just keep adding products.",
-    "🛒 Your order is coming together. Should I prepare it for sending to the store?\n✅ Write \"send order\", or keep editing freely.",
-    "🧾 Ready to move to final order confirmation?\n✅ Write \"send order\" when you are ready, or keep adding products.",
-    "✅ If you’re done choosing products, I can prepare the order for the store.\n🛒 Write \"send order\", or just continue shopping.",
-    "🧾 Would you like to continue to checkout?\n✅ Write \"send order\" and I’ll move you to final confirmation, or keep adding products.",
+    "🛒 Would you like me to prepare this order to be sent to the store?\n✅ Write \"finish\", or just keep adding products.",
+    "🛒 Your order is coming together. Should I prepare it for sending to the store?\n✅ Write \"finish\", or keep editing freely.",
+    "🧾 Ready to move to final order confirmation?\n✅ Write \"finish\" when you are ready, or keep adding products.",
+    "✅ If you’re done choosing products, I can prepare the order for the store.\n🛒 Write \"finish\", or just continue shopping.",
+    "🧾 Would you like to continue to checkout?\n✅ Write \"finish\" and I’ll move you to final confirmation, or keep adding products.",
   ],
 };
 
@@ -339,6 +340,93 @@ function attachDeferredNudge(botPayload, nudgeContext) {
   };
 }
 
+
+function getBotPayloadMainText(botPayload) {
+  if (typeof botPayload === "string") return botPayload;
+  if (!botPayload || typeof botPayload !== "object" || Array.isArray(botPayload)) return "";
+
+  return String(botPayload.message || botPayload.reply || "");
+}
+
+function hasExistingQuickCheckoutHint(botPayload) {
+  const text = getBotPayloadMainText(botPayload);
+  return text.includes("לסיום ההזמנה") || text.includes("To finish your order");
+}
+
+function hasBotPayloadFollowUps(botPayload) {
+  return Boolean(
+    botPayload &&
+      typeof botPayload === "object" &&
+      Array.isArray(botPayload.followUpMessages) &&
+      botPayload.followUpMessages.some((x) => typeof x === "string" && x.trim())
+  );
+}
+
+function hasBotPayloadOpenQuestions(botPayload) {
+  return Boolean(
+    botPayload &&
+      typeof botPayload === "object" &&
+      botPayload.productRecommendationContext &&
+      botPayload.productRecommendationContext.hasOpenQuestions
+  );
+}
+
+function looksLikePendingOrderSummary(botPayload) {
+  const text = getBotPayloadMainText(botPayload);
+  if (!text) return false;
+
+  return (
+    /(?:^|\n).*הזמנה\s+#?\d+\s*\|\s*סטטוס:\s*פתוחה/i.test(text) ||
+    /(?:^|\n).*Order\s+#?\d+\s*\|\s*Status:\s*Pending/i.test(text)
+  );
+}
+
+function appendQuickCheckoutHint(botPayload, isEnglish) {
+  const hint = buildQuickCheckoutHint({ status: "pending", isEnglish });
+  if (!hint) return botPayload;
+
+  if (typeof botPayload === "string") {
+    return [botPayload.trim(), hint].filter(Boolean).join("\n");
+  }
+
+  if (!botPayload || typeof botPayload !== "object" || Array.isArray(botPayload)) return botPayload;
+
+  if (typeof botPayload.message === "string") {
+    return {
+      ...botPayload,
+      message: [botPayload.message.trim(), hint].filter(Boolean).join("\n"),
+    };
+  }
+
+  if (typeof botPayload.reply === "string") {
+    return {
+      ...botPayload,
+      reply: [botPayload.reply.trim(), hint].filter(Boolean).join("\n"),
+    };
+  }
+
+  return botPayload;
+}
+
+function attachQuickCheckoutHintFallback({
+  botPayload,
+  category,
+  subcategory,
+  isEnglish,
+}) {
+  if (String(category).toUpperCase() !== "ORD") return botPayload;
+
+  const action = String(subcategory || "").toUpperCase();
+  if (!["CREATE", "MODIFY", "REVIEW"].includes(action)) return botPayload;
+
+  if (hasExistingQuickCheckoutHint(botPayload)) return botPayload;
+  if (hasBotPayloadFollowUps(botPayload)) return botPayload;
+  if (hasBotPayloadOpenQuestions(botPayload)) return botPayload;
+  if (!looksLikePendingOrderSummary(botPayload)) return botPayload;
+
+  return appendQuickCheckoutHint(botPayload, isEnglish);
+}
+
 async function materializeNudgeContext({
   customer_id,
   shop_id,
@@ -453,7 +541,17 @@ async function attachCheckoutNudgeIfNeeded({
     isEnglish,
   });
 
-  if (!nudgeContext) return botPayload;
+  // If the full checkout nudge should not be sent, add only the short inline hint
+  // to pending order summaries. This keeps the behavior either/or and avoids
+  // doing any extra DB work beyond the nudge checks that already existed here.
+  if (!nudgeContext) {
+    return attachQuickCheckoutHintFallback({
+      botPayload,
+      category,
+      subcategory,
+      isEnglish,
+    });
+  }
 
   const action = String(subcategory || "").toUpperCase();
 
@@ -568,8 +666,8 @@ async function handleCheckoutNudgeReply({
     });
 
     const botText = isEnglish
-      ? "No problem, keep editing the order. When you’re ready, write \"send order\"."
-      : "אין בעיה, אפשר להמשיך לערוך את ההזמנה. כשתרצה, כתוב \"שלח הזמנה\".";
+      ? "No problem, keep editing the order. When you’re ready, write \"finish\"."
+      : "אין בעיה, אפשר להמשיך לערוך את ההזמנה. כשתרצה, כתוב \"סיים\".";
 
     await persistChat({
       customer_id,

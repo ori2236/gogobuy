@@ -535,7 +535,6 @@ module.exports = {
       totalWithPromos,
       totalNoPromos,
       savings,
-      showQuickCheckoutHint: !hasQuestions,
     });
 
     const questionsBlock = buildQuestionsBlock({

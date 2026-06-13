@@ -115,8 +115,8 @@ function buildQuickCheckoutHint({ status, isEnglish }) {
   if (normalizedStatus !== "pending") return "";
 
   return isEnglish
-    ? `⭐ *To finish your order send "finish"*`
-    : `⭐ *לסיום ההזמנה שלח "סיים"*`;
+    ? '⭐ *To finish your order: send finish*'
+    : '⭐ *לסיום ההזמנה: שלח סיים*';
 }
 
 function buildQuantitySuffix(item, isEnglish) {
@@ -274,7 +274,7 @@ function buildOrderSummaryMessage({
   fulfillmentMethod = null,
   deliveryAddress = null,
   deliveryFee = null,
-  showQuickCheckoutHint = true,
+  showQuickCheckoutHint = false,
 } = {}) {
   const normalizedItems = (Array.isArray(items) ? items : [])
     .map(normalizeOrderItemForSummary)
@@ -411,7 +411,6 @@ function buildOrderSummaryMessage({
       !hasInlineQuestions
     ) {
       const quickCheckoutHint = buildQuickCheckoutHint({
-        orderId,
         status,
         isEnglish,
       });
