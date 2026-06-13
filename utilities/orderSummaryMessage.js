@@ -109,15 +109,14 @@ function getStatusEmoji(status) {
   return STATUS_EMOJIS[key] || "📌";
 }
 
-function buildQuickCheckoutHint({ orderId, status, isEnglish }) {
+function buildQuickCheckoutHint({ status, isEnglish }) {
   const normalizedStatus = String(status || "").toLowerCase();
-  const cleanOrderId = String(orderId || "").trim();
 
-  if (!cleanOrderId || normalizedStatus !== "pending") return "";
+  if (normalizedStatus !== "pending") return "";
 
   return isEnglish
-    ? `⭐ *To finish your order: send ${cleanOrderId}*`
-    : `⭐ *לסיום ההזמנה: שלח ${cleanOrderId}*`;
+    ? `⭐ *To finish your order send "finish"*`
+    : `⭐ *לסיום ההזמנה שלח "סיים"*`;
 }
 
 function buildQuantitySuffix(item, isEnglish) {
