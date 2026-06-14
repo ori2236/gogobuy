@@ -1,5 +1,6 @@
 const { saveOpenQuestions } = require("../../utilities/openQuestions");
 const { buildOrderSummaryMessage } = require("../../utilities/orderSummaryMessage");
+const { buildOrderCartPromotionLines } = require("../../services/cartPromotions");
 
 async function orderReview(order, items, isEnglish, customer_id, shop_id) {
   // no open order
@@ -68,13 +69,22 @@ async function orderReview(order, items, isEnglish, customer_id, shop_id) {
             fixed_price: it.fixed_price,
             bundle_buy_qty: it.bundle_buy_qty,
             bundle_pay_price: it.bundle_pay_price,
+            max_discounted_qty: it.max_discounted_qty,
           }
         : null,
+      is_gift: it.is_gift,
+      cart_promotion_rule_id: it.cart_promotion_rule_id,
 
       ...(isWeight ? { sold_by_weight: true } : {}),
       ...(isWeight && units ? { units } : {}),
     };
   });
+
+  const cartPromotionLines = await buildOrderCartPromotionLines(
+    order.id,
+    shop_id,
+    isEnglish,
+  );
 
   return buildOrderSummaryMessage({
     orderId: order.id,
@@ -85,6 +95,7 @@ async function orderReview(order, items, isEnglish, customer_id, shop_id) {
     fulfillmentMethod: order.fulfillment_method,
     deliveryAddress: order.delivery_address,
     deliveryFee: order.delivery_fee,
+    cartPromotionLines,
   });
 }
 

@@ -23,6 +23,7 @@ const { buildQuantityLimitWarningBlock } = require("../../utilities/productQuant
 const {
   buildOrderSummaryMessage,
 } = require("../../utilities/orderSummaryMessage");
+const { buildOrderCartPromotionLines } = require("../../services/cartPromotions");
 const {
   buildBundlePromotionFollowUps,
 } = require("../../services/orderSuggestions");
@@ -436,6 +437,8 @@ module.exports = {
      oi.requested_units,
      oi.price AS line_total,
      oi.promo_id,
+     COALESCE(oi.is_gift, 0) AS is_gift,
+     oi.cart_promotion_rule_id,
 
      pr.kind AS promo_kind,
      pr.percent_off,
@@ -443,6 +446,7 @@ module.exports = {
      pr.fixed_price,
      pr.bundle_buy_qty,
      pr.bundle_pay_price,
+     pr.max_discounted_qty,
 
      p.price AS unit_price,
      p.name AS name_he,
@@ -456,7 +460,17 @@ module.exports = {
       [orderRes.order_id, shop_id],
     );
 
-    const totalWithPromos = Number(orderRes.totalPrice ?? 0);
+    const [[createdOrderTotals]] = await db.query(
+      `SELECT price FROM orders WHERE id = ? AND shop_id = ? LIMIT 1`,
+      [orderRes.order_id, shop_id],
+    );
+
+    const totalWithPromos = Number(createdOrderTotals?.price ?? orderRes.totalPrice ?? 0);
+    const cartPromotionLines = await buildOrderCartPromotionLines(
+      orderRes.order_id,
+      shop_id,
+      isEnglish,
+    );
 
     let totalNoPromos = 0;
     for (const r of rows || []) {
@@ -494,8 +508,12 @@ module.exports = {
                 fixed_price: r.fixed_price,
                 bundle_buy_qty: r.bundle_buy_qty,
                 bundle_pay_price: r.bundle_pay_price,
+                max_discounted_qty: r.max_discounted_qty,
               }
             : null,
+
+        is_gift: r.is_gift,
+        cart_promotion_rule_id: r.cart_promotion_rule_id,
 
         ...(r.sold_by_weight ? { sold_by_weight: true } : {}),
         ...(hasUnits ? { units } : {}),
@@ -535,6 +553,7 @@ module.exports = {
       totalWithPromos,
       totalNoPromos,
       savings,
+      cartPromotionLines,
     });
 
     const questionsBlock = buildQuestionsBlock({

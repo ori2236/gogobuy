@@ -11,6 +11,10 @@ const {
 } = require("../utilities/tokens");
 const { buildQuestionsBlock } = require("../utilities/messageBuilders");
 const { getSubCategoryCandidates } = require("../repositories/categories");
+const {
+  fetchActiveCartPromotionOverview,
+  formatCartPromotionRule,
+} = require("./cartPromotions");
 
 function formatILS(n) {
   const x = Number(n);
@@ -2310,6 +2314,19 @@ async function answerPromotionListFlow({
     req.category = nullify(req.category);
 
     const subject = getPromotionListSubject(req, isEnglish);
+    const isStoreWideRequest = !req.name && !req.outputName && !req.category && !req["sub-category"] && !req.sub_category;
+
+    if (isStoreWideRequest) {
+      const cartRules = await fetchActiveCartPromotionOverview(shop_id, { limit: 20 });
+      if (cartRules.length) {
+        const title = isEnglish ? "Basket promotions:" : "מבצעי סל:";
+        const lines = cartRules
+          .map((rule) => formatCartPromotionRule(rule, isEnglish))
+          .filter(Boolean)
+          .map((line) => `• ${line}`);
+        if (lines.length) blocks.push([title, ...lines].join("\n"));
+      }
+    }
 
     const rows = await fetchActivePromotionsOverview({
       shop_id,
@@ -2319,6 +2336,7 @@ async function answerPromotionListFlow({
     });
 
     if (!rows.length) {
+      if (isStoreWideRequest && blocks.length) continue;
       blocks.push(
         isEnglish
           ? `I couldn't find active promotions for ${subject} right now.`

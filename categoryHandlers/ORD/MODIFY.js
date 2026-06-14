@@ -33,6 +33,7 @@ const {
 const {
   buildBundlePromotionFollowUps,
 } = require("../../services/orderSuggestions");
+const { buildOrderCartPromotionLines, ensureCartPromotionSchema } = require("../../services/cartPromotions");
 const {
   areProductAlternativesEnabled,
   buildModifyNotSoldLine,
@@ -97,7 +98,8 @@ async function repriceOrderItemsWithPromos(
     pr.amount_off,
     pr.fixed_price,
     pr.bundle_buy_qty,
-    pr.bundle_pay_price
+    pr.bundle_pay_price,
+    pr.max_discounted_qty
     FROM order_item oi
     JOIN orders o ON o.id = oi.order_id
     JOIN product p ON p.id = oi.product_id AND p.shop_id = o.shop_id
@@ -120,6 +122,7 @@ async function repriceOrderItemsWithPromos(
             fixed_price: r.fixed_price,
             bundle_buy_qty: r.bundle_buy_qty,
             bundle_pay_price: r.bundle_pay_price,
+            max_discounted_qty: r.max_discounted_qty,
           }
         : null;
 
@@ -269,6 +272,7 @@ async function applyOrderPatch({
   };
 
   try {
+    await ensureCartPromotionSchema(conn);
     await conn.beginTransaction();
 
     const [origItems] = await conn.query(
@@ -825,6 +829,8 @@ async function applyOrderPatch({
         oi.requested_units,
         oi.price AS line_total,
         oi.promo_id,
+        COALESCE(oi.is_gift, 0) AS is_gift,
+        oi.cart_promotion_rule_id,
 
         pr.kind AS promo_kind,
         pr.percent_off,
@@ -832,6 +838,7 @@ async function applyOrderPatch({
         pr.fixed_price,
         pr.bundle_buy_qty,
         pr.bundle_pay_price,
+        pr.max_discounted_qty,
 
         p.price AS unit_price,
         p.name,
@@ -847,9 +854,16 @@ async function applyOrderPatch({
 
     await conn.commit();
 
+    const cartPromotionLines = await buildOrderCartPromotionLines(
+      order_id,
+      shop_id,
+      isEnglish,
+    );
+
     return {
       ok: true,
       total,
+      cartPromotionLines,
       items: curItems.map((it) => {
         const heName = it.name;
         const enName =
@@ -874,8 +888,11 @@ async function applyOrderPatch({
                 fixed_price: it.fixed_price,
                 bundle_buy_qty: it.bundle_buy_qty,
                 bundle_pay_price: it.bundle_pay_price,
+                max_discounted_qty: it.max_discounted_qty,
               }
             : null,
+          is_gift: it.is_gift,
+          cart_promotion_rule_id: it.cart_promotion_rule_id,
 
           ...(it.sold_by_weight ? { sold_by_weight: true } : {}),
           ...(hasUnits ? { units } : {}),
@@ -1197,6 +1214,7 @@ module.exports = {
         fulfillmentMethod: order.fulfillment_method,
         deliveryAddress: order.delivery_address,
         deliveryFee: order.delivery_fee,
+        cartPromotionLines: txRes.cartPromotionLines,
       });
 
       const questionsBlock = buildQuestionsBlock({
@@ -1322,6 +1340,12 @@ module.exports = {
         }
       }
 
+      const cartPromotionLines = await buildOrderCartPromotionLines(
+        order.id,
+        shop_id,
+        isEnglish,
+      );
+
       const techQuestion = {
         name: null,
         question: isEnglish
@@ -1343,6 +1367,7 @@ module.exports = {
         fulfillmentMethod: order.fulfillment_method,
         deliveryAddress: order.delivery_address,
         deliveryFee: order.delivery_fee,
+        cartPromotionLines,
       });
 
       const questionsBlock = buildQuestionsBlock({

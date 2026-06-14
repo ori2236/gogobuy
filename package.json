@@ -4,7 +4,14 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "import:leshem-staging": "node scripts/importCleanProductsToStaging.js --batchId=leshem_2026_06_14",
+    "classify:leshem-staging": "node scripts/classifyStagingProducts.js --batchId=leshem_2026_06_14 --batchSize=35",
+    "translate:leshem-staging": "node scripts/translateStagingProducts.js --batchId=leshem_2026_06_14 --batchSize=35",
+    "preview:leshem-replace": "node scripts/replaceShopInventoryFromStaging.js --batchId=leshem_2026_06_14 --archiveShopId=6 --dryRun",
+    "publish:leshem-replace": "node scripts/replaceShopInventoryFromStaging.js --batchId=leshem_2026_06_14 --archiveShopId=6 --confirm",
+    "migrate:cart-promos": "node scripts/migrateCartPromotions.js",
+    "seed:shop1-cart-promos": "node scripts/seedShop1CartPromotions.js"
   },
   "repository": {
     "type": "git",

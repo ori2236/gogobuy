@@ -1,6 +1,8 @@
 const db = require("../config/db");
 const { addDec, addMoney, mulMoney } = require("./decimal");
+const { round2, calcLineTotalWithPromo } = require("./promotionPricing");
 const { areProductAlternativesEnabled } = require("./productMessaging");
+const { applyCartPromotionsToOrder, ensureCartPromotionSchema } = require("../services/cartPromotions");
 
 function mergeDuplicateLineItems(lineItems) {
   const byId = new Map();
@@ -89,79 +91,33 @@ async function fetchAlternativesWithStock(
   return rows || [];
 }
 
-function round2(n) {
-  const x = Number(n);
-  if (!Number.isFinite(x)) return null;
-  return Math.round(x * 100) / 100;
-}
 
-function calcLineTotalWithPromo({ unitPrice, amount, soldByWeight, promo }) {
-  const base = Number(unitPrice);
-  const qty = Number(amount);
+const PROMOTION_COLUMN_CACHE = new Map();
 
-  if (!Number.isFinite(base) || !Number.isFinite(qty) || qty <= 0) {
-    return { lineTotal: null, promo_id: null };
+async function hasPromotionColumn(conn, columnName) {
+  const key = String(columnName || "").trim();
+  if (!key) return false;
+  if (PROMOTION_COLUMN_CACHE.has(key)) return PROMOTION_COLUMN_CACHE.get(key);
+
+  try {
+    const [rows] = await conn.query(
+      `
+      SELECT 1
+      FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = 'promotion'
+        AND COLUMN_NAME = ?
+      LIMIT 1
+      `,
+      [key]
+    );
+    const exists = Array.isArray(rows) && rows.length > 0;
+    PROMOTION_COLUMN_CACHE.set(key, exists);
+    return exists;
+  } catch {
+    PROMOTION_COLUMN_CACHE.set(key, false);
+    return false;
   }
-
-  if (!promo) {
-    return { lineTotal: round2(base * qty), promo_id: null };
-  }
-
-  const kind = String(promo.kind || "").toUpperCase();
-  const baseTotal = base * qty;
-
-  if (kind === "PERCENT_OFF") {
-    const p = Number(promo.percent_off);
-    if (!Number.isFinite(p))
-      return { lineTotal: round2(baseTotal), promo_id: promo.id };
-    const newUnit = base * (1 - p / 100);
-    return { lineTotal: round2(newUnit * qty), promo_id: promo.id };
-  }
-
-  if (kind === "AMOUNT_OFF") {
-    const off = Number(promo.amount_off);
-    if (!Number.isFinite(off))
-      return { lineTotal: round2(baseTotal), promo_id: promo.id };
-    const newUnit = Math.max(0, base - off);
-    return { lineTotal: round2(newUnit * qty), promo_id: promo.id };
-  }
-
-  if (kind === "FIXED_PRICE") {
-    const fp = Number(promo.fixed_price);
-    if (!Number.isFinite(fp))
-      return { lineTotal: round2(baseTotal), promo_id: promo.id };
-    const newUnit = Math.max(0, fp);
-    return { lineTotal: round2(newUnit * qty), promo_id: promo.id };
-  }
-
-  if (kind === "BUNDLE") {
-    const buyQty = Number(promo.bundle_buy_qty); // אצלך int
-    const pay = Number(promo.bundle_pay_price);
-
-    if (
-      !Number.isFinite(buyQty) ||
-      buyQty <= 0 ||
-      !Number.isFinite(pay) ||
-      pay < 0
-    ) {
-      return { lineTotal: round2(baseTotal), promo_id: promo.id };
-    }
-
-    if (soldByWeight) {
-      const bundles = Math.floor(qty / buyQty);
-      const remainder = qty - bundles * buyQty;
-      const total = bundles * pay + remainder * base;
-      return { lineTotal: round2(total), promo_id: promo.id };
-    }
-
-    const N = Math.max(1, Math.ceil(qty));
-    const bundles = Math.floor(N / buyQty);
-    const remainder = N - bundles * buyQty;
-    const total = bundles * pay + remainder * base;
-    return { lineTotal: round2(total), promo_id: promo.id };
-  }
-
-  return { lineTotal: round2(baseTotal), promo_id: promo.id };
 }
 
 async function fetchActivePromotionsMap(conn, shop_id, productIds) {
@@ -169,12 +125,18 @@ async function fetchActivePromotionsMap(conn, shop_id, productIds) {
   if (!ids.length) return new Map();
 
   const placeholders = ids.map(() => "?").join(",");
+  const hasMaxDiscountedQty = await hasPromotionColumn(conn, "max_discounted_qty");
+  const maxDiscountedQtySelect = hasMaxDiscountedQty
+    ? "max_discounted_qty"
+    : "NULL AS max_discounted_qty";
+
   const [rows] = await conn.query(
     `
     SELECT
       id, product_id, kind,
       percent_off, amount_off, fixed_price,
-      bundle_buy_qty, bundle_pay_price
+      bundle_buy_qty, bundle_pay_price,
+      ${maxDiscountedQtySelect}
     FROM promotion
     WHERE shop_id = ?
       AND product_id IN (${placeholders})
@@ -405,6 +367,12 @@ async function createOrderWithStockReserve({
       params
     );
 
+    const promoTotals = await applyCartPromotionsToOrder(conn, {
+      order_id,
+      shop_id,
+    });
+    total = promoTotals?.total ?? promoTotals?.itemsSubtotal ?? total;
+
     await conn.commit();
 
     return {
@@ -456,10 +424,13 @@ async function getActiveOrder(customer_id, shop_id) {
 }
 
 async function getOrderItems(order_id) {
+  await ensureCartPromotionSchema();
   const [rows] = await db.query(
     `
     SELECT
       oi.*,
+      COALESCE(oi.is_gift, 0) AS is_gift,
+      oi.cart_promotion_rule_id,
 
       COALESCE(p.name, dp.name, CONCAT('מוצר שנמחק (#', oi.product_id, ')')) AS name,
       COALESCE(p.display_name_en, dp.display_name_en, NULL) AS display_name_en,
@@ -476,7 +447,8 @@ async function getOrderItems(order_id) {
       pr.amount_off,
       pr.fixed_price,
       pr.bundle_buy_qty,
-      pr.bundle_pay_price
+      pr.bundle_pay_price,
+      pr.max_discounted_qty
 
     FROM order_item oi
     JOIN orders o

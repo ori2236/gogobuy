@@ -230,6 +230,9 @@ function normalizeOrderItemForSummary(item) {
     line_total: lineTotal,
     unit_price: Number(item.unit_price ?? item.price),
     sold_by_weight: isWeight,
+    is_gift:
+      item.is_gift === true || item.is_gift === 1 || item.is_gift === "1",
+    cart_promotion_rule_id: item.cart_promotion_rule_id || null,
     emoji: cleanEmoji(item.emoji),
   };
 }
@@ -243,6 +246,8 @@ function calcTotalsFromItems(items) {
     if (Number.isFinite(lineTotal)) {
       totalWithPromos = roundTo(totalWithPromos + lineTotal, 2);
     }
+
+    if (item.is_gift) continue;
 
     const unitPrice = Number(item.unit_price ?? item.price);
     const amount = Number(item.amount);
@@ -274,6 +279,7 @@ function buildOrderSummaryMessage({
   fulfillmentMethod = null,
   deliveryAddress = null,
   deliveryFee = null,
+  cartPromotionLines = [],
   showQuickCheckoutHint = false,
 } = {}) {
   const normalizedItems = (Array.isArray(items) ? items : [])
@@ -330,6 +336,15 @@ function buildOrderSummaryMessage({
 
     const emoji = cleanEmoji(item.emoji);
     const qtySuffix = buildQuantitySuffix(item, isEnglish);
+    if (item.is_gift) {
+      lines.push(
+        isEnglish
+          ? `${emoji} ${boldProductName(name)}${qtySuffix} - gift 🎁`
+          : `${emoji} ${boldProductName(name)}${qtySuffix} - מתנה 🎁`,
+      );
+      continue;
+    }
+
     lines.push(`${emoji} ${boldProductName(name)}${qtySuffix} - ₪${fmtMoney(item.line_total)}`);
 
     const promoLine = buildPromoLine({
@@ -338,6 +353,16 @@ function buildOrderSummaryMessage({
       isWeight: item.sold_by_weight === true,
     });
     if (promoLine) lines.push(promoLine);
+  }
+
+  const normalizedCartPromotionLines = (Array.isArray(cartPromotionLines) ? cartPromotionLines : [])
+    .map((line) => String(line || "").trim())
+    .filter(Boolean);
+
+  if (normalizedCartPromotionLines.length) {
+    lines.push("");
+    lines.push(isEnglish ? "🎁 Basket promotions:" : "🎁 מבצעי סל:");
+    for (const line of normalizedCartPromotionLines) lines.push(`• ${line}`);
   }
 
   lines.push("");

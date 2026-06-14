@@ -5,6 +5,7 @@ const { detectIsEnglish } = require("../utilities/lang");
 const { chat } = require("../config/openai");
 const { getPromptFromDB } = require("../repositories/prompt");
 const { validateMinimumOrderBeforeCheckout } = require("./minimumOrder");
+const { applyCartPromotionsToOrder, buildOrderCartPromotionLines } = require("./cartPromotions");
 
 const QUESTION_TYPES = {
   FULFILLMENT_METHOD: "FULFILLMENT_METHOD",
@@ -132,8 +133,13 @@ async function ensureFulfillmentSchema(conn = db) {
       );
       await addOrdersColumnIfMissing(
         conn,
+        "delivery_fee_before_promo",
+        "DECIMAL(10,2) DEFAULT NULL AFTER delivery_fee",
+      );
+      await addOrdersColumnIfMissing(
+        conn,
         "delivery_notes",
-        "TEXT DEFAULT NULL AFTER delivery_fee",
+        "TEXT DEFAULT NULL AFTER delivery_fee_before_promo",
       );
       await addOrdersColumnIfMissing(
         conn,
@@ -781,8 +787,20 @@ async function getOrderItemsTotal(conn, order_id) {
   return money(sumRow?.total || 0);
 }
 
-async function recalculateOrderTotalWithFulfillment(conn, { order_id }) {
+async function recalculateOrderTotalWithFulfillment(conn, { order_id, skipCartPromotions = false }) {
   await ensureFulfillmentSchema(conn);
+
+  if (!skipCartPromotions) {
+    const promoTotals = await applyCartPromotionsToOrder(conn, { order_id });
+    if (promoTotals) {
+      return {
+        itemTotal: promoTotals.itemsSubtotal,
+        deliveryFee: promoTotals.deliveryFee,
+        total: promoTotals.total,
+      };
+    }
+  }
+
   const itemTotal = await getOrderItemsTotal(conn, order_id);
   const [[order]] = await conn.query(
     `SELECT fulfillment_method, delivery_fee FROM orders WHERE id = ? LIMIT 1`,
@@ -793,7 +811,6 @@ async function recalculateOrderTotalWithFulfillment(conn, { order_id }) {
   await conn.query(`UPDATE orders SET price = ?, updated_at = NOW(6) WHERE id = ?`, [total, Number(order_id)]);
   return { itemTotal, deliveryFee: fee, total };
 }
-
 async function getDeliveryFeeForOrder({ shop_id, zone }) {
   const shop = await getShopFulfillment(shop_id);
   const override = zone?.delivery_fee_override;
@@ -825,6 +842,7 @@ async function applyOrderFulfillment({ order_id, shop_id, method, delivery_addre
          SET fulfillment_method = ?,
              delivery_address = ?,
              delivery_fee = ?,
+             delivery_fee_before_promo = IF(? = 'delivery', ?, NULL),
              delivery_notes = NULL,
              delivery_expected_date = IF(? = 'delivery', delivery_expected_date, NULL),
              delivery_expected_start_time = IF(? = 'delivery', delivery_expected_start_time, NULL),
@@ -835,6 +853,8 @@ async function applyOrderFulfillment({ order_id, shop_id, method, delivery_addre
       [
         normalizedMethod,
         normalizedMethod === "delivery" ? cleanText(stripAddressPrefix(delivery_address), 2000) : null,
+        fee,
+        normalizedMethod,
         fee,
         normalizedMethod,
         normalizedMethod,
@@ -910,6 +930,13 @@ async function buildCheckoutInstructionForOrder({ order_id, shop_id, isEnglish }
 
   const lines = [];
   if (summary) lines.push(summary, "");
+
+  const cartPromotionLines = await buildOrderCartPromotionLines(order_id, shop_id, isEnglish);
+  if (cartPromotionLines.length) {
+    lines.push(isEnglish ? "🎁 Basket promotions:" : "🎁 מבצעי סל:");
+    for (const line of cartPromotionLines) lines.push(`• ${line}`);
+    lines.push("");
+  }
 
   if (isDelivery) {
     const storedDeliveryTiming = buildStoredDeliveryTimingMessage({
