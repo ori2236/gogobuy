@@ -730,6 +730,7 @@ module.exports = {
   fetchActiveCartPromotionRules,
   applyCartPromotionsToOrder,
   getOrderCartPromotionApplications,
+  formatCartPromotionApplication,
   buildOrderCartPromotionLines,
   fetchActiveCartPromotionOverview,
   formatCartPromotionRule,
