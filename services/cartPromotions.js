@@ -79,18 +79,6 @@ async function ensureCartPromotionSchema(conn = db) {
       await addColumnIfMissing(
         conn,
         "orders",
-        "fulfillment_method",
-        "ENUM('pickup','delivery') DEFAULT NULL AFTER payment_method",
-      );
-      await addColumnIfMissing(
-        conn,
-        "orders",
-        "delivery_fee",
-        "DECIMAL(10,2) NOT NULL DEFAULT 0.00 AFTER delivery_address",
-      );
-      await addColumnIfMissing(
-        conn,
-        "orders",
         "delivery_fee_before_promo",
         "DECIMAL(10,2) DEFAULT NULL AFTER delivery_fee",
       );
@@ -697,6 +685,7 @@ module.exports = {
   fetchActiveCartPromotionRules,
   applyCartPromotionsToOrder,
   getOrderCartPromotionApplications,
+  formatCartPromotionApplication,
   buildOrderCartPromotionLines,
   fetchActiveCartPromotionOverview,
   formatCartPromotionRule,

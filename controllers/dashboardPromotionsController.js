@@ -1,5 +1,6 @@
 const db = require("../config/db");
 const { parseShopId, clampInt } = require("../utilities/dashboardUtils");
+const { ensureCartPromotionSchema } = require("../services/cartPromotions");
 
 const ALLOWED_KINDS = new Set([
   "PERCENT_OFF",
@@ -127,6 +128,7 @@ function parsePromotionPayload(body) {
     fixed_price: null,
     bundle_buy_qty: null,
     bundle_pay_price: null,
+    max_discounted_qty: null,
     description: trimOrNull(body?.description),
     start_at: start.value,
     end_at: end.value,
@@ -176,6 +178,16 @@ function parsePromotionPayload(body) {
     payload.bundle_pay_price = payPrice.value;
   }
 
+  const maxQtyRaw = body?.max_discounted_qty ?? body?.maxDiscountedQty;
+  if (maxQtyRaw !== null && maxQtyRaw !== undefined && maxQtyRaw !== "") {
+    const parsedMaxQty = moneyNumber(maxQtyRaw, "max_discounted_qty", {
+      min: 0.001,
+      required: false,
+    });
+    if (parsedMaxQty.error) return { error: parsedMaxQty.error };
+    payload.max_discounted_qty = parsedMaxQty.value;
+  }
+
   return { payload };
 }
 
@@ -214,6 +226,8 @@ function mapPromotionRow(row) {
       row.bundle_buy_qty == null ? null : Number(row.bundle_buy_qty),
     bundle_pay_price:
       row.bundle_pay_price == null ? null : Number(row.bundle_pay_price),
+    max_discounted_qty:
+      row.max_discounted_qty == null ? null : Number(row.max_discounted_qty),
     description: row.description ?? null,
     start_at: row.start_at ?? null,
     end_at: row.end_at ?? null,
@@ -244,6 +258,7 @@ async function getPromotionById(shopId, id) {
       pr.fixed_price,
       pr.bundle_buy_qty,
       pr.bundle_pay_price,
+      pr.max_discounted_qty,
       pr.description,
       pr.start_at,
       pr.end_at,
@@ -269,6 +284,8 @@ exports.listPromotions = async (req, res) => {
     if (!Number.isFinite(shopId) || shopId <= 0) {
       return res.status(400).json({ ok: false, message: "Invalid shop_id" });
     }
+
+    await ensureCartPromotionSchema();
 
     const status = String(req.query.status || "all").trim().toLowerCase();
     const statusFilter = ALLOWED_STATUS_FILTERS.has(status) ? status : "all";
@@ -384,6 +401,8 @@ exports.createPromotion = async (req, res) => {
       return res.status(400).json({ ok: false, message: "Invalid shop_id" });
     }
 
+    await ensureCartPromotionSchema();
+
     const parsed = parsePromotionPayload(req.body || {});
     if (parsed.error) {
       return res.status(400).json({ ok: false, message: parsed.error });
@@ -399,10 +418,10 @@ exports.createPromotion = async (req, res) => {
       `
       INSERT INTO promotion
         (shop_id, product_id, kind, percent_off, amount_off, fixed_price,
-         bundle_buy_qty, bundle_pay_price, description, start_at, end_at,
+         bundle_buy_qty, bundle_pay_price, max_discounted_qty, description, start_at, end_at,
          created_at, updated_at)
       VALUES
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       `,
       [
         shopId,
@@ -413,6 +432,7 @@ exports.createPromotion = async (req, res) => {
         p.fixed_price,
         p.bundle_buy_qty,
         p.bundle_pay_price,
+        p.max_discounted_qty,
         p.description,
         p.start_at,
         p.end_at,
@@ -438,6 +458,8 @@ exports.updatePromotion = async (req, res) => {
     if (!Number.isInteger(id) || id <= 0) {
       return res.status(400).json({ ok: false, message: "Invalid promotion id" });
     }
+
+    await ensureCartPromotionSchema();
 
     const existing = await getPromotionById(shopId, id);
     if (!existing) {
@@ -466,6 +488,7 @@ exports.updatePromotion = async (req, res) => {
         fixed_price = ?,
         bundle_buy_qty = ?,
         bundle_pay_price = ?,
+        max_discounted_qty = ?,
         description = ?,
         start_at = ?,
         end_at = ?,
@@ -481,6 +504,7 @@ exports.updatePromotion = async (req, res) => {
         p.fixed_price,
         p.bundle_buy_qty,
         p.bundle_pay_price,
+        p.max_discounted_qty,
         p.description,
         p.start_at,
         p.end_at,
@@ -508,6 +532,8 @@ exports.deletePromotion = async (req, res) => {
     if (!Number.isInteger(id) || id <= 0) {
       return res.status(400).json({ ok: false, message: "Invalid promotion id" });
     }
+
+    await ensureCartPromotionSchema();
 
     const promotion = await getPromotionById(shopId, id);
     if (!promotion) {

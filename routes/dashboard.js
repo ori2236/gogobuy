@@ -3,6 +3,7 @@ const router = express.Router();
 const picker = require("../controllers/dashboardPickerController");
 const stock = require("../controllers/dashboardStockController");
 const promotions = require("../controllers/dashboardPromotionsController");
+const cartPromotions = require("../controllers/dashboardCartPromotionsController");
 const auth = require("../controllers/dashboardAuthController");
 const settings = require("../controllers/dashboardSettingsController");
 const staffWhatsapp = require("../controllers/dashboardStaffWhatsappController");
@@ -30,6 +31,14 @@ router.patch("/picker/orders/:orderId/items/:itemId", picker.updateOrderItemPick
 router.get("/stock/categories", stock.getStockCategories);
 
 router.get("/promotions", promotions.listPromotions);
+
+router.get("/promotions/cart-rules", cartPromotions.listCartPromotionRules);
+
+router.post("/promotions/cart-rules", cartPromotions.createCartPromotionRule);
+
+router.patch("/promotions/cart-rules/:id", cartPromotions.updateCartPromotionRule);
+
+router.delete("/promotions/cart-rules/:id", cartPromotions.deleteCartPromotionRule);
 
 router.post("/promotions", promotions.createPromotion);
 

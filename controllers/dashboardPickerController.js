@@ -5,6 +5,10 @@ const {
   normalizeWaNumber,
 } = require("../utilities/dashboardUtils");
 const { ensureFulfillmentSchema } = require("../services/fulfillment");
+const {
+  ensureCartPromotionSchema,
+  formatCartPromotionApplication,
+} = require("../services/cartPromotions");
 const { isEnglishFromCustomerName } = require("../utilities/i18n");
 
 const ALLOWED_STATUSES = new Set([
@@ -365,6 +369,7 @@ exports.getPickerOrders = async (req, res) => {
       : "NULL AS customer_note_to_picker";
 
     await ensureOrderItemPickerColumns(conn);
+    await ensureCartPromotionSchema(conn);
 
     const [ordersRows] = await conn.query(
       `
@@ -415,6 +420,9 @@ exports.getPickerOrders = async (req, res) => {
         oi.requested_units AS requested_units,
         oi.supplied_amount AS supplied_amount,
         oi.picker_note AS item_picker_note,
+        oi.price AS line_price,
+        COALESCE(oi.is_gift, 0) AS is_gift,
+        oi.cart_promotion_rule_id AS cart_promotion_rule_id,
         COALESCE(p.name, dp.name, CONCAT('מוצר שנמחק (#', oi.product_id, ')')) AS product_name
       FROM order_item oi
       LEFT JOIN product p
@@ -441,7 +449,49 @@ exports.getPickerOrders = async (req, res) => {
         supplied_amount:
           r.supplied_amount == null ? null : Number(r.supplied_amount),
         picker_note: r.item_picker_note ?? null,
+        line_price: r.line_price == null ? null : Number(r.line_price),
+        is_gift: Boolean(r.is_gift),
+        cart_promotion_rule_id:
+          r.cart_promotion_rule_id == null ? null : Number(r.cart_promotion_rule_id),
         unit_label: Boolean(r.sold_by_weight) ? 'ק"ג' : "יח'",
+      });
+    }
+
+    const [applicationRows] = await conn.query(
+      `
+      SELECT
+        opa.*,
+        cpr.reward_product_id,
+        p.name AS reward_product_name,
+        p.display_name_en AS reward_display_name_en
+      FROM order_promotion_application opa
+      LEFT JOIN cart_promotion_rule cpr ON cpr.id = opa.cart_promotion_rule_id
+      LEFT JOIN product p ON p.id = cpr.reward_product_id AND p.shop_id = opa.shop_id
+      WHERE opa.order_id IN (${itemPlaceholders})
+        AND opa.shop_id = ?
+      ORDER BY opa.order_id ASC, opa.id ASC
+      `,
+      [...orderIds, shopId],
+    );
+
+    const applicationsByOrder = new Map();
+    for (const row of applicationRows || []) {
+      const orderId = Number(row.order_id);
+      if (!applicationsByOrder.has(orderId)) applicationsByOrder.set(orderId, []);
+      applicationsByOrder.get(orderId).push({
+        id: Number(row.id),
+        order_id: orderId,
+        cart_promotion_rule_id: Number(row.cart_promotion_rule_id),
+        rule_type: row.rule_type,
+        title: row.title,
+        discount_amount: row.discount_amount == null ? 0 : Number(row.discount_amount),
+        applied_value: row.applied_value == null ? null : Number(row.applied_value),
+        metadata: row.metadata || null,
+        reward_product_id:
+          row.reward_product_id == null ? null : Number(row.reward_product_id),
+        reward_product_name: row.reward_product_name ?? null,
+        reward_display_name_en: row.reward_display_name_en ?? null,
+        text_he: formatCartPromotionApplication(row, false),
       });
     }
 
@@ -463,6 +513,10 @@ exports.getPickerOrders = async (req, res) => {
       packaging_cartons_count: parsePackagingCount(o.packaging_cartons_count),
       price: o.price == null ? null : Number(o.price),
       payment_method: o.payment_method,
+      cart_promotion_applications: applicationsByOrder.get(Number(o.id)) || [],
+      cart_promotion_lines: (applicationsByOrder.get(Number(o.id)) || [])
+        .map((app) => app.text_he)
+        .filter(Boolean),
       items: itemsByOrder.get(o.id) || [],
     }));
 

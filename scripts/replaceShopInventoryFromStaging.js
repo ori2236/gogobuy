@@ -108,20 +108,92 @@ async function ensureProductEmojiSchema(conn = db) {
 }
 
 
-async function getShopColumns(conn = db) {
+async function getTableColumns(tableName, conn = db) {
   const [rows] = await conn.query(
     `
-    SELECT COLUMN_NAME, EXTRA
+    SELECT COLUMN_NAME, EXTRA, IS_NULLABLE, COLUMN_DEFAULT, DATA_TYPE, CHARACTER_MAXIMUM_LENGTH
     FROM INFORMATION_SCHEMA.COLUMNS
     WHERE TABLE_SCHEMA = DATABASE()
-      AND TABLE_NAME = 'shop'
+      AND TABLE_NAME = ?
     ORDER BY ORDINAL_POSITION
     `,
+    [tableName],
   );
+
   return rows.map((row) => ({
     name: row.COLUMN_NAME,
     extra: String(row.EXTRA || "").toLowerCase(),
+    nullable: String(row.IS_NULLABLE || "").toUpperCase() === "YES",
+    defaultValue: row.COLUMN_DEFAULT,
+    dataType: String(row.DATA_TYPE || "").toLowerCase(),
+    maxLength: row.CHARACTER_MAXIMUM_LENGTH ? Number(row.CHARACTER_MAXIMUM_LENGTH) : null,
   }));
+}
+
+async function getShopColumns(conn = db) {
+  return getTableColumns("shop", conn);
+}
+
+function sqlStringLiteral(value) {
+  return `'${String(value ?? "").replace(/\\/g, "\\\\").replace(/'/g, "''")}'`;
+}
+
+function safeGeneratedEmail(prefix, id) {
+  const ts = new Date().toISOString().replace(/[-:.TZ]/g, "").slice(0, 14);
+  return `${prefix}-${id}-${ts}@gogobuy.local`;
+}
+
+async function createArchiveOwnerForShop({ conn, sourceShopId, archiveShopId }) {
+  if (!(await hasTable("owner", conn)) || !(await hasColumn("shop", "owner_id", conn))) {
+    return null;
+  }
+
+  const [[sourceOwner]] = await conn.query(
+    `
+    SELECT o.id
+    FROM shop s
+    JOIN owner o ON o.id = s.owner_id
+    WHERE s.id = ?
+    LIMIT 1
+    `,
+    [sourceShopId],
+  );
+
+  if (!sourceOwner) {
+    return null;
+  }
+
+  const ownerColumns = (await getTableColumns("owner", conn))
+    .filter((col) => !col.extra.includes("generated") && !col.extra.includes("auto_increment"));
+
+  const insertColumns = ownerColumns.map((col) => col.name);
+  const archiveEmail = safeGeneratedEmail("archive-owner-shop", archiveShopId);
+
+  const selectExpressions = ownerColumns.map((col) => {
+    const columnName = col.name;
+    if (columnName === "name") return "LEFT(CONCAT(`name`, ' - ארכיון מלאי'), 100) AS `name`";
+    if (columnName === "email") return `${sqlStringLiteral(archiveEmail)} AS \`email\``;
+    if (columnName === "shop_id") return "NULL AS `shop_id`";
+    if (["created_at", "updated_at"].includes(columnName)) return `CURRENT_TIMESTAMP AS \`${columnName}\``;
+    return `\`${columnName}\``;
+  });
+
+  const [result] = await conn.query(
+    `
+    INSERT INTO owner (${insertColumns.map(quoteIdentifier).join(", ")})
+    SELECT ${selectExpressions.join(", ")}
+    FROM owner
+    WHERE id = ?
+    LIMIT 1
+    `,
+    [sourceOwner.id],
+  );
+
+  if (!result?.insertId) {
+    throw new Error(`Failed to create archive owner for archive shop ${archiveShopId}.`);
+  }
+
+  return Number(result.insertId);
 }
 
 async function ensureArchiveShop({ conn, sourceShopId, archiveShopId }) {
@@ -144,14 +216,23 @@ async function ensureArchiveShop({ conn, sourceShopId, archiveShopId }) {
     throw new Error("shop.id column was not found.");
   }
 
+  const archiveOwnerId = await createArchiveOwnerForShop({ conn, sourceShopId, archiveShopId });
+  const archiveEmail = safeGeneratedEmail("archive-shop", archiveShopId);
+
   const insertColumns = columns.map((col) => col.name);
-  const selectExpressions = insertColumns.map((columnName) => {
+  const selectExpressions = columns.map((col) => {
+    const columnName = col.name;
     if (columnName === "id") return "? AS `id`";
+    if (columnName === "owner_id" && archiveOwnerId) return "? AS `owner_id`";
     if (columnName === "name") return "LEFT(CONCAT(`name`, ' - ארכיון מלאי'), 150) AS `name`";
+    if (columnName === "email") return col.nullable ? "NULL AS `email`" : `${sqlStringLiteral(archiveEmail)} AS \`email\``;
+    if (columnName === "whatsapp_phone") return col.nullable ? "NULL AS `whatsapp_phone`" : "`whatsapp_phone`";
+    if (columnName === "phone") return col.nullable ? "NULL AS `phone`" : "`phone`";
     if (["created_at", "updated_at"].includes(columnName)) return `CURRENT_TIMESTAMP AS \`${columnName}\``;
     return `\`${columnName}\``;
   });
 
+  const queryParams = archiveOwnerId ? [archiveShopId, archiveOwnerId, sourceShopId] : [archiveShopId, sourceShopId];
   const [result] = await conn.query(
     `
     INSERT INTO shop (${insertColumns.map(quoteIdentifier).join(", ")})
@@ -160,7 +241,7 @@ async function ensureArchiveShop({ conn, sourceShopId, archiveShopId }) {
     WHERE id = ?
     LIMIT 1
     `,
-    [archiveShopId, sourceShopId],
+    queryParams,
   );
 
   if (!result?.affectedRows) {
