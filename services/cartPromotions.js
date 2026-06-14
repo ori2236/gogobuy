@@ -93,6 +93,7 @@ async function ensureCartPromotionSchema(conn = db) {
           threshold_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
           delivery_fee_override DECIMAL(10,2) DEFAULT NULL,
           reward_product_id INT UNSIGNED DEFAULT NULL,
+          gift_text VARCHAR(255) DEFAULT NULL,
           reward_qty DECIMAL(10,3) DEFAULT NULL,
           reward_fixed_price DECIMAL(10,2) DEFAULT NULL,
           reward_max_qty DECIMAL(10,3) DEFAULT NULL,
@@ -114,6 +115,14 @@ async function ensureCartPromotionSchema(conn = db) {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `);
 
+
+
+      await addColumnIfMissing(
+        conn,
+        "cart_promotion_rule",
+        "gift_text",
+        "VARCHAR(255) DEFAULT NULL AFTER reward_product_id",
+      );
       await conn.query(`
         CREATE TABLE IF NOT EXISTS order_promotion_application (
           id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -353,7 +362,26 @@ async function applyGiftProduct(conn, { order_id, shop_id, items, rule, applicat
 
   const rewardProductId = Number(rule.reward_product_id);
   const giftQty = qty(rule.reward_qty || 1, 1);
-  if (!Number.isFinite(rewardProductId) || rewardProductId <= 0 || !(giftQty > 0)) return;
+  const giftText = cleanText(rule.gift_text, 255);
+  const hasRewardProduct = Number.isFinite(rewardProductId) && rewardProductId > 0;
+  if (!(giftQty > 0)) return;
+
+  if (!hasRewardProduct) {
+    if (!giftText) return;
+    applications.push({
+      rule,
+      discount_amount: 0,
+      applied_value: 0,
+      metadata: {
+        threshold_base: qualify.thresholdBase,
+        threshold_amount: qualify.threshold,
+        gift_text: giftText,
+        gift_qty: giftQty,
+        free_text_gift: true,
+      },
+    });
+    return;
+  }
 
   const alreadyPaidSameProduct = (items || []).some(
     (item) => !Number(item.is_gift) && Number(item.product_id) === rewardProductId,
@@ -581,6 +609,7 @@ async function getOrderCartPromotionApplications(order_id, shop_id = null) {
       cpr.threshold_amount,
       cpr.delivery_fee_override,
       cpr.reward_product_id,
+      cpr.gift_text,
       cpr.reward_qty,
       cpr.reward_fixed_price,
       cpr.reward_max_qty,
@@ -631,9 +660,10 @@ function formatCartPromotionApplication(row, isEnglish = false) {
   const type = String(row?.rule_type || "");
   const title = String(row?.title || "").trim();
   const prefix = thresholdPrefix(row, isEnglish);
+  const meta = parseApplicationMetadata(row);
   const rewardName = isEnglish
-    ? String(row?.reward_display_name_en || row?.reward_product_name || "").trim()
-    : String(row?.reward_product_name || row?.reward_display_name_en || "").trim();
+    ? String(row?.reward_display_name_en || row?.reward_product_name || row?.gift_text || meta?.gift_text || "").trim()
+    : String(row?.reward_product_name || row?.reward_display_name_en || row?.gift_text || meta?.gift_text || "").trim();
 
   if (type === RULE_TYPES.DELIVERY_FEE_OVERRIDE) {
     const fee = money(row?.applied_value);
@@ -693,8 +723,8 @@ function formatCartPromotionRule(row, isEnglish = false) {
   const type = String(row?.rule_type || "");
   const threshold = money(row?.threshold_amount || 0);
   const rewardName = isEnglish
-    ? String(row?.reward_display_name_en || row?.reward_product_name || "").trim()
-    : String(row?.reward_product_name || row?.reward_display_name_en || "").trim();
+    ? String(row?.reward_display_name_en || row?.reward_product_name || row?.gift_text || "").trim()
+    : String(row?.reward_product_name || row?.reward_display_name_en || row?.gift_text || "").trim();
 
   if (type === RULE_TYPES.DELIVERY_FEE_OVERRIDE) {
     const fee = money(row.delivery_fee_override);

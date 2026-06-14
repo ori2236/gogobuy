@@ -115,13 +115,13 @@ function formatStockDetails({ requestedAmount, available }, isEnglish) {
   if (!hasStock) return "";
 
   if (isEnglish) {
-    if (req && stock) return ` — requested ${req}, available ${stock}`;
-    if (stock) return ` — available ${stock}`;
+    if (req && stock) return ` - requested ${req}, available ${stock}`;
+    if (stock) return ` - available ${stock}`;
     return "";
   }
 
-  if (req && stock) return ` — התבקשה כמות ${req}, במלאי ${stock}`;
-  if (stock) return ` — במלאי ${stock}`;
+  if (req && stock) return ` - התבקשה כמות ${req}, במלאי ${stock}`;
+  if (stock) return ` - במלאי ${stock}`;
   return "";
 }
 

@@ -97,7 +97,7 @@ function defaultTitleForRule(payload, product) {
       : `בקנייה מעל ₪${threshold} - משלוח ב-₪${fee.toFixed(2)}`;
   }
   if (payload.rule_type === RULE_TYPES.GIFT_PRODUCT) {
-    return `בקנייה מעל ₪${threshold} - ${product?.name || "מוצר"} מתנה`;
+    return `בקנייה מעל ₪${threshold} - ${product?.name || payload.gift_text || "מתנה"} מתנה`;
   }
   if (payload.rule_type === RULE_TYPES.THRESHOLD_PRODUCT_FIXED_PRICE) {
     return `בקנייה מעל ₪${threshold} - ${product?.name || "מוצר"} ב-₪${Number(payload.reward_fixed_price || 0).toFixed(2)}`;
@@ -161,6 +161,7 @@ function parseCartRulePayload(body) {
     threshold_amount: threshold.value,
     delivery_fee_override: null,
     reward_product_id: null,
+    gift_text: null,
     reward_qty: null,
     reward_fixed_price: null,
     reward_max_qty: null,
@@ -185,9 +186,16 @@ function parseCartRulePayload(body) {
   }
 
   if (ruleType === RULE_TYPES.GIFT_PRODUCT) {
-    const productId = Number(body?.reward_product_id ?? body?.rewardProductId);
-    if (!Number.isInteger(productId) || productId <= 0) {
-      return { error: "reward_product_id is required" };
+    const rawProductId = body?.reward_product_id ?? body?.rewardProductId;
+    const productId = rawProductId === null || rawProductId === undefined || rawProductId === ""
+      ? null
+      : Number(rawProductId);
+    const giftText = trimOrNull(body?.gift_text ?? body?.giftText ?? body?.reward_text ?? body?.rewardText, 255);
+    if (productId !== null && (!Number.isInteger(productId) || productId <= 0)) {
+      return { error: "reward_product_id must be a positive integer" };
+    }
+    if (!productId && !giftText) {
+      return { error: "reward_product_id or gift_text is required" };
     }
     const giftQty = qtyNumber(body?.reward_qty ?? body?.rewardQty ?? 1, "reward_qty", {
       min: 0.001,
@@ -195,6 +203,7 @@ function parseCartRulePayload(body) {
     });
     if (giftQty.error) return { error: giftQty.error };
     payload.reward_product_id = productId;
+    payload.gift_text = productId ? null : giftText;
     payload.reward_qty = giftQty.value;
   }
 
@@ -238,6 +247,7 @@ function mapRuleRow(row) {
       row.delivery_fee_override == null ? null : Number(row.delivery_fee_override),
     reward_product_id:
       row.reward_product_id == null ? null : Number(row.reward_product_id),
+    gift_text: row.gift_text ?? null,
     reward_product_name: row.reward_product_name ?? null,
     reward_display_name_en: row.reward_display_name_en ?? null,
     reward_product_price:
@@ -310,10 +320,10 @@ exports.listCartPromotionRules = async (req, res) => {
 
     if (q) {
       baseWhere.push(
-        "(cpr.title LIKE ? OR cpr.description LIKE ? OR p.name LIKE ? OR p.display_name_en LIKE ? OR CAST(cpr.id AS CHAR) = ? OR cpr.external_reward_id = ?)",
+        "(cpr.title LIKE ? OR cpr.description LIKE ? OR cpr.gift_text LIKE ? OR p.name LIKE ? OR p.display_name_en LIKE ? OR CAST(cpr.id AS CHAR) = ? OR cpr.external_reward_id = ?)",
       );
       const like = `%${q}%`;
-      baseParams.push(like, like, like, like, q, q);
+      baseParams.push(like, like, like, like, like, q, q);
     }
 
     const activeCondition = activeRuleSql("cpr");
@@ -401,11 +411,11 @@ exports.createCartPromotionRule = async (req, res) => {
       `
       INSERT INTO cart_promotion_rule
         (shop_id, rule_type, title, description, threshold_amount, delivery_fee_override,
-         reward_product_id, reward_qty, reward_fixed_price, reward_max_qty, threshold_base_mode,
+         reward_product_id, gift_text, reward_qty, reward_fixed_price, reward_max_qty, threshold_base_mode,
          priority, is_active, notify_customer, start_at, end_at, source, external_reward_id,
          created_at, updated_at)
       VALUES
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       `,
       [
         shopId,
@@ -415,6 +425,7 @@ exports.createCartPromotionRule = async (req, res) => {
         p.threshold_amount,
         p.delivery_fee_override,
         p.reward_product_id,
+        p.gift_text,
         p.reward_qty,
         p.reward_fixed_price,
         p.reward_max_qty,
@@ -477,6 +488,7 @@ exports.updateCartPromotionRule = async (req, res) => {
         threshold_amount = ?,
         delivery_fee_override = ?,
         reward_product_id = ?,
+        gift_text = ?,
         reward_qty = ?,
         reward_fixed_price = ?,
         reward_max_qty = ?,
@@ -499,6 +511,7 @@ exports.updateCartPromotionRule = async (req, res) => {
         p.threshold_amount,
         p.delivery_fee_override,
         p.reward_product_id,
+        p.gift_text,
         p.reward_qty,
         p.reward_fixed_price,
         p.reward_max_qty,

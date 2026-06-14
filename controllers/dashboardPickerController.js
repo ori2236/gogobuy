@@ -468,6 +468,7 @@ exports.getPickerOrders = async (req, res) => {
         cpr.threshold_amount,
         cpr.delivery_fee_override,
         cpr.reward_product_id,
+        cpr.gift_text,
         cpr.reward_qty,
         cpr.reward_fixed_price,
         cpr.reward_max_qty,
@@ -502,6 +503,7 @@ exports.getPickerOrders = async (req, res) => {
           row.delivery_fee_override == null ? null : Number(row.delivery_fee_override),
         reward_product_id:
           row.reward_product_id == null ? null : Number(row.reward_product_id),
+        gift_text: row.gift_text ?? null,
         reward_qty: row.reward_qty == null ? null : Number(row.reward_qty),
         reward_fixed_price:
           row.reward_fixed_price == null ? null : Number(row.reward_fixed_price),
