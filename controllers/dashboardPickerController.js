@@ -421,7 +421,11 @@ exports.getPickerOrders = async (req, res) => {
         oi.supplied_amount AS supplied_amount,
         oi.picker_note AS item_picker_note,
         oi.price AS line_price,
-        COALESCE(oi.is_gift, 0) AS is_gift,
+        CASE
+          WHEN COALESCE(oi.is_gift, 0) = 1 THEN 1
+          WHEN oi.cart_promotion_rule_id IS NOT NULL AND COALESCE(oi.price, 0) = 0 THEN 1
+          ELSE 0
+        END AS is_gift,
         oi.cart_promotion_rule_id AS cart_promotion_rule_id,
         COALESCE(p.name, dp.name, CONCAT('מוצר שנמחק (#', oi.product_id, ')')) AS product_name
       FROM order_item oi
