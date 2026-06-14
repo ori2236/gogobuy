@@ -576,7 +576,17 @@ async function getOrderCartPromotionApplications(order_id, shop_id = null) {
   await ensureCartPromotionSchema();
   const params = [Number(order_id)];
   let sql = `
-    SELECT opa.*, cpr.reward_product_id, p.name AS reward_product_name, p.display_name_en AS reward_display_name_en
+    SELECT
+      opa.*,
+      cpr.threshold_amount,
+      cpr.delivery_fee_override,
+      cpr.reward_product_id,
+      cpr.reward_qty,
+      cpr.reward_fixed_price,
+      cpr.reward_max_qty,
+      cpr.threshold_base_mode,
+      p.name AS reward_product_name,
+      p.display_name_en AS reward_display_name_en
     FROM order_promotion_application opa
     LEFT JOIN cart_promotion_rule cpr ON cpr.id = opa.cart_promotion_rule_id
     LEFT JOIN product p ON p.id = cpr.reward_product_id AND p.shop_id = opa.shop_id
@@ -591,30 +601,65 @@ async function getOrderCartPromotionApplications(order_id, shop_id = null) {
   return rows || [];
 }
 
+function parseApplicationMetadata(row) {
+  const raw = row?.metadata;
+  if (!raw) return {};
+  if (typeof raw === "object") return raw;
+  try {
+    return JSON.parse(String(raw));
+  } catch {
+    return {};
+  }
+}
+
+function applicationThreshold(row) {
+  const meta = parseApplicationMetadata(row);
+  const fromRow = row?.threshold_amount;
+  const fromMeta = meta?.threshold_amount;
+  const value = fromRow !== null && fromRow !== undefined ? fromRow : fromMeta;
+  const n = money(value);
+  return n > 0 ? n : null;
+}
+
+function thresholdPrefix(row, isEnglish = false) {
+  const threshold = applicationThreshold(row);
+  if (!threshold) return "";
+  return isEnglish ? `Above ₪${threshold.toFixed(2)} — ` : `בקנייה מעל ₪${threshold.toFixed(2)} — `;
+}
+
 function formatCartPromotionApplication(row, isEnglish = false) {
   const type = String(row?.rule_type || "");
   const title = String(row?.title || "").trim();
+  const prefix = thresholdPrefix(row, isEnglish);
   const rewardName = isEnglish
     ? String(row?.reward_display_name_en || row?.reward_product_name || "").trim()
     : String(row?.reward_product_name || row?.reward_display_name_en || "").trim();
 
   if (type === RULE_TYPES.DELIVERY_FEE_OVERRIDE) {
     const fee = money(row?.applied_value);
-    if (fee <= 0) return isEnglish ? "🚚 Free delivery" : "🚚 משלוח חינם";
-    return isEnglish ? `🚚 Delivery fee reduced to ₪${fee.toFixed(2)}` : `🚚 דמי משלוח ירדו ל-₪${fee.toFixed(2)}`;
+    if (fee <= 0) return isEnglish ? `🚚 ${prefix}free delivery` : `🚚 ${prefix}משלוח חינם`;
+    return isEnglish
+      ? `🚚 ${prefix}delivery for ₪${fee.toFixed(2)}`
+      : `🚚 ${prefix}משלוח ב-₪${fee.toFixed(2)}`;
   }
 
   if (type === RULE_TYPES.GIFT_PRODUCT) {
     return isEnglish
-      ? `🎁 Gift added${rewardName ? `: ${rewardName}` : ""}`
-      : `🎁 נוספה מתנה${rewardName ? `: ${rewardName}` : ""}`;
+      ? `🎁 ${prefix}gift${rewardName ? `: ${rewardName}` : ""}`
+      : `🎁 ${prefix}מתנה${rewardName ? `: ${rewardName}` : ""}`;
   }
 
   if (type === RULE_TYPES.THRESHOLD_PRODUCT_FIXED_PRICE) {
     const price = money(row?.applied_value);
+    const maxQty = qty(row?.reward_max_qty || 0, 0);
+    const maxText = maxQty > 0
+      ? isEnglish
+        ? `, up to ${maxQty} units`
+        : `, עד ${maxQty} יח׳`
+      : "";
     return isEnglish
-      ? `🏷️ Special basket deal${rewardName ? ` on ${rewardName}` : ""}: ₪${price.toFixed(2)}`
-      : `🏷️ מבצע סל${rewardName ? ` על ${rewardName}` : ""}: ₪${price.toFixed(2)}`;
+      ? `🏷️ ${prefix}${rewardName || "selected product"} for ₪${price.toFixed(2)}${maxText}`
+      : `🏷️ ${prefix}${rewardName || "מוצר נבחר"} ב-₪${price.toFixed(2)}${maxText}`;
   }
 
   return title ? `🏷️ ${title}` : isEnglish ? "🏷️ Basket promotion" : "🏷️ מבצע סל";
@@ -685,7 +730,6 @@ module.exports = {
   fetchActiveCartPromotionRules,
   applyCartPromotionsToOrder,
   getOrderCartPromotionApplications,
-  formatCartPromotionApplication,
   buildOrderCartPromotionLines,
   fetchActiveCartPromotionOverview,
   formatCartPromotionRule,

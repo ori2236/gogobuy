@@ -465,7 +465,13 @@ exports.getPickerOrders = async (req, res) => {
       `
       SELECT
         opa.*,
+        cpr.threshold_amount,
+        cpr.delivery_fee_override,
         cpr.reward_product_id,
+        cpr.reward_qty,
+        cpr.reward_fixed_price,
+        cpr.reward_max_qty,
+        cpr.threshold_base_mode,
         p.name AS reward_product_name,
         p.display_name_en AS reward_display_name_en
       FROM order_promotion_application opa
@@ -491,8 +497,16 @@ exports.getPickerOrders = async (req, res) => {
         discount_amount: row.discount_amount == null ? 0 : Number(row.discount_amount),
         applied_value: row.applied_value == null ? null : Number(row.applied_value),
         metadata: row.metadata || null,
+        threshold_amount: row.threshold_amount == null ? null : Number(row.threshold_amount),
+        delivery_fee_override:
+          row.delivery_fee_override == null ? null : Number(row.delivery_fee_override),
         reward_product_id:
           row.reward_product_id == null ? null : Number(row.reward_product_id),
+        reward_qty: row.reward_qty == null ? null : Number(row.reward_qty),
+        reward_fixed_price:
+          row.reward_fixed_price == null ? null : Number(row.reward_fixed_price),
+        reward_max_qty: row.reward_max_qty == null ? null : Number(row.reward_max_qty),
+        threshold_base_mode: row.threshold_base_mode ?? null,
         reward_product_name: row.reward_product_name ?? null,
         reward_display_name_en: row.reward_display_name_en ?? null,
         text_he: formatCartPromotionApplication(row, false),
