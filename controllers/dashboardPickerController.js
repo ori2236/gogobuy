@@ -10,6 +10,10 @@ const {
   formatCartPromotionApplication,
 } = require("../services/cartPromotions");
 const { isEnglishFromCustomerName } = require("../utilities/i18n");
+const {
+  getOrderProductGroupPromotionApplications,
+  formatProductGroupPromotionApplication,
+} = require("../services/productGroupPromotions");
 
 const ALLOWED_STATUSES = new Set([
   "pending",
@@ -512,6 +516,33 @@ exports.getPickerOrders = async (req, res) => {
         reward_product_name: row.reward_product_name ?? null,
         reward_display_name_en: row.reward_display_name_en ?? null,
         text_he: formatCartPromotionApplication(row, false),
+      });
+    }
+
+    const groupApplicationRows = [];
+    for (const orderId of orderIds) {
+      const rows = await getOrderProductGroupPromotionApplications(orderId, shopId);
+      groupApplicationRows.push(...rows);
+    }
+
+    for (const row of groupApplicationRows || []) {
+      const orderId = Number(row.order_id);
+      if (!applicationsByOrder.has(orderId)) applicationsByOrder.set(orderId, []);
+      applicationsByOrder.get(orderId).push({
+        id: Number(row.id),
+        order_id: orderId,
+        cart_promotion_rule_id: null,
+        product_group_promotion_id: Number(row.group_promotion_id),
+        rule_type: "PRODUCT_GROUP_BUNDLE",
+        title: row.title,
+        discount_amount: row.discount_amount == null ? 0 : Number(row.discount_amount),
+        applied_value: row.bundle_pay_price == null ? null : Number(row.bundle_pay_price),
+        metadata: row.metadata || null,
+        bundle_buy_qty: row.bundle_buy_qty == null ? null : Number(row.bundle_buy_qty),
+        bundle_pay_price: row.bundle_pay_price == null ? null : Number(row.bundle_pay_price),
+        applied_count: row.applied_count == null ? 0 : Number(row.applied_count),
+        discounted_qty: row.discounted_qty == null ? 0 : Number(row.discounted_qty),
+        text_he: formatProductGroupPromotionApplication(row, false),
       });
     }
 

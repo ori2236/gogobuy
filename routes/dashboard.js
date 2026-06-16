@@ -4,6 +4,7 @@ const picker = require("../controllers/dashboardPickerController");
 const stock = require("../controllers/dashboardStockController");
 const promotions = require("../controllers/dashboardPromotionsController");
 const cartPromotions = require("../controllers/dashboardCartPromotionsController");
+const productGroupPromotions = require("../controllers/dashboardProductGroupPromotionsController");
 const auth = require("../controllers/dashboardAuthController");
 const settings = require("../controllers/dashboardSettingsController");
 const staffWhatsapp = require("../controllers/dashboardStaffWhatsappController");
@@ -31,6 +32,14 @@ router.patch("/picker/orders/:orderId/items/:itemId", picker.updateOrderItemPick
 router.get("/stock/categories", stock.getStockCategories);
 
 router.get("/promotions", promotions.listPromotions);
+
+router.get("/promotions/product-groups", productGroupPromotions.listProductGroupPromotions);
+
+router.post("/promotions/product-groups", productGroupPromotions.createProductGroupPromotion);
+
+router.patch("/promotions/product-groups/:id", productGroupPromotions.updateProductGroupPromotion);
+
+router.delete("/promotions/product-groups/:id", productGroupPromotions.deleteProductGroupPromotion);
 
 router.get("/promotions/cart-rules", cartPromotions.listCartPromotionRules);
 

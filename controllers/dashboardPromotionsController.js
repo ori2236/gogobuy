@@ -362,6 +362,7 @@ exports.listPromotions = async (req, res) => {
         pr.fixed_price,
         pr.bundle_buy_qty,
         pr.bundle_pay_price,
+        pr.max_discounted_qty,
         pr.description,
         pr.start_at,
         pr.end_at,

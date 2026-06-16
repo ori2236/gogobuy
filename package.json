@@ -11,7 +11,12 @@
     "preview:leshem-replace": "node scripts/replaceShopInventoryFromStaging.js --batchId=leshem_2026_06_14 --archiveShopId=6 --dryRun",
     "publish:leshem-replace": "node scripts/replaceShopInventoryFromStaging.js --batchId=leshem_2026_06_14 --archiveShopId=6 --confirm",
     "migrate:cart-promos": "node scripts/migrateCartPromotions.js",
-    "seed:shop1-cart-promos": "node scripts/seedShop1CartPromotions.js"
+    "seed:shop1-cart-promos": "node scripts/seedShop1CartPromotions.js",
+    "preview:leshem-promos": "node scripts/importLeshemExcelPromotions.js --shopId=2 --dryRun",
+    "publish:leshem-promos": "node scripts/importLeshemExcelPromotions.js --shopId=2 --confirm",
+    "manual:leshem-promos:form": "node scripts/generateLeshemPromotionMappingTool.js --shopId=2",
+    "preview:leshem-promos-manual": "node scripts/applyLeshemManualPromotionMappings.js --shopId=2 --dryRun",
+    "publish:leshem-promos-manual": "node scripts/applyLeshemManualPromotionMappings.js --shopId=2 --confirm"
   },
   "repository": {
     "type": "git",
