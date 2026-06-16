@@ -147,17 +147,30 @@ async function ensureProductsExist(shopId, productIds) {
   return rows || [];
 }
 
+function parseProductsJson(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  if (Buffer.isBuffer(value)) {
+    try {
+      const parsed = JSON.parse(value.toString("utf8"));
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  if (typeof value === "object") {
+    return Array.isArray(value) ? value : [];
+  }
+  try {
+    const parsed = JSON.parse(String(value));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 function mapRow(row) {
-  const products = row.products_json
-    ? (() => {
-        try {
-          const parsed = JSON.parse(row.products_json);
-          return Array.isArray(parsed) ? parsed.filter((p) => p && p.id) : [];
-        } catch {
-          return [];
-        }
-      })()
-    : [];
+  const products = parseProductsJson(row.products_json).filter((p) => p && Number(p.id) > 0);
 
   const isActive = Boolean(row.is_currently_active);
   const isUpcoming = Boolean(row.is_upcoming);

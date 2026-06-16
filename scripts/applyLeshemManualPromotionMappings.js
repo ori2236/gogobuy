@@ -304,9 +304,16 @@ function mappingProductIds(mapping) {
   return Array.from(new Set(ids.map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0)));
 }
 
+function isGroupMapping(mapping) {
+  const action = String(mapping.action || "").toLowerCase();
+  const mode = String(mapping.mapping_mode || mapping.mappingMode || "").toLowerCase();
+  return Boolean(mapping.is_group_promotion || mapping.isGroupPromotion || action === "promotion_group" || action === "group" || mode === "group");
+}
+
 async function analyzeMappings({ conn, shopId, promotionsByRewardId, productsById, mappingRows }) {
   const inserts = [];
   const skipped = [];
+  const futureGroups = [];
 
   for (const mapping of mappingRows) {
     const rewardId = Number(mapping.reward_id ?? mapping.rewardId);
@@ -327,6 +334,34 @@ async function analyzeMappings({ conn, shopId, promotionsByRewardId, productsByI
     }
     if (!productIds.length) {
       skipped.push({ reward_id: rewardId, title: promo.title, reason: "no_products_selected" });
+      continue;
+    }
+
+    if (isGroupMapping(mapping)) {
+      const selectedProducts = [];
+      for (const productId of productIds) {
+        const product = productsById.get(Number(productId));
+        if (!product) {
+          skipped.push({ reward_id: rewardId, title: promo.title, reason: "product_id_not_found_in_shop", product_id: productId, mapping_mode: "group" });
+          continue;
+        }
+        selectedProducts.push({ id: product.id, name: product.name });
+      }
+      if (selectedProducts.length) {
+        futureGroups.push({
+          reward_id: rewardId,
+          title: promo.title,
+          type: promo.type,
+          deal_text: promo.deal_text,
+          max_qty: promo.max_qty ?? null,
+          start_date: promo.start_date,
+          end_date: promo.end_date,
+          product_ids: selectedProducts.map((p) => p.id),
+          products: selectedProducts,
+          note: mapping.note || "",
+          reason: "saved_for_future_group_promotion_not_inserted",
+        });
+      }
       continue;
     }
 
@@ -419,7 +454,7 @@ async function analyzeMappings({ conn, shopId, promotionsByRewardId, productsByI
     }
   }
 
-  return { inserts, skipped };
+  return { inserts, skipped, futureGroups };
 }
 
 function printableSummary(report) {
@@ -429,6 +464,7 @@ function printableSummary(report) {
     mapping_file: report.mapping_file,
     manual_mappings: report.manual_mappings,
     planned_inserts: report.planned_inserts,
+    future_group_mappings: report.future_group_mappings,
     inserted_product_promotions: report.inserted_product_promotions,
     inserted_cart_rules: report.inserted_cart_rules,
     skipped: report.skipped.length,
@@ -474,6 +510,7 @@ async function main() {
       include_expired: INCLUDE_EXPIRED,
       manual_mappings: mappingRows.length,
       planned_inserts: analysis.inserts.length,
+      future_group_mappings: analysis.futureGroups.length,
       inserted_product_promotions: 0,
       inserted_cart_rules: 0,
       inserts: analysis.inserts.map((item) => ({
@@ -491,6 +528,7 @@ async function main() {
         end_at: item.payload.end_at,
         existing_id: item.existing_id,
       })),
+      future_groups: analysis.futureGroups,
       skipped: analysis.skipped,
       backup_tables: [],
     };
