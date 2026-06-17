@@ -98,6 +98,7 @@ async function ensureCartPromotionSchema(conn = db) {
           threshold_amount DECIMAL(10,2) NOT NULL DEFAULT 0.00,
           delivery_fee_override DECIMAL(10,2) DEFAULT NULL,
           reward_product_id INT UNSIGNED DEFAULT NULL,
+          gift_text VARCHAR(255) DEFAULT NULL,
           reward_qty DECIMAL(10,3) DEFAULT NULL,
           reward_fixed_price DECIMAL(10,2) DEFAULT NULL,
           reward_max_qty DECIMAL(10,3) DEFAULT NULL,
@@ -118,6 +119,13 @@ async function ensureCartPromotionSchema(conn = db) {
           KEY idx_cart_rule_reward_product (shop_id, reward_product_id)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
       `);
+
+      await addColumnIfMissing(
+        conn,
+        "cart_promotion_rule",
+        "gift_text",
+        "VARCHAR(255) DEFAULT NULL AFTER reward_product_id",
+      );
 
       await conn.query(`
         CREATE TABLE IF NOT EXISTS order_promotion_application (
