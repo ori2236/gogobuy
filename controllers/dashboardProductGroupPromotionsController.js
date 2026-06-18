@@ -1,5 +1,6 @@
 const db = require("../config/db");
 const { parseShopId, clampInt } = require("../utilities/dashboardUtils");
+const { ensureProductGroupPromotionColumns, resolveProductGroupPromotionEmoji, normalizeEmoji } = require("../services/productGroupPromotions");
 
 const ALLOWED_STATUS_FILTERS = new Set(["all", "active", "inactive"]);
 const ALLOWED_SORT_BY = new Set(["default", "start_at", "end_at", "created_at"]);
@@ -115,6 +116,7 @@ function parsePayload(body) {
     payload: {
       title,
       description: trimOrNull(body?.description, 1000),
+      emoji: normalizeEmoji(body?.emoji),
       kind: "BUNDLE",
       bundle_buy_qty: buyQty.value,
       bundle_pay_price: payPrice.value,
@@ -133,7 +135,7 @@ async function ensureProductsExist(shopId, productIds) {
   const placeholders = productIds.map(() => "?").join(",");
   const [rows] = await db.query(
     `
-    SELECT id, name, display_name_en, price, category, sub_category
+    SELECT id, name, display_name_en, price, category, sub_category, emoji
     FROM product
     WHERE shop_id = ? AND id IN (${placeholders})
     `,
@@ -176,6 +178,8 @@ function mapRow(row) {
     shop_id: Number(row.shop_id),
     title: row.title,
     description: row.description ?? null,
+    emoji_custom: normalizeEmoji(row.emoji),
+    emoji: normalizeEmoji(row.emoji) || resolveProductGroupPromotionEmoji({ ...row, products }),
     kind: row.kind || "BUNDLE",
     bundle_buy_qty: Number(row.bundle_buy_qty),
     bundle_pay_price: Number(row.bundle_pay_price),
@@ -197,6 +201,8 @@ function mapRow(row) {
 }
 
 async function getGroupPromotionById(shopId, id) {
+  await ensureProductGroupPromotionColumns();
+
   const [rows] = await db.query(
     `
     SELECT
@@ -214,7 +220,8 @@ async function getGroupPromotionById(shopId, id) {
               'display_name_en', p.display_name_en,
               'price', p.price,
               'category', p.category,
-              'sub_category', p.sub_category
+              'sub_category', p.sub_category,
+              'emoji', p.emoji
             )
           END
         ),
@@ -266,6 +273,8 @@ exports.listProductGroupPromotions = async (req, res) => {
       return res.status(400).json({ ok: false, message: "Invalid shop_id" });
     }
 
+
+    await ensureProductGroupPromotionColumns();
 
     const status = String(req.query.status || "all").trim().toLowerCase();
     const statusFilter = ALLOWED_STATUS_FILTERS.has(status) ? status : "all";
@@ -331,7 +340,8 @@ exports.listProductGroupPromotions = async (req, res) => {
                 'display_name_en', p.display_name_en,
                 'price', p.price,
                 'category', p.category,
-                'sub_category', p.sub_category
+                'sub_category', p.sub_category,
+                'emoji', p.emoji
               )
             END
           ),
@@ -373,6 +383,8 @@ exports.createProductGroupPromotion = async (req, res) => {
       return res.status(400).json({ ok: false, message: "Invalid shop_id" });
     }
 
+    await ensureProductGroupPromotionColumns(conn);
+
     const parsed = parsePayload(req.body || {});
     if (parsed.error) {
       return res.status(400).json({ ok: false, message: parsed.error });
@@ -388,14 +400,15 @@ exports.createProductGroupPromotion = async (req, res) => {
     const [ins] = await conn.query(
       `
       INSERT INTO product_group_promotion
-        (shop_id, title, description, kind, bundle_buy_qty, bundle_pay_price,
+        (shop_id, title, description, emoji, kind, bundle_buy_qty, bundle_pay_price,
          max_discounted_qty, priority, is_active, start_at, end_at, created_at, updated_at)
-      VALUES (?, ?, ?, 'BUNDLE', ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      VALUES (?, ?, ?, ?, 'BUNDLE', ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       `,
       [
         shopId,
         p.title,
         p.description,
+        p.emoji,
         p.bundle_buy_qty,
         p.bundle_pay_price,
         p.max_discounted_qty,
@@ -436,6 +449,8 @@ exports.updateProductGroupPromotion = async (req, res) => {
       return res.status(404).json({ ok: false, message: "Product group promotion not found" });
     }
 
+    await ensureProductGroupPromotionColumns(conn);
+
     const parsed = parsePayload(req.body || {});
     if (parsed.error) {
       return res.status(400).json({ ok: false, message: parsed.error });
@@ -454,6 +469,7 @@ exports.updateProductGroupPromotion = async (req, res) => {
       SET
         title = ?,
         description = ?,
+        emoji = ?,
         bundle_buy_qty = ?,
         bundle_pay_price = ?,
         max_discounted_qty = ?,
@@ -468,6 +484,7 @@ exports.updateProductGroupPromotion = async (req, res) => {
       [
         p.title,
         p.description,
+        p.emoji,
         p.bundle_buy_qty,
         p.bundle_pay_price,
         p.max_discounted_qty,

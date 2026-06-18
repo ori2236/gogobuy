@@ -35,6 +35,7 @@ PROMOTION LIST INTENT APPENDIX
 - Do not ask a clarification question for broad store-wide requests like "איזה מבצעים יש לכם?", "כל המבצעים", "what deals do you have?".
 - Use price_intent="PROMOTION_LIST" only for store-wide promotion list requests where the customer did not mention a product, product type, category, or group.
 - If the customer mentions a product, product type, category, or group (for example "מוצרי חלב", "חטיפים", "קולה"), use price_intent="PROMOTION", not "PROMOTION_LIST".
+- If the assistant recently listed promotions and invited the customer to send a promotion name for details, and the customer sends only a promotion name or brand/group name such as "בן אנד ג'ריס", treat it as price_intent="PROMOTION" with that name.
 `;
 
 const DEBUG = process.env.DEBUG_PRICE_AND_SALES === "1";

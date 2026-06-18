@@ -41,7 +41,75 @@ function parseMetadata(row) {
   }
 }
 
+const COLUMN_CACHE = new Map();
+
+async function hasColumn(conn, tableName, columnName) {
+  const key = `${tableName}.${columnName}`;
+  if (COLUMN_CACHE.has(key)) return COLUMN_CACHE.get(key);
+
+  const [rows] = await conn.query(
+    `
+    SELECT 1
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = ?
+      AND COLUMN_NAME = ?
+    LIMIT 1
+    `,
+    [tableName, columnName],
+  );
+  const exists = Array.isArray(rows) && rows.length > 0;
+  COLUMN_CACHE.set(key, exists);
+  return exists;
+}
+
+async function addColumnIfMissing(conn, tableName, columnName, definition) {
+  if (await hasColumn(conn, tableName, columnName)) return;
+  await conn.query(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`);
+  COLUMN_CACHE.set(`${tableName}.${columnName}`, true);
+}
+
+async function ensureProductGroupPromotionColumns(conn = db) {
+  await addColumnIfMissing(
+    conn,
+    "product_group_promotion",
+    "emoji",
+    "VARCHAR(16) DEFAULT NULL AFTER description",
+  );
+}
+
+function normalizeEmoji(value) {
+  const s = String(value ?? "").trim();
+  if (!s) return null;
+  return Array.from(s)[0] || null;
+}
+
+function majorityProductEmoji(products) {
+  const counts = new Map();
+  for (const product of products || []) {
+    const emoji = normalizeEmoji(product?.emoji || product?.product_emoji || product?.subcategory_emoji);
+    if (!emoji) continue;
+    counts.set(emoji, (counts.get(emoji) || 0) + 1);
+  }
+
+  let best = null;
+  let bestCount = 0;
+  for (const [emoji, count] of counts.entries()) {
+    if (count > bestCount) {
+      best = emoji;
+      bestCount = count;
+    }
+  }
+  return best;
+}
+
+function resolveProductGroupPromotionEmoji(group) {
+  return normalizeEmoji(group?.emoji) || majorityProductEmoji(group?.products || []) || "🏷️";
+}
+
 async function fetchActiveProductGroupPromotions(conn, shop_id) {
+  await ensureProductGroupPromotionColumns(conn);
+
   const [groups] = await conn.query(
     `
     SELECT *
@@ -65,7 +133,8 @@ async function fetchActiveProductGroupPromotions(conn, shop_id) {
       gpi.group_promotion_id,
       gpi.product_id,
       p.name,
-      p.display_name_en
+      p.display_name_en,
+      p.emoji
     FROM product_group_promotion_item gpi
     LEFT JOIN product p ON p.id = gpi.product_id AND p.shop_id = gpi.shop_id
     WHERE gpi.shop_id = ?
@@ -83,6 +152,7 @@ async function fetchActiveProductGroupPromotions(conn, shop_id) {
       product_id: Number(item.product_id),
       name: item.name ?? null,
       display_name_en: item.display_name_en ?? null,
+      emoji: item.emoji ?? null,
     });
   }
 
@@ -461,9 +531,10 @@ function formatProductGroupPromotionApplication(row, isEnglish = false) {
   const applied = Number(row?.applied_count || 0);
   const appliedText = applied > 1 ? ` × ${applied}` : "";
 
+  const emoji = resolveProductGroupPromotionEmoji(row);
   return isEnglish
-    ? `🏷️ ${title}: ${buy} for ₪${price}${appliedText}`
-    : `🏷️ ${title}: ${buy} ב-₪${price}${appliedText}`;
+    ? `${emoji} ${title}: ${buy} for ₪${price}${appliedText}`
+    : `${emoji} ${title}: ${buy} ב-₪${price}${appliedText}`;
 }
 
 async function getOrderProductGroupPromotionApplications(order_id, shop_id = null) {
