@@ -1333,6 +1333,11 @@ function round2(n) {
   return Math.round(x * 100) / 100;
 }
 
+function money(n, fallback = 0) {
+  const x = round2(n);
+  return Number.isFinite(x) ? x : fallback;
+}
+
 function pct(n) {
   const x = Number(n);
   if (!Number.isFinite(x)) return null;
@@ -1363,17 +1368,34 @@ function fmtDateTime(dt, isEnglish) {
 
 function fmtDateOnly(dt, isEnglish) {
   if (!dt) return null;
-  const d = dt instanceof Date ? dt : new Date(dt);
-  if (Number.isNaN(d.getTime())) return null;
 
-  const locale = isEnglish ? "en-GB" : "he-IL";
-  const tz = "Asia/Jerusalem";
-  return new Intl.DateTimeFormat(locale, {
-    timeZone: tz,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(d).replace(",", "");
+  let y;
+  let m;
+  let d;
+
+  if (typeof dt === "string") {
+    const match = dt.trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (match) {
+      y = match[1];
+      m = match[2];
+      d = match[3];
+    }
+  }
+
+  if (!y) {
+    const date = dt instanceof Date ? dt : new Date(dt);
+    if (Number.isNaN(date.getTime())) return null;
+
+    // MySQL DATETIME has no timezone. mysql2 usually turns it into a JS Date
+    // using the server timezone, so for date-only display we keep the stored
+    // calendar date instead of converting it to Israel time and accidentally
+    // moving 23:59 to the next day.
+    y = String(date.getFullYear());
+    m = String(date.getMonth() + 1).padStart(2, "0");
+    d = String(date.getDate()).padStart(2, "0");
+  }
+
+  return isEnglish ? `${d}/${m}/${y}` : `${d}.${m}.${y}`;
 }
 
 function normalizePromoEmoji(value, fallback = "🏷️") {
@@ -2388,6 +2410,104 @@ function formatCartPromotionListLine(rule, isEnglish = false) {
   return null;
 }
 
+function cartPromotionSearchText(rule) {
+  const type = String(rule?.rule_type || "");
+  const parts = [
+    rule?.title,
+    rule?.description,
+    rule?.gift_text,
+    rule?.reward_product_name,
+    rule?.reward_display_name_en,
+    rule?.threshold_amount,
+  ];
+
+  if (type === RULE_TYPES.DELIVERY_FEE_OVERRIDE) {
+    const fee = money(rule?.delivery_fee_override);
+    parts.push("משלוח", "דמי משלוח", "delivery", rule?.delivery_fee_override);
+    if (fee <= 0) parts.push("חינם", "משלוח חינם", "free delivery");
+    else parts.push("משלוח מוזל", "delivery fee", fee);
+  } else if (type === RULE_TYPES.GIFT_PRODUCT) {
+    parts.push("מתנה", "gift", "הטבה");
+  } else if (type === RULE_TYPES.THRESHOLD_PRODUCT_FIXED_PRICE) {
+    parts.push("מחיר מיוחד", "מוצר", "special price");
+  }
+
+  return parts
+    .filter((x) => x !== null && x !== undefined && String(x).trim())
+    .join(" ");
+}
+
+function cartRuleMatchesRequest(rule, req) {
+  const text = normalizeToken(cartPromotionSearchText(rule));
+  if (!text) return false;
+
+  const tokenGroups = buildReqTokenGroups(req || {});
+  if (!tokenGroups.length) return false;
+
+  return tokenGroups.every((group) =>
+    group.some((variant) => {
+      const needle = normalizeToken(variant);
+      return needle && text.includes(needle);
+    }),
+  );
+}
+
+function formatCartPromotionDetailBlock(rule, isEnglish = false) {
+  const type = String(rule?.rule_type || "");
+  const threshold = money(rule?.threshold_amount || 0);
+  const title = cleanText(rule?.title, 255);
+  const rewardName = isEnglish
+    ? String(rule?.reward_display_name_en || rule?.reward_product_name || rule?.gift_text || "").trim()
+    : String(rule?.reward_product_name || rule?.reward_display_name_en || rule?.gift_text || "").trim();
+
+  let firstLine = null;
+
+  if (type === RULE_TYPES.DELIVERY_FEE_OVERRIDE) {
+    const fee = money(rule?.delivery_fee_override);
+    const name = title || (fee <= 0 ? (isEnglish ? "Free delivery" : "משלוח חינם") : (isEnglish ? "Discounted delivery" : "משלוח מוזל"));
+    firstLine = fee <= 0
+      ? isEnglish
+        ? `🚚 *${name}* - above ₪${threshold.toFixed(2)}`
+        : `🚚 *${name}* - בקנייה מעל ₪${threshold.toFixed(2)}`
+      : isEnglish
+        ? `🚚 *${name}* - above ₪${threshold.toFixed(2)}, delivery for ₪${fee.toFixed(2)}`
+        : `🚚 *${name}* - בקנייה מעל ₪${threshold.toFixed(2)}, משלוח ב-₪${fee.toFixed(2)}`;
+  } else if (type === RULE_TYPES.GIFT_PRODUCT) {
+    const qty = Number(rule?.reward_qty || 1);
+    const qtyText = Number.isFinite(qty) && qty > 1 ? `${fmtQty(qty)} × ` : "";
+    const name = title || (isEnglish ? "Basket gift" : "מתנה בקנייה");
+    firstLine = isEnglish
+      ? `🎁 *${name}* - above ₪${threshold.toFixed(2)}${rewardName ? `, gift: ${qtyText}${rewardName}` : ""}`
+      : `🎁 *${name}* - בקנייה מעל ₪${threshold.toFixed(2)}${rewardName ? `, מתנה: ${qtyText}${rewardName}` : ""}`;
+  } else if (type === RULE_TYPES.THRESHOLD_PRODUCT_FIXED_PRICE) {
+    const price = money(rule?.reward_fixed_price);
+    const maxQty = Number(rule?.reward_max_qty || 0);
+    const maxPart = Number.isFinite(maxQty) && maxQty > 0
+      ? isEnglish ? `, up to ${fmtQty(maxQty)} units` : `, עד ${fmtQty(maxQty)} יח׳`
+      : "";
+    const name = title || (isEnglish ? "Special product price" : "מחיר מיוחד למוצר");
+    firstLine = isEnglish
+      ? `🏷️ *${name}* - above ₪${threshold.toFixed(2)}, ${rewardName || "selected product"} for ₪${price.toFixed(2)}${maxPart}`
+      : `🏷️ *${name}* - בקנייה מעל ₪${threshold.toFixed(2)}, ${rewardName || "מוצר נבחר"} ב-₪${price.toFixed(2)}${maxPart}`;
+  } else {
+    const name = title || (isEnglish ? "Basket promotion" : "מבצע סל");
+    firstLine = `🏷️ *${name}*`;
+  }
+
+  const parts = [firstLine];
+  const description = cleanText(rule?.description, 1000);
+  if (description) parts.push(`📝 ${description}`);
+
+  const start = rule?.start_at ? fmtDateOnly(rule.start_at, isEnglish) : null;
+  const end = rule?.end_at ? fmtDateOnly(rule.end_at, isEnglish) : null;
+  if (start || end) {
+    if (isEnglish) parts.push(`📅 ${start ? `from ${start}` : "active now"}${end ? ` until ${end}` : ""}`);
+    else parts.push(`📅 ${start ? `מתאריך ${start}` : "פעיל עכשיו"}${end ? ` עד ${end}` : ""}`);
+  }
+
+  return parts.filter(Boolean).join("\n");
+}
+
 function isPromotionEndingWithinDays(row, days, now = new Date()) {
   if (!row?.end_at) return false;
 
@@ -2742,7 +2862,7 @@ async function answerPromotionFlow({
     const limit = hasName ? 50 : 25;
     const subCategory = req["sub-category"] || req.sub_category;
 
-    const [groupRows, productResult] = await Promise.all([
+    const [groupRows, productResult, cartRulesRaw] = await Promise.all([
       fetchProductGroupPromotionsOverview({
         shop_id,
         category: req.category,
@@ -2752,11 +2872,13 @@ async function answerPromotionFlow({
         limit,
       }),
       searchPromotionsForRequest(shop_id, req, { limit }),
+      fetchActiveCartPromotionOverview(shop_id, { limit: 100 }),
     ]);
 
     const productRows = productResult?.rows || [];
+    const cartRows = (cartRulesRaw || []).filter((rule) => cartRuleMatchesRequest(rule, req));
 
-    if (!groupRows.length && !productRows.length) {
+    if (!groupRows.length && !productRows.length && !cartRows.length) {
       const subject = buildPromoSubject(req, isEnglish);
 
       blocks.push(
@@ -2775,6 +2897,11 @@ async function answerPromotionFlow({
 
     for (const r of productRows) {
       const block = formatProductPromotionDetailBlock(r, isEnglish);
+      if (block) detailBlocks.push(block);
+    }
+
+    for (const rule of cartRows) {
+      const block = formatCartPromotionDetailBlock(rule, isEnglish);
       if (block) detailBlocks.push(block);
     }
 
