@@ -102,9 +102,13 @@ function parsePayload(body) {
   let maxDiscountedQty = null;
   const maxRaw = body?.max_discounted_qty ?? body?.maxDiscountedQty;
   if (maxRaw !== null && maxRaw !== undefined && maxRaw !== "") {
-    const maxQty = numberValue(maxRaw, "max_discounted_qty", { min: 0.001, required: false });
-    if (maxQty.error) return { error: maxQty.error };
-    maxDiscountedQty = maxQty.value;
+    const maxUses = numberValue(maxRaw, "max_discounted_qty", {
+      min: 1,
+      required: false,
+      integer: true,
+    });
+    if (maxUses.error) return { error: maxUses.error };
+    maxDiscountedQty = maxUses.value;
   }
 
   return {

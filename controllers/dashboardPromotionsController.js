@@ -180,12 +180,12 @@ function parsePromotionPayload(body) {
 
   const maxQtyRaw = body?.max_discounted_qty ?? body?.maxDiscountedQty;
   if (maxQtyRaw !== null && maxQtyRaw !== undefined && maxQtyRaw !== "") {
-    const parsedMaxQty = moneyNumber(maxQtyRaw, "max_discounted_qty", {
-      min: 0.001,
+    const parsedMaxUses = intNumber(maxQtyRaw, "max_discounted_qty", {
+      min: 1,
       required: false,
     });
-    if (parsedMaxQty.error) return { error: parsedMaxQty.error };
-    payload.max_discounted_qty = parsedMaxQty.value;
+    if (parsedMaxUses.error) return { error: parsedMaxUses.error };
+    payload.max_discounted_qty = parsedMaxUses.value;
   }
 
   return { payload };

@@ -9,14 +9,31 @@ function normalizePositiveQty(value) {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-function splitQtyByPromoLimit(qty, promo) {
+function normalizePositiveInt(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.floor(n);
+}
+
+function splitQtyByPromoLimit(qty, promo, kind) {
   const totalQty = normalizePositiveQty(qty);
   if (!totalQty) return { promoQty: 0, regularQty: 0 };
 
-  const limit = normalizePositiveQty(promo?.max_discounted_qty);
-  if (!limit) return { promoQty: totalQty, regularQty: 0 };
+  // max_discounted_qty is kept as the DB column for backwards compatibility,
+  // but the business meaning is "maximum promotion applications / uses".
+  // For bundle deals, one use covers bundle_buy_qty units.
+  // For single-unit discounts (percent/amount/fixed price), one use covers one unit/quantity.
+  const maxUses = normalizePositiveInt(promo?.max_discounted_qty);
+  if (!maxUses) return { promoQty: totalQty, regularQty: 0 };
 
-  const promoQty = Math.min(totalQty, limit);
+  let qtyPerUse = 1;
+  if (String(kind || "").toUpperCase() === "BUNDLE") {
+    const buyQty = normalizePositiveQty(promo?.bundle_buy_qty);
+    if (buyQty) qtyPerUse = buyQty;
+  }
+
+  const limitQty = maxUses * qtyPerUse;
+  const promoQty = Math.min(totalQty, limitQty);
   return {
     promoQty,
     regularQty: Math.max(0, totalQty - promoQty),
@@ -36,7 +53,7 @@ function calcLineTotalWithPromo({ unitPrice, amount, soldByWeight, promo }) {
   }
 
   const kind = String(promo.kind || "").toUpperCase();
-  const { promoQty, regularQty } = splitQtyByPromoLimit(qty, promo);
+  const { promoQty, regularQty } = splitQtyByPromoLimit(qty, promo, kind);
   const regularTotal = regularQty * base;
 
   if (kind === "PERCENT_OFF") {

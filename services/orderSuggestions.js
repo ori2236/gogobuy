@@ -665,6 +665,7 @@ async function fetchBundleRowsForOrderItems({ shop_id, order_id, productIds }) {
        pr.kind,
        pr.bundle_buy_qty,
        pr.bundle_pay_price,
+       pr.max_discounted_qty,
        pr.description
      FROM order_item oi
      JOIN product p ON p.id = oi.product_id AND p.shop_id = ?
@@ -692,6 +693,12 @@ function buildBundleNudgeActions(rows, { isEnglish, maxPerProduct }) {
     if (!Number.isFinite(buyQty) || buyQty < 2) continue;
     if (!Number.isFinite(qty) || qty <= 0) continue;
 
+    const maxUses = Number(r.max_discounted_qty);
+    const maxPromoQty = Number.isFinite(maxUses) && maxUses > 0
+      ? Math.floor(maxUses) * buyQty
+      : null;
+    if (maxPromoQty !== null && qty >= maxPromoQty) continue;
+
     const remainder = isWeight
       ? qty % buyQty
       : Math.ceil(qty) % buyQty;
@@ -699,6 +706,10 @@ function buildBundleNudgeActions(rows, { isEnglish, maxPerProduct }) {
 
     let amountToAdd = roundTo(buyQty - remainder, isWeight ? 3 : 0);
     if (!isWeight) amountToAdd = Math.trunc(amountToAdd);
+    if (maxPromoQty !== null) {
+      amountToAdd = Math.min(amountToAdd, Math.max(0, maxPromoQty - qty));
+      if (!isWeight) amountToAdd = Math.trunc(amountToAdd);
+    }
     if (!(amountToAdd > 0)) continue;
 
     if (Number.isFinite(stock) && stock < amountToAdd) continue;
@@ -838,16 +849,19 @@ function buildGroupBundleNudgeActions(rows, { isEnglish, maxPerProduct }) {
     const totalQty = orderItems.reduce((sum, item) => sum + Math.floor(Number(item.amount || 0)), 0);
     if (!(totalQty > 0)) continue;
 
-    const maxQty = Number(group.max_discounted_qty);
-    if (Number.isFinite(maxQty) && maxQty > 0 && totalQty >= maxQty) continue;
+    const maxUses = Number(group.max_discounted_qty);
+    const maxPromoQty = Number.isFinite(maxUses) && maxUses > 0
+      ? Math.floor(maxUses) * buyQty
+      : null;
+    if (maxPromoQty !== null && totalQty >= maxPromoQty) continue;
 
     const remainder = Math.ceil(totalQty) % buyQty;
     if (!Number.isFinite(remainder) || remainder === 0) continue;
 
     let amountToAdd = Math.trunc(buyQty - remainder);
     if (!(amountToAdd > 0)) continue;
-    if (Number.isFinite(maxQty) && maxQty > 0) {
-      amountToAdd = Math.min(amountToAdd, Math.max(0, Math.floor(maxQty - totalQty)));
+    if (maxPromoQty !== null) {
+      amountToAdd = Math.min(amountToAdd, Math.max(0, Math.floor(maxPromoQty - totalQty)));
       if (!(amountToAdd > 0)) continue;
     }
 

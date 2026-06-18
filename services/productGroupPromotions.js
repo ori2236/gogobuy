@@ -12,6 +12,19 @@ function qty(value, fallback = 0) {
   return Math.round(n * 1000) / 1000;
 }
 
+function maxApplications(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.floor(n);
+}
+
+function canUseGroupAgain(group, groupUseCounts) {
+  const max = maxApplications(group?.max_discounted_qty);
+  if (!max) return true;
+  const used = groupUseCounts.get(Number(group?.id)) || 0;
+  return used < max;
+}
+
 function cleanText(value, limit = 255) {
   const s = String(value ?? "").trim().replace(/\s+/g, " ");
   return s ? s.slice(0, limit) : null;
@@ -172,11 +185,6 @@ function buildBundleCandidates(groups, slots) {
         return a.slotId - b.slotId;
       });
 
-    const maxDiscountedQty = qty(group.max_discounted_qty, 0);
-    if (maxDiscountedQty > 0) {
-      eligible = eligible.slice(0, Math.floor(maxDiscountedQty));
-    }
-
     if (eligible.length < bundleQty) continue;
 
     const groupCandidates = [];
@@ -222,7 +230,7 @@ function chooseBestNonConflictingBundles(candidates) {
   const startedAt = Date.now();
   const maxMs = 160;
 
-  function dfs(index, usedSlotIds, selected, discount) {
+  function dfs(index, usedSlotIds, groupUseCounts, selected, discount) {
     visited += 1;
     if (visited > maxVisited || Date.now() - startedAt > maxMs) return;
 
@@ -246,28 +254,37 @@ function chooseBestNonConflictingBundles(candidates) {
       }
     }
 
-    if (canTake) {
+    if (canTake && canUseGroupAgain(candidate.group, groupUseCounts)) {
+      const gid = Number(candidate.group.id);
       for (const slotId of candidate.slotIds) usedSlotIds.add(slotId);
+      groupUseCounts.set(gid, (groupUseCounts.get(gid) || 0) + 1);
       selected.push(candidate);
-      dfs(index + 1, usedSlotIds, selected, money(discount + candidate.discount));
+      dfs(index + 1, usedSlotIds, groupUseCounts, selected, money(discount + candidate.discount));
       selected.pop();
+      const nextCount = (groupUseCounts.get(gid) || 1) - 1;
+      if (nextCount > 0) groupUseCounts.set(gid, nextCount);
+      else groupUseCounts.delete(gid);
       for (const slotId of candidate.slotIds) usedSlotIds.delete(slotId);
     }
 
-    dfs(index + 1, usedSlotIds, selected, discount);
+    dfs(index + 1, usedSlotIds, groupUseCounts, selected, discount);
   }
 
-  dfs(0, new Set(), [], 0);
+  dfs(0, new Set(), new Map(), [], 0);
 
   if (bestSelection.length) return bestSelection;
 
   // Safe fallback: if the exact search stopped too early, still pick greedily by savings.
   const used = new Set();
+  const groupUseCounts = new Map();
   const greedy = [];
   for (const candidate of rows) {
     if (candidate.slotIds.some((slotId) => used.has(slotId))) continue;
+    if (!canUseGroupAgain(candidate.group, groupUseCounts)) continue;
     greedy.push(candidate);
     for (const slotId of candidate.slotIds) used.add(slotId);
+    const gid = Number(candidate.group.id);
+    groupUseCounts.set(gid, (groupUseCounts.get(gid) || 0) + 1);
   }
   return greedy;
 }
@@ -327,7 +344,8 @@ function applicationsFromSelection(selection, discountByItemId) {
     metadata: {
       bundle_buy_qty: Number(app.group.bundle_buy_qty),
       bundle_pay_price: money(app.group.bundle_pay_price),
-      max_discounted_qty: qty(app.group.max_discounted_qty, 0) || null,
+      max_discounted_qty: maxApplications(app.group.max_discounted_qty),
+      max_applications: maxApplications(app.group.max_discounted_qty),
       product_ids: (app.group.products || []).map((p) => Number(p.product_id)).filter(Boolean),
       bundles: app.bundles,
     },
