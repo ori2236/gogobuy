@@ -33,7 +33,7 @@ const {
 const {
   buildBundlePromotionFollowUps,
 } = require("../../services/orderSuggestions");
-const { buildOrderCartPromotionLines, ensureCartPromotionSchema } = require("../../services/cartPromotions");
+const { buildOrderCartPromotionLines, buildOrderProductGroupPromotionApplications, ensureCartPromotionSchema } = require("../../services/cartPromotions");
 const {
   areProductAlternativesEnabled,
   buildModifyNotSoldLine,
@@ -823,6 +823,7 @@ async function applyOrderPatch({
 
     const [curItems] = await conn.query(
       `SELECT
+        oi.id AS order_item_id,
         oi.product_id,
         oi.amount,
         oi.sold_by_weight,
@@ -859,11 +860,16 @@ async function applyOrderPatch({
       shop_id,
       isEnglish,
     );
+    const productGroupPromotionApplications = await buildOrderProductGroupPromotionApplications(
+      order_id,
+      shop_id,
+    );
 
     return {
       ok: true,
       total,
       cartPromotionLines,
+      productGroupPromotionApplications,
       items: curItems.map((it) => {
         const heName = it.name;
         const enName =
@@ -874,6 +880,8 @@ async function applyOrderPatch({
         const hasUnits = Number.isFinite(units) && units > 0;
 
         return {
+          order_item_id: Number(it.order_item_id),
+          product_id: Number(it.product_id),
           name: displayName,
           amount: Number(it.amount),
           emoji: it.emoji,
@@ -1215,6 +1223,7 @@ module.exports = {
         deliveryAddress: order.delivery_address,
         deliveryFee: order.delivery_fee,
         cartPromotionLines: txRes.cartPromotionLines,
+        productGroupPromotionApplications: txRes.productGroupPromotionApplications,
       });
 
       const questionsBlock = buildQuestionsBlock({
@@ -1368,6 +1377,7 @@ module.exports = {
         deliveryAddress: order.delivery_address,
         deliveryFee: order.delivery_fee,
         cartPromotionLines,
+        productGroupPromotionApplications,
       });
 
       const questionsBlock = buildQuestionsBlock({

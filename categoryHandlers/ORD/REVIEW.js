@@ -1,6 +1,6 @@
 const { saveOpenQuestions } = require("../../utilities/openQuestions");
 const { buildOrderSummaryMessage } = require("../../utilities/orderSummaryMessage");
-const { buildOrderCartPromotionLines } = require("../../services/cartPromotions");
+const { buildOrderCartPromotionLines, buildOrderProductGroupPromotionApplications } = require("../../services/cartPromotions");
 
 async function orderReview(order, items, isEnglish, customer_id, shop_id) {
   // no open order
@@ -49,6 +49,8 @@ async function orderReview(order, items, isEnglish, customer_id, shop_id) {
     const promoId = it.promo_id ? Number(it.promo_id) : null;
 
     return {
+      order_item_id: Number(it.order_item_id ?? it.id),
+      product_id: Number(it.product_id),
       name: displayName,
       amount: Number(it.amount),
       emoji: it.emoji,
@@ -85,6 +87,10 @@ async function orderReview(order, items, isEnglish, customer_id, shop_id) {
     shop_id,
     isEnglish,
   );
+  const productGroupPromotionApplications = await buildOrderProductGroupPromotionApplications(
+    order.id,
+    shop_id,
+  );
 
   return buildOrderSummaryMessage({
     orderId: order.id,
@@ -96,6 +102,7 @@ async function orderReview(order, items, isEnglish, customer_id, shop_id) {
     deliveryAddress: order.delivery_address,
     deliveryFee: order.delivery_fee,
     cartPromotionLines,
+    productGroupPromotionApplications,
   });
 }
 

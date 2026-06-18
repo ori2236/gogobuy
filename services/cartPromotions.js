@@ -3,7 +3,6 @@ const { round2, calcLineTotalWithPromo } = require("../utilities/promotionPricin
 const {
   applyProductGroupPromotionsToItems,
   getOrderProductGroupPromotionApplications,
-  formatProductGroupPromotionApplication,
 } = require("./productGroupPromotions");
 
 const RULE_TYPES = {
@@ -686,11 +685,11 @@ function formatCartPromotionApplication(row, isEnglish = false) {
 
 async function buildOrderCartPromotionLines(order_id, shop_id, isEnglish = false) {
   const rows = await getOrderCartPromotionApplications(order_id, shop_id);
-  const groupRows = await getOrderProductGroupPromotionApplications(order_id, shop_id);
-  return [
-    ...groupRows.map((r) => formatProductGroupPromotionApplication(r, isEnglish)),
-    ...rows.map((r) => formatCartPromotionApplication(r, isEnglish)),
-  ].filter(Boolean);
+  return rows.map((r) => formatCartPromotionApplication(r, isEnglish)).filter(Boolean);
+}
+
+async function buildOrderProductGroupPromotionApplications(order_id, shop_id) {
+  return getOrderProductGroupPromotionApplications(order_id, shop_id);
 }
 
 async function fetchActiveCartPromotionOverview(shop_id, { limit = 50 } = {}) {
@@ -755,6 +754,7 @@ module.exports = {
   getOrderCartPromotionApplications,
   formatCartPromotionApplication,
   buildOrderCartPromotionLines,
+  buildOrderProductGroupPromotionApplications,
   fetchActiveCartPromotionOverview,
   formatCartPromotionRule,
 };

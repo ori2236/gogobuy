@@ -2,7 +2,7 @@ const db = require("../config/db");
 const { parseShopId, clampInt } = require("../utilities/dashboardUtils");
 
 const ALLOWED_STATUS_FILTERS = new Set(["all", "active", "inactive"]);
-const ALLOWED_SORT_BY = new Set(["default", "priority", "start_at", "end_at", "created_at"]);
+const ALLOWED_SORT_BY = new Set(["default", "start_at", "end_at", "created_at"]);
 const ALLOWED_SORT_DIR = new Set(["asc", "desc"]);
 
 function trimOrNull(value, limit = 1000) {
@@ -53,7 +53,6 @@ function activeSql(alias = "pgp") {
 function buildOrderBy(sortBy, sortDir, activeCondition) {
   const dir = sortDir === "asc" ? "ASC" : "DESC";
 
-  if (sortBy === "priority") return `pgp.priority ${dir}, pgp.id DESC`;
   if (sortBy === "start_at") return `pgp.start_at ${dir}, pgp.id DESC`;
   if (sortBy === "end_at") return `pgp.end_at IS NULL ASC, pgp.end_at ${dir}, pgp.id DESC`;
   if (sortBy === "created_at") return `pgp.created_at ${dir}, pgp.id DESC`;
@@ -64,7 +63,6 @@ function buildOrderBy(sortBy, sortDir, activeCondition) {
       WHEN pgp.start_at > NOW() THEN 1
       ELSE 2
     END ASC,
-    pgp.priority ASC,
     pgp.id DESC
   `;
 }
@@ -88,7 +86,7 @@ function parsePayload(body) {
   if (buyQty.error) return { error: buyQty.error };
 
   const payPrice = numberValue(body?.bundle_pay_price ?? body?.bundlePayPrice, "bundle_pay_price", {
-    min: 0,
+    min: 0.01,
   });
   if (payPrice.error) return { error: payPrice.error };
 
@@ -109,13 +107,6 @@ function parsePayload(body) {
     maxDiscountedQty = maxQty.value;
   }
 
-  const priority = numberValue(body?.priority, "priority", {
-    min: 1,
-    required: false,
-    integer: true,
-  });
-  if (priority.error) return { error: priority.error };
-
   return {
     payload: {
       title,
@@ -124,7 +115,7 @@ function parsePayload(body) {
       bundle_buy_qty: buyQty.value,
       bundle_pay_price: payPrice.value,
       max_discounted_qty: maxDiscountedQty,
-      priority: priority.value ?? 100,
+      priority: 100,
       is_active: boolValue(body?.is_active ?? body?.isActive, true),
       start_at: start.value,
       end_at: end.value,

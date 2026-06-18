@@ -58,6 +58,160 @@ function fmtQty(value, maxDigits = 3) {
 }
 
 
+
+function parseJsonMaybe(raw) {
+  if (!raw) return {};
+  if (typeof raw === "object") return raw;
+  try {
+    return JSON.parse(String(raw));
+  } catch {
+    return {};
+  }
+}
+
+function itemKey(item) {
+  const orderItemId = Number(item?.order_item_id ?? item?.orderItemId);
+  if (Number.isInteger(orderItemId) && orderItemId > 0) return `oi:${orderItemId}`;
+  const productId = Number(item?.product_id ?? item?.productId);
+  if (Number.isInteger(productId) && productId > 0) return `p:${productId}`;
+  return null;
+}
+
+function fmtGroupPromoLine(app, isEnglish) {
+  const meta = parseJsonMaybe(app?.metadata);
+  const title = String(app?.title || (isEnglish ? "Product group promotion" : "מבצע קבוצת מוצרים")).trim();
+  const buyQty = fmtQty(app?.bundle_buy_qty ?? meta.bundle_buy_qty, 3);
+  const price = Number(app?.bundle_pay_price ?? meta.bundle_pay_price);
+  const appliedCount = Number(app?.applied_count || 0);
+  const appliedText = appliedCount > 1 ? ` × ${appliedCount}` : "";
+  if (!buyQty || !Number.isFinite(price)) return title ? `${PROMO_INDENT}🏷️ ${title}` : "";
+  return isEnglish
+    ? `${PROMO_INDENT}🏷️ ${title}: ${buyQty} for ₪${fmtMoney(price)}${appliedText}`
+    : `${PROMO_INDENT}🏷️ ${title}: ${buyQty} ב-₪${fmtMoney(price)}${appliedText}`;
+}
+
+function collectGroupPromotionBlocks(items, applications, isEnglish) {
+  const normalizedApps = Array.isArray(applications) ? applications : [];
+  if (!normalizedApps.length || !items.length) {
+    return { blocksByStartIndex: new Map(), consumedByKey: new Map() };
+  }
+
+  const byOrderItemId = new Map();
+  const byProductId = new Map();
+  const indexByKey = new Map();
+
+  items.forEach((item, index) => {
+    const key = itemKey(item);
+    if (key) indexByKey.set(key, index);
+
+    const orderItemId = Number(item.order_item_id ?? item.orderItemId);
+    if (Number.isInteger(orderItemId) && orderItemId > 0) byOrderItemId.set(orderItemId, item);
+
+    const productId = Number(item.product_id ?? item.productId);
+    if (Number.isInteger(productId) && productId > 0 && !byProductId.has(productId)) {
+      byProductId.set(productId, item);
+    }
+  });
+
+  const consumedByKey = new Map();
+  const blocks = [];
+
+  for (const app of normalizedApps) {
+    const meta = parseJsonMaybe(app?.metadata);
+    const bundles = Array.isArray(meta.bundles) ? meta.bundles : [];
+    const counts = new Map();
+
+    for (const bundle of bundles) {
+      const orderItemIds = Array.isArray(bundle.order_item_ids)
+        ? bundle.order_item_ids
+        : Array.isArray(bundle.item_ids)
+          ? bundle.item_ids
+          : [];
+
+      if (orderItemIds.length) {
+        for (const rawId of orderItemIds) {
+          const id = Number(rawId);
+          const item = byOrderItemId.get(id);
+          if (!item) continue;
+          const key = itemKey(item);
+          if (!key) continue;
+          counts.set(key, (counts.get(key) || 0) + 1);
+        }
+        continue;
+      }
+
+      const productIds = Array.isArray(bundle.product_ids) ? bundle.product_ids : [];
+      for (const rawId of productIds) {
+        const id = Number(rawId);
+        const item = byProductId.get(id);
+        if (!item) continue;
+        const key = itemKey(item);
+        if (!key) continue;
+        counts.set(key, (counts.get(key) || 0) + 1);
+      }
+    }
+
+    if (!counts.size) continue;
+
+    const entries = Array.from(counts.entries())
+      .map(([key, count]) => {
+        const index = indexByKey.has(key) ? indexByKey.get(key) : Number.MAX_SAFE_INTEGER;
+        const item = items[index];
+        const maxAmount = Math.floor(Number(item?.amount || 0));
+        const safeCount = Math.min(Math.max(0, count), Math.max(0, maxAmount));
+        return safeCount > 0 ? { key, item, index, amount: safeCount } : null;
+      })
+      .filter(Boolean)
+      .sort((a, b) => a.index - b.index);
+
+    if (!entries.length) continue;
+
+    for (const entry of entries) {
+      consumedByKey.set(entry.key, (consumedByKey.get(entry.key) || 0) + entry.amount);
+    }
+
+    const startIndex = Math.min(...entries.map((entry) => entry.index));
+    blocks.push({
+      startIndex,
+      entries,
+      promoLine: fmtGroupPromoLine(app, isEnglish),
+    });
+  }
+
+  const blocksByStartIndex = new Map();
+  blocks
+    .sort((a, b) => a.startIndex - b.startIndex)
+    .forEach((block) => {
+      if (!blocksByStartIndex.has(block.startIndex)) blocksByStartIndex.set(block.startIndex, []);
+      blocksByStartIndex.get(block.startIndex).push(block);
+    });
+
+  return { blocksByStartIndex, consumedByKey };
+}
+
+function buildItemLine({ item, isEnglish, showPrice = true }) {
+  const name = String(item.name || "").trim();
+  if (!name) return "";
+  const emoji = cleanEmoji(item.emoji);
+  const qtySuffix = buildQuantitySuffix(item, isEnglish);
+
+  if (!showPrice) return `${emoji} ${boldProductName(name)}${qtySuffix}`;
+
+  return `${emoji} ${boldProductName(name)}${qtySuffix} - ₪${fmtMoney(item.line_total)}`;
+}
+
+function isPromoAppliedToItem(item) {
+  if (!item?.promo) return false;
+  const unitPrice = Number(item.unit_price ?? item.price);
+  const amount = Number(item.amount);
+  const lineTotal = Number(item.line_total);
+  if (!Number.isFinite(unitPrice) || !Number.isFinite(amount) || !Number.isFinite(lineTotal)) {
+    return true;
+  }
+  const regular = roundTo(unitPrice * amount, 2);
+  return lineTotal <= regular - 0.01;
+}
+
 function formatOrderStatus(status, isEnglish) {
   const s = String(status || "").toLowerCase();
 
@@ -153,25 +307,34 @@ function buildQuantitySuffix(item, isEnglish) {
   return isEnglish ? ` (${qty} units)` : ` (${qty} יח׳)`;
 }
 
-function buildPromoLine({ promo, isEnglish, isWeight }) {
+function buildPromoLine({ promo, isEnglish, isWeight, applied = true }) {
   if (!promo || !promo.kind) return "";
 
   const kind = String(promo.kind || "").toUpperCase();
+  const prefix = applied
+    ? isEnglish
+      ? `${PROMO_INDENT}🏷️ Promotion applied: `
+      : `${PROMO_INDENT}🏷️ נרכש במבצע: `
+    : isEnglish
+      ? `${PROMO_INDENT}🏷️ On promotion: `
+      : `${PROMO_INDENT}🏷️ נמצא במבצע: `;
 
   if (kind === "PERCENT_OFF") {
     const pct = fmtQty(promo.percent_off, 2);
     if (!pct) return "";
-    return isEnglish
-      ? `${PROMO_INDENT}🏷️ Purchased with ${pct}% off!`
-      : `${PROMO_INDENT}🏷️ נרכש ב-${pct}% הנחה!`;
+    return applied
+      ? isEnglish
+        ? `${PROMO_INDENT}🏷️ Purchased with ${pct}% off!`
+        : `${PROMO_INDENT}🏷️ נרכש ב-${pct}% הנחה!`
+      : `${prefix}${pct}% הנחה!`;
   }
 
   if (kind === "AMOUNT_OFF") {
     const off = Number(promo.amount_off);
     if (!Number.isFinite(off)) return "";
     return isEnglish
-      ? `${PROMO_INDENT}🏷️ Promotion applied: ₪${fmtMoney(off)} off per unit!`
-      : `${PROMO_INDENT}🏷️ נרכש במבצע: ₪${fmtMoney(off)} הנחה ליח׳!`;
+      ? `${prefix}₪${fmtMoney(off)} off per unit!`
+      : `${prefix}₪${fmtMoney(off)} הנחה ליח׳!`;
   }
 
   if (kind === "FIXED_PRICE") {
@@ -185,8 +348,8 @@ function buildPromoLine({ promo, isEnglish, isWeight }) {
         ? "לק״ג"
         : "ליח׳";
     return isEnglish
-      ? `${PROMO_INDENT}🏷️ Promotion applied: fixed price ₪${fmtMoney(fixed)} ${unitLabel}!`
-      : `${PROMO_INDENT}🏷️ נרכש במבצע: מחיר קבוע ₪${fmtMoney(fixed)} ${unitLabel}!`;
+      ? `${prefix}fixed price ₪${fmtMoney(fixed)} ${unitLabel}!`
+      : `${prefix}מחיר קבוע ₪${fmtMoney(fixed)} ${unitLabel}!`;
   }
 
   if (kind === "BUNDLE") {
@@ -201,13 +364,17 @@ function buildPromoLine({ promo, isEnglish, isWeight }) {
         ? "ק״ג"
         : "יח׳";
     return isEnglish
-      ? `${PROMO_INDENT}🏷️ Promotion applied: ${buyQty} ${qtyLabel} for ₪${fmtMoney(pay)}!`
-      : `${PROMO_INDENT}🏷️ נרכש במבצע: ${buyQty} ${qtyLabel} ב-₪${fmtMoney(pay)}!`;
+      ? `${prefix}${buyQty} ${qtyLabel} for ₪${fmtMoney(pay)}!`
+      : `${prefix}${buyQty} ${qtyLabel} ב-₪${fmtMoney(pay)}!`;
   }
 
-  return isEnglish
-    ? `${PROMO_INDENT}🏷️ Promotion applied!`
-    : `${PROMO_INDENT}🏷️ נרכש במבצע!`;
+  return applied
+    ? isEnglish
+      ? `${PROMO_INDENT}🏷️ Promotion applied!`
+      : `${PROMO_INDENT}🏷️ נרכש במבצע!`
+    : isEnglish
+      ? `${PROMO_INDENT}🏷️ On promotion!`
+      : `${PROMO_INDENT}🏷️ נמצא במבצע!`;
 }
 
 function normalizeOrderItemForSummary(item) {
@@ -233,6 +400,8 @@ function normalizeOrderItemForSummary(item) {
     is_gift:
       item.is_gift === true || item.is_gift === 1 || item.is_gift === "1",
     cart_promotion_rule_id: item.cart_promotion_rule_id || null,
+    order_item_id: item.order_item_id ?? item.orderItemId ?? null,
+    product_id: item.product_id ?? item.productId ?? null,
     emoji: cleanEmoji(item.emoji),
   };
 }
@@ -280,6 +449,7 @@ function buildOrderSummaryMessage({
   deliveryAddress = null,
   deliveryFee = null,
   cartPromotionLines = [],
+  productGroupPromotionApplications = [],
   showQuickCheckoutHint = false,
 } = {}) {
   const normalizedItems = (Array.isArray(items) ? items : [])
@@ -330,13 +500,47 @@ function buildOrderSummaryMessage({
   lines.push(isEnglish ? "📦 Products in your cart:" : "📦 המוצרים בסל שלך:");
   lines.push("");
 
-  for (const item of normalizedItems) {
+  const groupDisplay = collectGroupPromotionBlocks(
+    normalizedItems,
+    productGroupPromotionApplications,
+    isEnglish,
+  );
+
+  for (let itemIndex = 0; itemIndex < normalizedItems.length; itemIndex += 1) {
+    const blocks = groupDisplay.blocksByStartIndex.get(itemIndex) || [];
+    for (const block of blocks) {
+      for (const entry of block.entries) {
+        const blockItem = {
+          ...entry.item,
+          amount: entry.amount,
+          line_total: 0,
+        };
+        const line = buildItemLine({ item: blockItem, isEnglish, showPrice: false });
+        if (line) lines.push(line);
+      }
+      if (block.promoLine) lines.push(block.promoLine);
+    }
+
+    const item = normalizedItems[itemIndex];
     const name = String(item.name || "").trim();
     if (!name) continue;
 
-    const emoji = cleanEmoji(item.emoji);
-    const qtySuffix = buildQuantitySuffix(item, isEnglish);
-    if (item.is_gift) {
+    const key = itemKey(item);
+    const consumedQty = key ? Number(groupDisplay.consumedByKey.get(key) || 0) : 0;
+    const remainingQty = Math.max(0, Number(item.amount) - consumedQty);
+    if (remainingQty <= 0) continue;
+
+    const displayItem = remainingQty < Number(item.amount)
+      ? {
+          ...item,
+          amount: remainingQty,
+          line_total: roundTo(Number(item.unit_price || 0) * remainingQty, 2),
+        }
+      : item;
+
+    if (displayItem.is_gift) {
+      const emoji = cleanEmoji(displayItem.emoji);
+      const qtySuffix = buildQuantitySuffix(displayItem, isEnglish);
       lines.push(
         isEnglish
           ? `${emoji} ${boldProductName(name)}${qtySuffix} - gift 🎁`
@@ -345,12 +549,14 @@ function buildOrderSummaryMessage({
       continue;
     }
 
-    lines.push(`${emoji} ${boldProductName(name)}${qtySuffix} - ₪${fmtMoney(item.line_total)}`);
+    const line = buildItemLine({ item: displayItem, isEnglish, showPrice: true });
+    if (line) lines.push(line);
 
     const promoLine = buildPromoLine({
-      promo: item.promo,
+      promo: displayItem.promo,
       isEnglish,
-      isWeight: item.sold_by_weight === true,
+      isWeight: displayItem.sold_by_weight === true,
+      applied: isPromoAppliedToItem(displayItem),
     });
     if (promoLine) lines.push(promoLine);
   }

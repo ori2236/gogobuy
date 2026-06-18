@@ -22,6 +22,7 @@ const { roundTo } = require("../utilities/decimal");
 const { getPromptFromDB } = require("../repositories/prompt");
 const { buildOrderSummaryMessage } = require("../utilities/orderSummaryMessage");
 const { recalculateOrderTotalWithFulfillment } = require("./fulfillment");
+const { buildOrderCartPromotionLines, buildOrderProductGroupPromotionApplications } = require("./cartPromotions");
 
 const SUGGESTION_SOURCE = {
   GPT: "GPT_RECOMMENDATION",
@@ -120,6 +121,23 @@ function qtyText(n) {
   const x = Number(n);
   if (!Number.isFinite(x)) return "";
   return x.toFixed(3).replace(/\.?0+$/, "");
+}
+
+function tookProductText({ qty, productName, isEnglish }) {
+  const q = Number(qty);
+  const name = String(productName || "").trim();
+  if (isEnglish) {
+    if (q === 1) return `You have ${name}.`;
+    return `You have ${qtyText(q)} ${name}.`;
+  }
+  if (q === 1) return `לקחת ${name}.`;
+  return `לקחת ${qtyText(q)} ${name}.`;
+}
+
+function addMoreText(amountToAdd, isEnglish) {
+  const q = Number(amountToAdd);
+  if (isEnglish) return qtyText(q);
+  return qtyText(q);
 }
 
 function pickProductRecommendationTemplate(isEnglish) {
@@ -279,6 +297,8 @@ function mapOrderItemsForSummary(items, isEnglish) {
     const promoId = it.promo_id ? Number(it.promo_id) : null;
 
     return {
+      order_item_id: Number(it.order_item_id ?? it.id),
+      product_id: Number(it.product_id),
       name: displayName,
       amount: Number(it.amount),
       unit_price: Number(it.unit_price),
@@ -305,6 +325,16 @@ async function buildUpdatedOrderSummaryMessage({ order_id, isEnglish }) {
   const order = await getOrder(order_id);
   const items = await getOrderItems(order_id);
 
+  const cartPromotionLines = await buildOrderCartPromotionLines(
+    order?.id || order_id,
+    order?.shop_id,
+    isEnglish,
+  );
+  const productGroupPromotionApplications = await buildOrderProductGroupPromotionApplications(
+    order?.id || order_id,
+    order?.shop_id,
+  );
+
   return buildOrderSummaryMessage({
     orderId: order?.id || order_id,
     status: order?.status || "pending",
@@ -314,6 +344,8 @@ async function buildUpdatedOrderSummaryMessage({ order_id, isEnglish }) {
     fulfillmentMethod: order?.fulfillment_method,
     deliveryAddress: order?.delivery_address,
     deliveryFee: order?.delivery_fee,
+    cartPromotionLines,
+    productGroupPromotionApplications,
   });
 }
 
@@ -690,13 +722,176 @@ function buildBundleNudgeActions(rows, { isEnglish, maxPerProduct }) {
       promo_id: Number(r.promo_id),
       source: SUGGESTION_SOURCE.BUNDLE,
       line: isEnglish
-        ? `You have ${qtyText(qty)} ${productName}. Add ${addText} more to use the ${buyText} for ₪${payText} deal?`
-        : `לקחת ${qtyText(qty)} ${productName}. להוסיף עוד ${addText} כדי לנצל מבצע ${buyText} ב-₪${payText}?`,
+        ? `${tookProductText({ qty, productName, isEnglish })} Add ${addText} more to use the ${buyText} for ₪${payText} deal?`
+        : `${tookProductText({ qty, productName, isEnglish })} להוסיף עוד ${addText} כדי לנצל מבצע ${buyText} ב-₪${payText}?`,
     });
   }
 
   nudges.sort((a, b) => Number(a.amount_to_add) - Number(b.amount_to_add));
   return nudges.slice(0, MAX_BUNDLE_NUDGES_PER_MESSAGE);
+}
+
+async function fetchGroupBundleRowsForOrderItems({ shop_id, order_id, productIds }) {
+  const ids = Array.from(new Set((productIds || []).map(Number).filter(Boolean)));
+  if (!ids.length || !order_id) return [];
+
+  const [rows] = await db.query(
+    `SELECT
+       pgp.id AS group_promotion_id,
+       pgp.title,
+       pgp.bundle_buy_qty,
+       pgp.bundle_pay_price,
+       pgp.max_discounted_qty,
+
+       oi.id AS order_item_id,
+       oi.product_id AS order_product_id,
+       oi.amount,
+       oi.sold_by_weight,
+       COALESCE(oi.is_gift, 0) AS is_gift,
+       op.name AS order_product_name,
+       op.display_name_en AS order_display_name_en,
+       op.stock_amount AS order_stock_amount,
+
+       gpi_all.product_id AS group_product_id,
+       gp.name AS group_product_name,
+       gp.display_name_en AS group_display_name_en,
+       gp.stock_amount AS group_stock_amount
+     FROM product_group_promotion pgp
+     JOIN product_group_promotion_item gpi_match
+       ON gpi_match.group_promotion_id = pgp.id
+      AND gpi_match.shop_id = pgp.shop_id
+     JOIN order_item oi
+       ON oi.product_id = gpi_match.product_id
+      AND oi.order_id = ?
+     JOIN product op
+       ON op.id = oi.product_id
+      AND op.shop_id = pgp.shop_id
+     JOIN product_group_promotion_item gpi_all
+       ON gpi_all.group_promotion_id = pgp.id
+      AND gpi_all.shop_id = pgp.shop_id
+     JOIN product gp
+       ON gp.id = gpi_all.product_id
+      AND gp.shop_id = pgp.shop_id
+     WHERE pgp.shop_id = ?
+       AND oi.product_id IN (${ids.map(() => "?").join(",")})
+       AND COALESCE(oi.is_gift, 0) = 0
+       AND pgp.is_active = 1
+       AND (pgp.start_at IS NULL OR pgp.start_at <= NOW())
+       AND (pgp.end_at IS NULL OR pgp.end_at >= NOW())`,
+    [Number(order_id), Number(shop_id), ...ids],
+  );
+
+  return rows || [];
+}
+
+function buildGroupBundleNudgeActions(rows, { isEnglish, maxPerProduct }) {
+  const groups = new Map();
+
+  for (const row of rows || []) {
+    const gid = Number(row.group_promotion_id);
+    if (!gid) continue;
+    if (!groups.has(gid)) {
+      groups.set(gid, {
+        id: gid,
+        title: row.title,
+        bundle_buy_qty: Number(row.bundle_buy_qty),
+        bundle_pay_price: Number(row.bundle_pay_price),
+        max_discounted_qty: row.max_discounted_qty == null ? null : Number(row.max_discounted_qty),
+        orderItems: new Map(),
+        groupProducts: new Map(),
+      });
+    }
+
+    const group = groups.get(gid);
+    const orderProductId = Number(row.order_product_id);
+    if (orderProductId && !group.orderItems.has(orderProductId)) {
+      group.orderItems.set(orderProductId, {
+        product_id: orderProductId,
+        amount: Number(row.amount),
+        sold_by_weight: row.sold_by_weight === 1 || row.sold_by_weight === true,
+        name: row.order_product_name,
+        display_name_en: row.order_display_name_en,
+        stock_amount: Number(row.order_stock_amount),
+      });
+    }
+
+    const groupProductId = Number(row.group_product_id);
+    if (groupProductId && !group.groupProducts.has(groupProductId)) {
+      group.groupProducts.set(groupProductId, {
+        product_id: groupProductId,
+        name: row.group_product_name,
+        display_name_en: row.group_display_name_en,
+        stock_amount: Number(row.group_stock_amount),
+      });
+    }
+  }
+
+  const actions = [];
+
+  for (const group of groups.values()) {
+    const buyQty = Number(group.bundle_buy_qty);
+    if (!Number.isFinite(buyQty) || buyQty < 2) continue;
+
+    const orderItems = Array.from(group.orderItems.values()).filter((x) => !x.sold_by_weight);
+    if (!orderItems.length) continue;
+
+    const totalQty = orderItems.reduce((sum, item) => sum + Math.floor(Number(item.amount || 0)), 0);
+    if (!(totalQty > 0)) continue;
+
+    const maxQty = Number(group.max_discounted_qty);
+    if (Number.isFinite(maxQty) && maxQty > 0 && totalQty >= maxQty) continue;
+
+    const remainder = Math.ceil(totalQty) % buyQty;
+    if (!Number.isFinite(remainder) || remainder === 0) continue;
+
+    let amountToAdd = Math.trunc(buyQty - remainder);
+    if (!(amountToAdd > 0)) continue;
+    if (Number.isFinite(maxQty) && maxQty > 0) {
+      amountToAdd = Math.min(amountToAdd, Math.max(0, Math.floor(maxQty - totalQty)));
+      if (!(amountToAdd > 0)) continue;
+    }
+
+    const existingIds = new Set(orderItems.map((item) => Number(item.product_id)));
+    const candidates = Array.from(group.groupProducts.values())
+      .filter((p) => Number.isFinite(Number(p.stock_amount)) ? Number(p.stock_amount) >= amountToAdd : true)
+      .sort((a, b) => {
+        const aExisting = existingIds.has(Number(a.product_id)) ? 0 : 1;
+        const bExisting = existingIds.has(Number(b.product_id)) ? 0 : 1;
+        if (aExisting !== bExisting) return aExisting - bExisting;
+        return Number(b.stock_amount || 0) - Number(a.stock_amount || 0);
+      });
+
+    const chosen = candidates[0];
+    if (!chosen) continue;
+
+    const productName = displayName(chosen, isEnglish);
+    const buyText = qtyText(buyQty);
+    const payText = Number(group.bundle_pay_price).toFixed(2);
+    const addText = addMoreText(amountToAdd, isEnglish);
+    const title = String(group.title || "").trim();
+    const mainCartProduct = orderItems.length === 1 ? displayName(orderItems[0], isEnglish) : title;
+    const tookText = orderItems.length === 1
+      ? tookProductText({ qty: totalQty, productName: mainCartProduct, isEnglish })
+      : isEnglish
+        ? `You have ${qtyText(totalQty)} items from ${title || "this promotion group"}.`
+        : `לקחת ${qtyText(totalQty)} מוצרים מקבוצת ${title || "המבצע"}.`;
+
+    actions.push({
+      product_id: Number(chosen.product_id),
+      product_name: chosen.name,
+      display_name: productName,
+      amount_to_add: amountToAdd,
+      sold_by_weight: false,
+      product_group_promotion_id: Number(group.id),
+      source: SUGGESTION_SOURCE.BUNDLE,
+      line: isEnglish
+        ? `${tookText} Add ${addText} more ${productName} to use the ${buyText} for ₪${payText} deal?`
+        : `${tookText} להוסיף עוד ${addText} ${productName} כדי לנצל מבצע ${buyText} ב-₪${payText}?`,
+    });
+  }
+
+  actions.sort((a, b) => Number(a.amount_to_add) - Number(b.amount_to_add));
+  return actions.slice(0, MAX_BUNDLE_NUDGES_PER_MESSAGE);
 }
 
 async function buildBundlePromotionFollowUps({
@@ -712,7 +907,11 @@ async function buildBundlePromotionFollowUps({
   }
 
   const rows = await fetchBundleRowsForOrderItems({ shop_id, order_id, productIds });
-  const actions = buildBundleNudgeActions(rows, { isEnglish, maxPerProduct });
+  const groupRows = await fetchGroupBundleRowsForOrderItems({ shop_id, order_id, productIds });
+  const actions = [
+    ...buildBundleNudgeActions(rows, { isEnglish, maxPerProduct }),
+    ...buildGroupBundleNudgeActions(groupRows, { isEnglish, maxPerProduct }),
+  ].slice(0, MAX_BUNDLE_NUDGES_PER_MESSAGE);
   if (!actions.length) return [];
 
   for (const action of actions) {

@@ -23,7 +23,7 @@ const { buildQuantityLimitWarningBlock } = require("../../utilities/productQuant
 const {
   buildOrderSummaryMessage,
 } = require("../../utilities/orderSummaryMessage");
-const { buildOrderCartPromotionLines } = require("../../services/cartPromotions");
+const { buildOrderCartPromotionLines, buildOrderProductGroupPromotionApplications } = require("../../services/cartPromotions");
 const {
   buildBundlePromotionFollowUps,
 } = require("../../services/orderSuggestions");
@@ -431,6 +431,7 @@ module.exports = {
 
     const [rows] = await db.query(
       `SELECT
+     oi.id AS order_item_id,
      oi.product_id,
      oi.amount,
      oi.sold_by_weight,
@@ -471,6 +472,10 @@ module.exports = {
       shop_id,
       isEnglish,
     );
+    const productGroupPromotionApplications = await buildOrderProductGroupPromotionApplications(
+      orderRes.order_id,
+      shop_id,
+    );
 
     let totalNoPromos = 0;
     for (const r of rows || []) {
@@ -489,6 +494,8 @@ module.exports = {
       const promoId = r.promo_id ? Number(r.promo_id) : null;
 
       return {
+        order_item_id: Number(r.order_item_id),
+        product_id: Number(r.product_id),
         name: isEnglish
           ? (r.display_name_en && r.display_name_en.trim()) || r.name_he
           : r.name_he,
@@ -554,6 +561,7 @@ module.exports = {
       totalNoPromos,
       savings,
       cartPromotionLines,
+      productGroupPromotionApplications,
     });
 
     const questionsBlock = buildQuestionsBlock({
