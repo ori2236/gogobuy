@@ -48,6 +48,11 @@ function fmtMoney(value) {
   return Number.isFinite(n) ? n.toFixed(2) : "0.00";
 }
 
+function fmtMoneyCompact(value) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n.toFixed(2).replace(/\.00$/, "") : "0";
+}
+
 function fmtQty(value, maxDigits = 3) {
   const n = Number(value);
   if (!Number.isFinite(n)) return "";
@@ -88,6 +93,17 @@ function fmtGroupPromoLine(app, isEnglish) {
   return isEnglish
     ? `${PROMO_INDENT}🏷️ ${title}: ${buyQty} for ₪${fmtMoney(price)}${appliedText}`
     : `${PROMO_INDENT}🏷️ ${title}: ${buyQty} ב-₪${fmtMoney(price)}${appliedText}`;
+}
+
+function buildGroupPromoHintLine(groupPromo, isEnglish) {
+  const group = groupPromo || null;
+  if (!group) return "";
+  const buyQty = fmtQty(group.bundle_buy_qty, 3);
+  const price = Number(group.bundle_pay_price);
+  if (!buyQty || !Number.isFinite(price)) return "";
+  return isEnglish
+    ? `${PROMO_INDENT}(🏷️ Existing promotion: ${buyQty} for ₪${fmtMoneyCompact(price)})`
+    : `${PROMO_INDENT}(🏷️ קיים מבצע: ${buyQty} יח׳ ב-₪${fmtMoneyCompact(price)})`;
 }
 
 function collectGroupPromotionBlocks(items, applications, isEnglish) {
@@ -316,8 +332,9 @@ function buildPromoLine({ promo, isEnglish, isWeight, applied = true }) {
       ? `${PROMO_INDENT}🏷️ Promotion applied: `
       : `${PROMO_INDENT}🏷️ נרכש במבצע: `
     : isEnglish
-      ? `${PROMO_INDENT}🏷️ On promotion: `
-      : `${PROMO_INDENT}🏷️ נמצא במבצע: `;
+      ? `${PROMO_INDENT}(🏷️ Existing promotion: `
+      : `${PROMO_INDENT}(🏷️ קיים מבצע: `;
+  const suffix = applied ? "!" : ")";
 
   if (kind === "PERCENT_OFF") {
     const pct = fmtQty(promo.percent_off, 2);
@@ -326,15 +343,17 @@ function buildPromoLine({ promo, isEnglish, isWeight, applied = true }) {
       ? isEnglish
         ? `${PROMO_INDENT}🏷️ Purchased with ${pct}% off!`
         : `${PROMO_INDENT}🏷️ נרכש ב-${pct}% הנחה!`
-      : `${prefix}${pct}% הנחה!`;
+      : isEnglish
+        ? `${prefix}${pct}% off${suffix}`
+        : `${prefix}${pct}% הנחה${suffix}`;
   }
 
   if (kind === "AMOUNT_OFF") {
     const off = Number(promo.amount_off);
     if (!Number.isFinite(off)) return "";
     return isEnglish
-      ? `${prefix}₪${fmtMoney(off)} off per unit!`
-      : `${prefix}₪${fmtMoney(off)} הנחה ליח׳!`;
+      ? `${prefix}₪${fmtMoneyCompact(off)} off per unit${suffix}`
+      : `${prefix}₪${fmtMoneyCompact(off)} הנחה ליח׳${suffix}`;
   }
 
   if (kind === "FIXED_PRICE") {
@@ -348,8 +367,8 @@ function buildPromoLine({ promo, isEnglish, isWeight, applied = true }) {
         ? "לק״ג"
         : "ליח׳";
     return isEnglish
-      ? `${prefix}fixed price ₪${fmtMoney(fixed)} ${unitLabel}!`
-      : `${prefix}מחיר קבוע ₪${fmtMoney(fixed)} ${unitLabel}!`;
+      ? `${prefix}fixed price ₪${fmtMoneyCompact(fixed)} ${unitLabel}${suffix}`
+      : `${prefix}מחיר קבוע ₪${fmtMoneyCompact(fixed)} ${unitLabel}${suffix}`;
   }
 
   if (kind === "BUNDLE") {
@@ -364,8 +383,8 @@ function buildPromoLine({ promo, isEnglish, isWeight, applied = true }) {
         ? "ק״ג"
         : "יח׳";
     return isEnglish
-      ? `${prefix}${buyQty} ${qtyLabel} for ₪${fmtMoney(pay)}!`
-      : `${prefix}${buyQty} ${qtyLabel} ב-₪${fmtMoney(pay)}!`;
+      ? `${prefix}${buyQty} ${qtyLabel} for ₪${fmtMoneyCompact(pay)}${suffix}`
+      : `${prefix}${buyQty} ${qtyLabel} ב-₪${fmtMoneyCompact(pay)}${suffix}`;
   }
 
   return applied
@@ -373,8 +392,8 @@ function buildPromoLine({ promo, isEnglish, isWeight, applied = true }) {
       ? `${PROMO_INDENT}🏷️ Promotion applied!`
       : `${PROMO_INDENT}🏷️ נרכש במבצע!`
     : isEnglish
-      ? `${PROMO_INDENT}🏷️ On promotion!`
-      : `${PROMO_INDENT}🏷️ נמצא במבצע!`;
+      ? `${PROMO_INDENT}(🏷️ Existing promotion)`
+      : `${PROMO_INDENT}(🏷️ קיים מבצע)`;
 }
 
 function normalizeOrderItemForSummary(item) {
@@ -403,6 +422,7 @@ function normalizeOrderItemForSummary(item) {
     order_item_id: item.order_item_id ?? item.orderItemId ?? null,
     product_id: item.product_id ?? item.productId ?? null,
     emoji: cleanEmoji(item.emoji),
+    group_promo: item.group_promo || item.group_promo_hint || null,
   };
 }
 
@@ -559,6 +579,10 @@ function buildOrderSummaryMessage({
       applied: isPromoAppliedToItem(displayItem),
     });
     if (promoLine) lines.push(promoLine);
+    else {
+      const groupHintLine = buildGroupPromoHintLine(displayItem.group_promo, isEnglish);
+      if (groupHintLine) lines.push(groupHintLine);
+    }
   }
 
   const normalizedCartPromotionLines = (Array.isArray(cartPromotionLines) ? cartPromotionLines : [])

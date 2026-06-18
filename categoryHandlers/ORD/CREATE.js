@@ -25,6 +25,9 @@ const {
 } = require("../../utilities/orderSummaryMessage");
 const { buildOrderCartPromotionLines, buildOrderProductGroupPromotionApplications } = require("../../services/cartPromotions");
 const {
+  attachProductGroupPromotionHintsToItems,
+} = require("../../services/productGroupPromotions");
+const {
   buildBundlePromotionFollowUps,
 } = require("../../services/orderSuggestions");
 const {
@@ -487,7 +490,7 @@ module.exports = {
     const savings = roundTo(totalNoPromos - totalWithPromos, 2);
     const hasSavings = Number.isFinite(savings) && savings >= 0.01;
 
-    const productsForDisplay = rows.map((r) => {
+    let productsForDisplay = rows.map((r) => {
       const units = Number(r.requested_units);
       const hasUnits = Number.isFinite(units) && units > 0;
 
@@ -525,6 +528,11 @@ module.exports = {
         ...(r.sold_by_weight ? { sold_by_weight: true } : {}),
         ...(hasUnits ? { units } : {}),
       };
+    });
+
+    productsForDisplay = await attachProductGroupPromotionHintsToItems({
+      shop_id,
+      items: productsForDisplay,
     });
 
     const hasQuestions =

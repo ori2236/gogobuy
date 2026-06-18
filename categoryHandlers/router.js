@@ -85,6 +85,8 @@ const CATEGORY_HANDLERS = {
         shop_id: ctx.shop_id,
         history: ctx.history,
         isEnglish: ctx.isEnglish,
+        activeOrder: ctx.activeOrder,
+        items: ctx.items,
       }),
   },
   BUS: {

@@ -20,6 +20,10 @@ const CUSTOMER_PRODUCT_SCORE_BONUS = Number.isFinite(Number(process.env.CUSTOMER
   ? Number(process.env.CUSTOMER_PRODUCT_SCORE_BONUS)
   : 5;
 
+const PROMOTION_PRODUCT_SCORE_BONUS = Number.isFinite(Number(process.env.PROMOTION_PRODUCT_SCORE_BONUS))
+  ? Number(process.env.PROMOTION_PRODUCT_SCORE_BONUS)
+  : 1;
+
 const CUSTOMER_DEFAULT_RECENT_ORDERS_LIMIT = Number.isFinite(Number(process.env.CUSTOMER_DEFAULT_RECENT_ORDERS_LIMIT))
   ? Math.max(1, Math.trunc(Number(process.env.CUSTOMER_DEFAULT_RECENT_ORDERS_LIMIT)))
   : 10;
@@ -51,6 +55,7 @@ function compactRows(rows = []) {
         : Number(r.stock_amount),
     is_default: Number(r.is_default || 0) === 1,
     customer_default: Number(r.customer_default || 0) === 1,
+    has_active_promotion: Number(r.has_active_promotion || 0) === 1,
   }));
 }
 
@@ -221,34 +226,66 @@ async function queryRowsByTokens({
   customerDefaultProductIds = new Set(),
 }) {
   let sql = `
-    SELECT id, name, display_name_en, price, stock_amount, is_default, category, sub_category, updated_at
-    FROM product
-    WHERE shop_id = ?
+    SELECT
+      p.id,
+      p.name,
+      p.display_name_en,
+      p.price,
+      p.stock_amount,
+      p.is_default,
+      p.category,
+      p.sub_category,
+      p.updated_at,
+      CASE
+        WHEN EXISTS (
+          SELECT 1
+          FROM promotion pr
+          WHERE pr.shop_id = p.shop_id
+            AND pr.product_id = p.id
+            AND (pr.start_at IS NULL OR pr.start_at <= NOW())
+            AND (pr.end_at IS NULL OR pr.end_at >= NOW())
+        )
+        OR EXISTS (
+          SELECT 1
+          FROM product_group_promotion_item gpi
+          JOIN product_group_promotion pgp
+            ON pgp.id = gpi.group_promotion_id
+           AND pgp.shop_id = gpi.shop_id
+          WHERE gpi.shop_id = p.shop_id
+            AND gpi.product_id = p.id
+            AND pgp.is_active = 1
+            AND (pgp.start_at IS NULL OR pgp.start_at <= NOW())
+            AND (pgp.end_at IS NULL OR pgp.end_at >= NOW())
+        )
+        THEN 1 ELSE 0
+      END AS has_active_promotion
+    FROM product p
+    WHERE p.shop_id = ?
   `;
   const params = [shop_id];
 
   if (includeStockFilter) {
-    sql += ` AND (stock_amount IS NULL OR stock_amount > 0)`;
+    sql += ` AND (p.stock_amount IS NULL OR p.stock_amount > 0)`;
   }
 
   if (category) {
-    sql += ` AND category = ?`;
+    sql += ` AND p.category = ?`;
     params.push(category);
   }
 
   if (Array.isArray(subCategories) && subCategories.length) {
-    sql += ` AND sub_category IN (${subCategories.map(() => "?").join(",")})`;
+    sql += ` AND p.sub_category IN (${subCategories.map(() => "?").join(",")})`;
     params.push(...subCategories);
   } else if (typeof subCategories === "string" && subCategories.trim()) {
-    sql += ` AND sub_category = ?`;
+    sql += ` AND p.sub_category = ?`;
     params.push(subCategories.trim());
   }
 
   for (const t of tokenGroup.tokens) {
     sql += `
       AND (
-        name COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
-        OR display_name_en COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
+        p.name COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
+        OR p.display_name_en COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
       )
     `;
     params.push(t, t);
@@ -407,7 +444,9 @@ async function pickBestWeighted({
     const customerBonus = isCustomerDefault ? CUSTOMER_PRODUCT_SCORE_BONUS : 0;
     const isDefault = Number(m.r.is_default || 0) === 1;
     const defaultBonus = isDefault ? DEFAULT_PRODUCT_SCORE_BONUS : 0;
-    const matchScore = extraScore - customerBonus - defaultBonus;
+    const hasActivePromotion = Number(m.r.has_active_promotion || 0) === 1;
+    const promotionBonus = hasActivePromotion ? PROMOTION_PRODUCT_SCORE_BONUS : 0;
+    const matchScore = extraScore - customerBonus - defaultBonus - promotionBonus;
 
     scored.push({
       row: m.r,
@@ -417,9 +456,11 @@ async function pickBestWeighted({
       extraScore,
       customerBonus,
       defaultBonus,
+      promotionBonus,
       matchScore,
       isCustomerDefault,
       isDefault,
+      hasActivePromotion,
       priceScore,
       wordCount,
       extraCount: m.extra.length,
@@ -447,9 +488,11 @@ async function pickBestWeighted({
       extraScore: s.extraScore,
       customerBonus: s.customerBonus,
       defaultBonus: s.defaultBonus,
+      promotionBonus: s.promotionBonus,
       matchScore: s.matchScore,
       isCustomerDefault: s.isCustomerDefault,
       isDefault: s.isDefault,
+      hasActivePromotion: s.hasActivePromotion,
       priceScore: s.priceScore,
       wordCount: s.wordCount,
       extraCount: s.extraCount,
@@ -468,9 +511,11 @@ async function pickBestWeighted({
           extraScore: best.extraScore,
           customerBonus: best.customerBonus,
           defaultBonus: best.defaultBonus,
+          promotionBonus: best.promotionBonus,
           matchScore: best.matchScore,
           isCustomerDefault: best.isCustomerDefault,
           isDefault: best.isDefault,
+          hasActivePromotion: best.hasActivePromotion,
           priceScore: best.priceScore,
           wordCount: best.wordCount,
         }
@@ -851,7 +896,7 @@ async function fetchAlternatives(
     `;
 
     if (cat) {
-      sql += ` AND category = ?`;
+      sql += ` AND p.category = ?`;
       params.push(cat);
     }
 
@@ -1150,7 +1195,7 @@ async function searchVariants(
   const params = [shop_id];
 
   if (category) {
-    sql += ` AND category = ?`;
+    sql += ` AND p.category = ?`;
     params.push(category);
   }
 

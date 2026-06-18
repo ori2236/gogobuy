@@ -21,6 +21,9 @@ const { parseModelAnswer } = require("../utilities/jsonParse");
 const { roundTo } = require("../utilities/decimal");
 const { getPromptFromDB } = require("../repositories/prompt");
 const { buildOrderSummaryMessage } = require("../utilities/orderSummaryMessage");
+const {
+  attachProductGroupPromotionHintsToItems,
+} = require("./productGroupPromotions");
 const { recalculateOrderTotalWithFulfillment } = require("./fulfillment");
 const { buildOrderCartPromotionLines, buildOrderProductGroupPromotionApplications } = require("./cartPromotions");
 
@@ -338,7 +341,10 @@ async function buildUpdatedOrderSummaryMessage({ order_id, isEnglish }) {
   return buildOrderSummaryMessage({
     orderId: order?.id || order_id,
     status: order?.status || "pending",
-    items: mapOrderItemsForSummary(items, isEnglish),
+    items: await attachProductGroupPromotionHintsToItems({
+      shop_id: order?.shop_id,
+      items: mapOrderItemsForSummary(items, isEnglish),
+    }),
     isEnglish,
     totalWithPromos: order?.price,
     fulfillmentMethod: order?.fulfillment_method,

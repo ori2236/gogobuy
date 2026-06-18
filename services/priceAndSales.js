@@ -19,12 +19,24 @@ const {
 const {
   ensureProductGroupPromotionColumns,
   resolveProductGroupPromotionEmoji,
+  fetchActiveProductGroupPromotionsForProduct,
 } = require("./productGroupPromotions");
 
-function formatILS(n) {
+function formatMoneyCompact(n) {
   const x = Number(n);
   if (!Number.isFinite(x)) return null;
-  return `₪${x.toFixed(2)}`;
+  return x.toFixed(2).replace(/\.00$/, "");
+}
+
+function formatILS(n) {
+  const x = formatMoneyCompact(n);
+  return x === null ? null : `₪${x}`;
+}
+
+function money(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.round(n * 100) / 100;
 }
 
 function fmtQty(n, digits = 2) {
@@ -471,7 +483,14 @@ function buildPriceLineWithActivePromotion({
       )} במקום ${formatILS(pricing.baseTotal)}.`;
 }
 
-function buildFoundProductLine({ req, foundRow, isEnglish, promo = null }) {
+function appendGroupPromotionHint(baseText, groupPromos, isEnglish) {
+  const groups = Array.isArray(groupPromos) ? groupPromos.filter(Boolean) : [];
+  if (!groups.length) return baseText;
+  const line = formatProductGroupPromotionHintLine(groups[0], isEnglish);
+  return line ? [baseText, line].filter(Boolean).join("\n") : baseText;
+}
+
+function buildFoundProductLine({ req, foundRow, isEnglish, promo = null, groupPromos = [] }) {
   const reqName = String(req?.name || "").trim();
 
   const matchedNameHe = String(foundRow?.matched_name || "").trim();
@@ -509,57 +528,57 @@ function buildFoundProductLine({ req, foundRow, isEnglish, promo = null }) {
     units,
     isEnglish,
   });
-  if (activePromotionLine) return activePromotionLine;
+  if (activePromotionLine) return appendGroupPromotionHint(activePromotionLine, groupPromos, isEnglish);
 
   if (isEnglish) {
     if (!hasPrice)
-      return `The product we found is: ${displayName}. We don’t have an updated price for it.`;
+      return appendGroupPromotionHint(`The product we found is: ${displayName}. We don’t have an updated price for it.`, groupPromos, isEnglish);
 
     if (!soldByWeight) {
       if (amount <= 1)
-        return `The product we found is: ${displayName}. Price: ${formatILS(
+        return appendGroupPromotionHint(`The product we found is: ${displayName}. Price: ${formatILS(
           unitPrice,
-        )}.`;
+        )}.`, groupPromos, isEnglish);
       const total = unitPrice * amount;
-      return `The product we found is: ${displayName}. Price: ${formatILS(
+      return appendGroupPromotionHint(`The product we found is: ${displayName}. Price: ${formatILS(
         unitPrice,
-      )} each (total ${formatILS(total)} for ${amount}).`;
+      )} each (total ${formatILS(total)} for ${amount}).`, groupPromos, isEnglish);
     }
 
     const base = `The product we found is: ${displayName}. Price: ${formatILS(
       unitPrice,
     )} per kg.`;
-    if (!units && Math.abs(amount - 1) < 1e-9) return base;
+    if (!units && Math.abs(amount - 1) < 1e-9) return appendGroupPromotionHint(base, groupPromos, isEnglish);
 
     const total = unitPrice * amount;
-    return `${base} Estimated total for ~${amount} kg${
+    return appendGroupPromotionHint(`${base} Estimated total for ~${amount} kg${
       units ? ` (about ${units} units)` : ""
-    }: ${formatILS(total)}.`;
+    }: ${formatILS(total)}.`, groupPromos, isEnglish);
   }
 
   if (!hasPrice)
-    return `המוצר שמצאנו אצלנו הוא: ${displayName}. אין לנו מחיר מעודכן עליו כרגע.`;
+    return appendGroupPromotionHint(`המוצר שמצאנו אצלנו הוא: ${displayName}. אין לנו מחיר מעודכן עליו כרגע.`, groupPromos, isEnglish);
 
   if (!soldByWeight) {
     if (amount <= 1)
-      return `המוצר שמצאנו אצלנו הוא: ${displayName}. מחירו: ${formatILS(
+      return appendGroupPromotionHint(`המוצר שמצאנו אצלנו הוא: ${displayName}. מחירו: ${formatILS(
         unitPrice,
-      )}.`;
+      )}.`, groupPromos, isEnglish);
     const total = unitPrice * amount;
-    return `המוצר שמצאנו אצלנו הוא: ${displayName}. מחיר ליח׳: ${formatILS(
+    return appendGroupPromotionHint(`המוצר שמצאנו אצלנו הוא: ${displayName}. מחיר ליח׳: ${formatILS(
       unitPrice,
-    )} (סה״כ ${formatILS(total)} ל-${amount} יח׳).`;
+    )} (סה״כ ${formatILS(total)} ל-${amount} יח׳).`, groupPromos, isEnglish);
   }
 
   const base = `המוצר שמצאנו אצלנו הוא: ${displayName}. מחירו: ${formatILS(
     unitPrice,
   )} לק״ג.`;
-  if (!units && Math.abs(amount - 1) < 1e-9) return base;
+  if (!units && Math.abs(amount - 1) < 1e-9) return appendGroupPromotionHint(base, groupPromos, isEnglish);
 
   const total = unitPrice * amount;
-  return `${base} מחיר משוערך ל~${amount} ק״ג${
+  return appendGroupPromotionHint(`${base} מחיר משוערך ל~${amount} ק״ג${
     units ? ` (בערך ${units} יח׳)` : ""
-  }: ${formatILS(total)}.`;
+  }: ${formatILS(total)}.`, groupPromos, isEnglish);
 }
 
 async function saveFallbackOpenQuestion(botPayload, customer_id, shop_id) {
@@ -1333,11 +1352,6 @@ function round2(n) {
   return Math.round(x * 100) / 100;
 }
 
-function money(n, fallback = 0) {
-  const x = round2(n);
-  return Number.isFinite(x) ? x : fallback;
-}
-
 function pct(n) {
   const x = Number(n);
   if (!Number.isFinite(x)) return null;
@@ -1369,33 +1383,41 @@ function fmtDateTime(dt, isEnglish) {
 function fmtDateOnly(dt, isEnglish) {
   if (!dt) return null;
 
-  let y;
-  let m;
-  let d;
+  const raw = String(dt || "").trim();
+  let year = null;
+  let month = null;
+  let day = null;
 
-  if (typeof dt === "string") {
-    const match = dt.trim().match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (match) {
-      y = match[1];
-      m = match[2];
-      d = match[3];
-    }
+  const direct = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (direct) {
+    year = Number(direct[1]);
+    month = Number(direct[2]);
+    day = Number(direct[3]);
+  } else {
+    const d = dt instanceof Date ? dt : new Date(dt);
+    if (Number.isNaN(d.getTime())) return null;
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "Asia/Jerusalem",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(d);
+    year = Number(parts.find((x) => x.type === "year")?.value);
+    month = Number(parts.find((x) => x.type === "month")?.value);
+    day = Number(parts.find((x) => x.type === "day")?.value);
   }
 
-  if (!y) {
-    const date = dt instanceof Date ? dt : new Date(dt);
-    if (Number.isNaN(date.getTime())) return null;
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) return null;
 
-    // MySQL DATETIME has no timezone. mysql2 usually turns it into a JS Date
-    // using the server timezone, so for date-only display we keep the stored
-    // calendar date instead of converting it to Israel time and accidentally
-    // moving 23:59 to the next day.
-    y = String(date.getFullYear());
-    m = String(date.getMonth() + 1).padStart(2, "0");
-    d = String(date.getDate()).padStart(2, "0");
+  if (isEnglish) {
+    return `${String(day).padStart(2, "0")}/${String(month).padStart(2, "0")}/${year}`;
   }
 
-  return isEnglish ? `${d}/${m}/${y}` : `${d}.${m}.${y}`;
+  const months = [
+    "ינואר", "פברואר", "מרץ", "אפריל", "מאי", "יוני",
+    "יולי", "אוגוסט", "ספטמבר", "אוקטובר", "נובמבר", "דצמבר",
+  ];
+  return `${day} ב${months[month - 1] || String(month).padStart(2, "0")} ${year}`;
 }
 
 function normalizePromoEmoji(value, fallback = "🏷️") {
@@ -2410,104 +2432,6 @@ function formatCartPromotionListLine(rule, isEnglish = false) {
   return null;
 }
 
-function cartPromotionSearchText(rule) {
-  const type = String(rule?.rule_type || "");
-  const parts = [
-    rule?.title,
-    rule?.description,
-    rule?.gift_text,
-    rule?.reward_product_name,
-    rule?.reward_display_name_en,
-    rule?.threshold_amount,
-  ];
-
-  if (type === RULE_TYPES.DELIVERY_FEE_OVERRIDE) {
-    const fee = money(rule?.delivery_fee_override);
-    parts.push("משלוח", "דמי משלוח", "delivery", rule?.delivery_fee_override);
-    if (fee <= 0) parts.push("חינם", "משלוח חינם", "free delivery");
-    else parts.push("משלוח מוזל", "delivery fee", fee);
-  } else if (type === RULE_TYPES.GIFT_PRODUCT) {
-    parts.push("מתנה", "gift", "הטבה");
-  } else if (type === RULE_TYPES.THRESHOLD_PRODUCT_FIXED_PRICE) {
-    parts.push("מחיר מיוחד", "מוצר", "special price");
-  }
-
-  return parts
-    .filter((x) => x !== null && x !== undefined && String(x).trim())
-    .join(" ");
-}
-
-function cartRuleMatchesRequest(rule, req) {
-  const text = normalizeToken(cartPromotionSearchText(rule));
-  if (!text) return false;
-
-  const tokenGroups = buildReqTokenGroups(req || {});
-  if (!tokenGroups.length) return false;
-
-  return tokenGroups.every((group) =>
-    group.some((variant) => {
-      const needle = normalizeToken(variant);
-      return needle && text.includes(needle);
-    }),
-  );
-}
-
-function formatCartPromotionDetailBlock(rule, isEnglish = false) {
-  const type = String(rule?.rule_type || "");
-  const threshold = money(rule?.threshold_amount || 0);
-  const title = cleanText(rule?.title, 255);
-  const rewardName = isEnglish
-    ? String(rule?.reward_display_name_en || rule?.reward_product_name || rule?.gift_text || "").trim()
-    : String(rule?.reward_product_name || rule?.reward_display_name_en || rule?.gift_text || "").trim();
-
-  let firstLine = null;
-
-  if (type === RULE_TYPES.DELIVERY_FEE_OVERRIDE) {
-    const fee = money(rule?.delivery_fee_override);
-    const name = title || (fee <= 0 ? (isEnglish ? "Free delivery" : "משלוח חינם") : (isEnglish ? "Discounted delivery" : "משלוח מוזל"));
-    firstLine = fee <= 0
-      ? isEnglish
-        ? `🚚 *${name}* - above ₪${threshold.toFixed(2)}`
-        : `🚚 *${name}* - בקנייה מעל ₪${threshold.toFixed(2)}`
-      : isEnglish
-        ? `🚚 *${name}* - above ₪${threshold.toFixed(2)}, delivery for ₪${fee.toFixed(2)}`
-        : `🚚 *${name}* - בקנייה מעל ₪${threshold.toFixed(2)}, משלוח ב-₪${fee.toFixed(2)}`;
-  } else if (type === RULE_TYPES.GIFT_PRODUCT) {
-    const qty = Number(rule?.reward_qty || 1);
-    const qtyText = Number.isFinite(qty) && qty > 1 ? `${fmtQty(qty)} × ` : "";
-    const name = title || (isEnglish ? "Basket gift" : "מתנה בקנייה");
-    firstLine = isEnglish
-      ? `🎁 *${name}* - above ₪${threshold.toFixed(2)}${rewardName ? `, gift: ${qtyText}${rewardName}` : ""}`
-      : `🎁 *${name}* - בקנייה מעל ₪${threshold.toFixed(2)}${rewardName ? `, מתנה: ${qtyText}${rewardName}` : ""}`;
-  } else if (type === RULE_TYPES.THRESHOLD_PRODUCT_FIXED_PRICE) {
-    const price = money(rule?.reward_fixed_price);
-    const maxQty = Number(rule?.reward_max_qty || 0);
-    const maxPart = Number.isFinite(maxQty) && maxQty > 0
-      ? isEnglish ? `, up to ${fmtQty(maxQty)} units` : `, עד ${fmtQty(maxQty)} יח׳`
-      : "";
-    const name = title || (isEnglish ? "Special product price" : "מחיר מיוחד למוצר");
-    firstLine = isEnglish
-      ? `🏷️ *${name}* - above ₪${threshold.toFixed(2)}, ${rewardName || "selected product"} for ₪${price.toFixed(2)}${maxPart}`
-      : `🏷️ *${name}* - בקנייה מעל ₪${threshold.toFixed(2)}, ${rewardName || "מוצר נבחר"} ב-₪${price.toFixed(2)}${maxPart}`;
-  } else {
-    const name = title || (isEnglish ? "Basket promotion" : "מבצע סל");
-    firstLine = `🏷️ *${name}*`;
-  }
-
-  const parts = [firstLine];
-  const description = cleanText(rule?.description, 1000);
-  if (description) parts.push(`📝 ${description}`);
-
-  const start = rule?.start_at ? fmtDateOnly(rule.start_at, isEnglish) : null;
-  const end = rule?.end_at ? fmtDateOnly(rule.end_at, isEnglish) : null;
-  if (start || end) {
-    if (isEnglish) parts.push(`📅 ${start ? `from ${start}` : "active now"}${end ? ` until ${end}` : ""}`);
-    else parts.push(`📅 ${start ? `מתאריך ${start}` : "פעיל עכשיו"}${end ? ` עד ${end}` : ""}`);
-  }
-
-  return parts.filter(Boolean).join("\n");
-}
-
 function isPromotionEndingWithinDays(row, days, now = new Date()) {
   if (!row?.end_at) return false;
 
@@ -2642,6 +2566,17 @@ function formatProductGroupPromotionListLine(group, isEnglish = false) {
   return `${emoji} *${title}* - ${deal}${meta}`;
 }
 
+function formatProductGroupPromotionHintLine(group, isEnglish = false) {
+  if (!group) return null;
+  const buyQty = fmtQty(group?.bundle_buy_qty, 0);
+  const pay = formatILS(group?.bundle_pay_price);
+  if (!buyQty || !pay) return null;
+  const meta = parenthesizeParts([maxUsesText(group?.max_discounted_qty, isEnglish)]);
+  return isEnglish
+    ? `🏷️ Existing promotion: ${buyQty} for ${pay}${meta}`
+    : `🏷️ קיים מבצע: ${buyQty} יח׳ ב-${pay}${meta}`;
+}
+
 function formatProductPromotionDetailBlock(row, isEnglish = false) {
   const line = formatProductPromotionListLine(row, isEnglish);
   if (!line) return null;
@@ -2687,6 +2622,25 @@ function formatProductGroupPromotionDetailBlock(group, isEnglish = false) {
 
   const start = group?.start_at ? fmtDateOnly(group.start_at, isEnglish) : null;
   const end = group?.end_at ? fmtDateOnly(group.end_at, isEnglish) : null;
+  if (start || end) {
+    if (isEnglish) parts.push(`📅 ${start ? `from ${start}` : "active now"}${end ? ` until ${end}` : ""}`);
+    else parts.push(`📅 ${start ? `מתאריך ${start}` : "פעיל עכשיו"}${end ? ` עד ${end}` : ""}`);
+  }
+
+  return parts.join("\n");
+}
+
+
+function formatCartPromotionDetailBlock(rule, isEnglish = false) {
+  const line = formatCartPromotionListLine(rule, isEnglish) || `🏷️ ${formatCartPromotionRule(rule, isEnglish)}`;
+  if (!line) return null;
+
+  const parts = [line];
+  const description = cleanText(rule?.description, 1000);
+  if (description) parts.push(`📝 ${description}`);
+
+  const start = rule?.start_at ? fmtDateOnly(rule.start_at, isEnglish) : null;
+  const end = rule?.end_at ? fmtDateOnly(rule.end_at, isEnglish) : null;
   if (start || end) {
     if (isEnglish) parts.push(`📅 ${start ? `from ${start}` : "active now"}${end ? ` until ${end}` : ""}`);
     else parts.push(`📅 ${start ? `מתאריך ${start}` : "פעיל עכשיו"}${end ? ` עד ${end}` : ""}`);
@@ -2760,16 +2714,22 @@ async function answerPromotionListFlow({
         shop_id,
         category: req.category,
         sub_category: subCategory,
-        req: isStoreWideRequest ? null : req,
+        req: null,
         activeOnly: true,
         limit: 1000,
       }),
     ]);
 
-    const promoItems = sortPromotionListItems([
+    let promoItems = [
       ...groupRows.map((row) => ({ type: "group", row })),
       ...productRows.map((row) => ({ type: "product", row })),
-    ]);
+    ];
+
+    if (!isStoreWideRequest) {
+      promoItems = filterPromotionListItemsByRequest(promoItems, req);
+    }
+
+    promoItems = sortPromotionListItems(promoItems);
 
     const lines = promoItems
       .map((item) => item.type === "group"
@@ -2804,10 +2764,14 @@ async function answerPromotionListFlow({
         ? `🏷️ Active promotions for ${subject}:`
         : `🏷️ המבצעים שמצאתי עבור ${subject}:`;
 
-    const maxLines = 80;
+    const maxLines = 20;
     const shown = lines.slice(0, maxLines);
     if (lines.length > maxLines) {
-      shown.push(isEnglish ? `• And ${lines.length - maxLines} more promotions` : `• ועוד ${lines.length - maxLines} מבצעים`);
+      shown.push(
+        isEnglish
+          ? `Found ${lines.length - maxLines} more promotions. Send a product name or category to narrow it down 🙂`
+          : `מצאתי עוד ${lines.length - maxLines} מבצעים. אפשר לשלוח שם מוצר או קטגוריה כדי לצמצם 🙂`,
+      );
     }
 
     blocks.push([header, ...shown, "", detailsTail(isEnglish)].join("\n").trim());
@@ -2838,6 +2802,271 @@ async function answerPromotionListFlow({
       : "לא מצאתי כרגע מבצעים פעילים.";
 }
 
+
+function normalizePromoSearchText(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[\u05F3\u05F4"'`´’‘״׳]/g, "")
+    .replace(DASHES_RE, " ")
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function promoSearchTokensFromText(value) {
+  const normalized = normalizePromoSearchText(value);
+  if (!normalized) return [];
+
+  const out = [];
+  const seen = new Set();
+  for (const raw of normalized.split(" ")) {
+    const token = raw.trim();
+    if (!token) continue;
+
+    const hasLetter = /\p{L}/u.test(token);
+    const hasNumber = /\p{N}/u.test(token);
+    if (!hasLetter && !hasNumber) continue;
+
+    // Generic noise control only: single-letter tokens are almost never useful for product/promo matching.
+    if (token.length < 2 && !hasNumber) continue;
+
+    if (seen.has(token)) continue;
+    seen.add(token);
+    out.push(token);
+  }
+  return out;
+}
+
+function reqSearchSource(req = {}) {
+  const fields = [
+    req?.name,
+    req?.outputName,
+    req?.original_user_text,
+    req?.category,
+    req?.["sub-category"],
+    req?.sub_category,
+  ];
+
+  if (Array.isArray(req?.search_terms)) fields.push(...req.search_terms);
+  if (Array.isArray(req?.keywords)) fields.push(...req.keywords);
+
+  return fields
+    .map((x) => String(x || "").trim())
+    .filter(Boolean)
+    .join(" ");
+}
+
+function promoDetailTokens(req = {}) {
+  return promoSearchTokensFromText(reqSearchSource(req));
+}
+
+function promoCandidateFields(row, type) {
+  const fields = [];
+  const add = (kind, value, weight = 1) => {
+    const text = normalizePromoSearchText(value);
+    if (text) fields.push({ kind, text, weight });
+  };
+
+  if (type === "group") {
+    add("title", row?.title, 5);
+    add("description", row?.description, 1.5);
+    for (const product of row?.products || []) {
+      add("product", product?.name, 3);
+      add("product", product?.display_name_en, 2);
+      add("category", product?.category, 1);
+      add("category", product?.sub_category, 1);
+    }
+  } else if (type === "cart") {
+    add("title", row?.title, 5);
+    add("description", row?.description, 1.5);
+    add("reward", row?.gift_text, 2);
+    add("reward", row?.reward_product_name, 3);
+    add("reward", row?.reward_display_name_en, 2);
+  } else {
+    add("title", row?.name, 4);
+    add("title", row?.display_name_en, 2.5);
+    add("description", row?.description, 1.5);
+    add("category", row?.category, 1);
+    add("category", row?.sub_category, 1);
+  }
+
+  return fields;
+}
+
+function buildPromoScoringCorpus(items) {
+  const docs = (items || []).map((item) => {
+    const fields = promoCandidateFields(item.row, item.type);
+    const tokenFieldWeights = new Map();
+    for (const field of fields) {
+      for (const token of promoSearchTokensFromText(field.text)) {
+        tokenFieldWeights.set(
+          token,
+          Math.max(Number(field.weight) || 1, tokenFieldWeights.get(token) || 0),
+        );
+      }
+    }
+    return { ...item, fields, tokenFieldWeights, tokenSet: new Set(tokenFieldWeights.keys()) };
+  });
+
+  const df = new Map();
+  for (const doc of docs) {
+    for (const token of doc.tokenSet) df.set(token, (df.get(token) || 0) + 1);
+  }
+
+  return { docs, df, totalDocs: docs.length || 1 };
+}
+
+function scorePromoDoc(doc, queryTokens, corpus) {
+  if (!doc || !queryTokens.length || !corpus?.totalDocs) return null;
+
+  const uniqueQueryTokens = [...new Set(queryTokens)];
+  let score = 0;
+  let matchedWeight = 0;
+  let possibleWeight = 0;
+  let matchedCount = 0;
+
+  const normalizedAll = doc.fields.map((f) => f.text).filter(Boolean).join(" ");
+  const highWeightText = doc.fields
+    .filter((f) => ["title", "product", "reward"].includes(f.kind))
+    .map((f) => f.text)
+    .filter(Boolean)
+    .join(" ");
+
+  for (const token of uniqueQueryTokens) {
+    const df = Number(corpus.df.get(token) || 0);
+    if (!df) continue;
+
+    // Data-driven noise control: tokens that appear in most promotion candidates add almost no value.
+    const tooCommon = df >= Math.max(8, Math.ceil(corpus.totalDocs * 0.72));
+    if (tooCommon && uniqueQueryTokens.length > 1) continue;
+
+    const idf = 1 + Math.log((corpus.totalDocs + 1) / (df + 1));
+    possibleWeight += idf;
+
+    const fieldWeight = Number(doc.tokenFieldWeights.get(token) || 0);
+    const substringHit = !fieldWeight && token.length >= 3 && normalizedAll.includes(token);
+    if (!fieldWeight && !substringHit) continue;
+
+    matchedCount += 1;
+    const weighted = idf * (fieldWeight || 0.75);
+    matchedWeight += idf;
+    score += weighted;
+
+    if (highWeightText.includes(token)) score += token.length >= 4 ? 1.5 : 0.75;
+  }
+
+  const queryPhrase = normalizePromoSearchText(uniqueQueryTokens.join(" "));
+  if (queryPhrase && queryPhrase.length >= 4) {
+    if (highWeightText.includes(queryPhrase)) score += 8;
+    else if (normalizedAll.includes(queryPhrase)) score += 4;
+  }
+
+  const coverage = possibleWeight > 0 ? matchedWeight / possibleWeight : 0;
+  if (matchedCount >= 2) score += 2 * coverage;
+
+  return { ...doc, score, matchedCount, coverage };
+}
+
+function rankPromotionCandidates(items, req, { minScore = 1.75 } = {}) {
+  const queryTokens = promoDetailTokens(req);
+  if (!queryTokens.length) return [];
+
+  const corpus = buildPromoScoringCorpus(items);
+  return corpus.docs
+    .map((doc) => scorePromoDoc(doc, queryTokens, corpus))
+    .filter(Boolean)
+    .filter((x) => x.score >= minScore || x.matchedCount >= 2 || x.coverage >= 0.34)
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      if (b.coverage !== a.coverage) return b.coverage - a.coverage;
+      if (a.type !== b.type) return a.type === "group" ? -1 : 1;
+      return Number(b.row?.id || b.row?.promo_id || 0) - Number(a.row?.id || a.row?.promo_id || 0);
+    });
+}
+
+function selectBestPromotionDetailRows({ groupRows, productRows, cartRows = [], req }) {
+  const items = [
+    ...(groupRows || []).map((row) => ({ type: "group", row })),
+    ...(productRows || []).map((row) => ({ type: "product", row })),
+    ...(cartRows || []).map((row) => ({ type: "cart", row })),
+  ];
+
+  const ranked = rankPromotionCandidates(items, req, { minScore: 1.75 });
+  if (!ranked.length) return { groups: [], products: [], carts: [] };
+
+  const best = ranked[0];
+  if (best.type === "group") return { groups: [best.row], products: [], carts: [] };
+  if (best.type === "cart") return { groups: [], products: [], carts: [best.row] };
+  return { groups: [], products: [best.row], carts: [] };
+}
+
+function filterPromotionListItemsByRequest(items, req) {
+  const tokens = promoDetailTokens(req);
+  if (!tokens.length) return items || [];
+  return rankPromotionCandidates(items || [], req, { minScore: 1.5 }).map((x) => ({ type: x.type, row: x.row }));
+}
+
+async function fetchPromotionDetailsFallbackRows({ shop_id, category = null, sub_category = null, limit = 500 } = {}) {
+  const safeLimit = Math.min(Math.max(Number(limit) || 500, 1), 1000);
+  const params = [Number(shop_id)];
+  let sql = `
+    SELECT
+      pr.id            AS promo_id,
+      pr.kind          AS kind,
+      pr.percent_off   AS percent_off,
+      pr.amount_off    AS amount_off,
+      pr.fixed_price   AS fixed_price,
+      pr.bundle_buy_qty AS bundle_buy_qty,
+      pr.bundle_pay_price AS bundle_pay_price,
+      pr.description   AS description,
+      pr.start_at      AS start_at,
+      pr.end_at        AS end_at,
+      pr.product_id    AS product_id,
+      p.id             AS product_id2,
+      p.name           AS name,
+      p.display_name_en AS display_name_en,
+      p.emoji          AS emoji,
+      p.price          AS price,
+      p.stock_amount   AS stock_amount,
+      p.category       AS category,
+      p.sub_category   AS sub_category
+    FROM promotion pr
+    JOIN product p ON p.id = pr.product_id AND p.shop_id = pr.shop_id
+    WHERE pr.shop_id = ?
+      AND p.stock_amount > 0
+      AND (
+        ((pr.start_at IS NULL OR pr.start_at <= NOW()) AND (pr.end_at IS NULL OR pr.end_at >= NOW()))
+        OR (pr.start_at > NOW())
+        OR (pr.end_at IS NOT NULL AND pr.end_at < NOW() AND pr.end_at >= DATE_SUB(NOW(), INTERVAL 7 DAY))
+      )
+  `;
+
+  if (category) {
+    sql += ` AND p.category = ?`;
+    params.push(category);
+  }
+
+  if (sub_category) {
+    sql += ` AND p.sub_category = ?`;
+    params.push(sub_category);
+  }
+
+  sql += `
+    ORDER BY
+      CASE WHEN ((pr.start_at IS NULL OR pr.start_at <= NOW()) AND (pr.end_at IS NULL OR pr.end_at >= NOW())) THEN 0
+           WHEN pr.start_at > NOW() THEN 1
+           ELSE 2
+      END,
+      CASE WHEN pr.end_at IS NULL THEN 1 ELSE 0 END ASC,
+      pr.end_at ASC,
+      pr.id DESC
+    LIMIT ${safeLimit}
+  `;
+
+  const [rows] = await db.query(sql, params);
+  return rows || [];
+}
+
 async function answerPromotionFlow({
   shop_id,
   customer_id,
@@ -2862,23 +3091,38 @@ async function answerPromotionFlow({
     const limit = hasName ? 50 : 25;
     const subCategory = req["sub-category"] || req.sub_category;
 
-    const [groupRows, productResult, cartRulesRaw] = await Promise.all([
+    const [groupRows, productRows, cartRows] = await Promise.all([
       fetchProductGroupPromotionsOverview({
         shop_id,
         category: req.category,
         sub_category: subCategory,
-        req,
+        req: null,
         activeOnly: false,
-        limit,
+        limit: 1000,
       }),
-      searchPromotionsForRequest(shop_id, req, { limit }),
-      fetchActiveCartPromotionOverview(shop_id, { limit: 100 }),
+      fetchPromotionDetailsFallbackRows({ shop_id, category: req.category, sub_category: subCategory, limit: 1000 }),
+      fetchActiveCartPromotionOverview(shop_id, { limit: 200 }),
     ]);
 
-    const productRows = productResult?.rows || [];
-    const cartRows = (cartRulesRaw || []).filter((rule) => cartRuleMatchesRequest(rule, req));
+    let finalGroupRows = groupRows;
+    let finalProductRows = productRows;
+    let finalCartRows = [];
 
-    if (!groupRows.length && !productRows.length && !cartRows.length) {
+    const hasDetailTokens = promoDetailTokens(req).length > 0;
+    if (hasDetailTokens) {
+      const selected = selectBestPromotionDetailRows({
+        groupRows: finalGroupRows,
+        productRows: finalProductRows,
+        cartRows,
+        req,
+      });
+
+      finalGroupRows = selected.groups;
+      finalProductRows = selected.products;
+      finalCartRows = selected.carts || [];
+    }
+
+    if (!finalGroupRows.length && !finalProductRows.length && !finalCartRows.length) {
       const subject = buildPromoSubject(req, isEnglish);
 
       blocks.push(
@@ -2890,18 +3134,18 @@ async function answerPromotionFlow({
     }
 
     const detailBlocks = [];
-    for (const group of groupRows) {
+    for (const group of finalGroupRows) {
       const block = formatProductGroupPromotionDetailBlock(group, isEnglish);
       if (block) detailBlocks.push(block);
     }
 
-    for (const r of productRows) {
+    for (const r of finalProductRows) {
       const block = formatProductPromotionDetailBlock(r, isEnglish);
       if (block) detailBlocks.push(block);
     }
 
-    for (const rule of cartRows) {
-      const block = formatCartPromotionDetailBlock(rule, isEnglish);
+    for (const r of finalCartRows) {
+      const block = formatCartPromotionDetailBlock(r, isEnglish);
       if (block) detailBlocks.push(block);
     }
 
@@ -3185,6 +3429,7 @@ module.exports = {
   buildQuestionsTextSmart,
   buildFoundProductLine,
   fetchActivePromotionForProduct,
+  fetchActiveProductGroupPromotionsForProduct,
   buildAltBlockAndQuestion,
   getSubjectForAlt,
   isOutOfStockFromFound,

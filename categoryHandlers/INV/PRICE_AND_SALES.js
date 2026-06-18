@@ -9,6 +9,7 @@ const {
   buildQuestionsTextSmart,
   buildFoundProductLine,
   fetchActivePromotionForProduct,
+  fetchActiveProductGroupPromotionsForProduct,
   buildAltBlockAndQuestion,
   getSubjectForAlt,
   isOutOfStockFromFound,
@@ -42,6 +43,46 @@ const DEBUG = process.env.DEBUG_PRICE_AND_SALES === "1";
 function dlog(...args) {
   if (DEBUG) console.log("[INV-PRICE]", ...args);
 }
+function lastContextProductName({ items, isEnglish }) {
+  const list = Array.isArray(items) ? items : [];
+  if (!list.length) return null;
+  const sorted = list
+    .slice()
+    .sort((a, b) => Number(b.order_item_id || b.id || 0) - Number(a.order_item_id || a.id || 0));
+  const item = sorted[0];
+  if (!item) return null;
+  return isEnglish
+    ? String(item.display_name_en || item.name || "").trim() || null
+    : String(item.name || item.display_name_en || "").trim() || null;
+}
+
+function isGenericPromotionPronounMessage(message, req = {}) {
+  const hasExplicit = Boolean(
+    String(req?.name || req?.outputName || "").trim() ||
+    (Array.isArray(req?.search_terms) && req.search_terms.some((x) => String(x || "").trim()))
+  );
+  if (hasExplicit) return false;
+  const text = String(message || "").trim().toLowerCase();
+  if (!text) return false;
+  return /(עליו|עליה|על זה|על המוצר|יש עליו|יש על זה|המבצע הזה|this item|this product|it)/i.test(text);
+}
+
+function resolveContextProductInRequests(requests, { message, items, isEnglish }) {
+  const contextName = lastContextProductName({ items, isEnglish });
+  if (!contextName) return requests;
+  return (requests || []).map((req) => {
+    const intent = String(req?.price_intent || "").trim().toUpperCase();
+    if (intent !== "PROMOTION" && intent !== "PRICE") return req;
+    if (!isGenericPromotionPronounMessage(message, req)) return req;
+    return {
+      ...req,
+      name: contextName,
+      outputName: contextName,
+      original_user_text: contextName,
+    };
+  });
+}
+
 
 async function answerPriceAndSales({
   message,
@@ -49,6 +90,8 @@ async function answerPriceAndSales({
   shop_id,
   history = [],
   isEnglish = false,
+  activeOrder = null,
+  items = [],
 }) {
   if (typeof message !== "string" || !customer_id || !shop_id) {
     throw new Error(
@@ -96,7 +139,12 @@ async function answerPriceAndSales({
 
   dlog("Parsed JSON", JSON.stringify(parsed, null, 2));
 
-  const productRequests = Array.isArray(parsed.products) ? parsed.products : [];
+  let productRequests = Array.isArray(parsed.products) ? parsed.products : [];
+  productRequests = resolveContextProductInRequests(productRequests, {
+    message,
+    items,
+    isEnglish,
+  });
   const clarifyQuestionsFromModel = Array.isArray(parsed.questions)
     ? parsed.questions
     : [];
@@ -275,6 +323,9 @@ async function answerPriceAndSales({
       const activePromo = Number.isFinite(productId)
         ? await fetchActivePromotionForProduct(shop_id, productId)
         : null;
+      const activeGroupPromos = Number.isFinite(productId)
+        ? await fetchActiveProductGroupPromotionsForProduct(shop_id, productId, { limit: 3 })
+        : [];
 
       blockLines.push(
         buildFoundProductLine({
@@ -282,6 +333,7 @@ async function answerPriceAndSales({
           foundRow: f,
           isEnglish,
           promo: activePromo,
+          groupPromos: activeGroupPromos,
         }),
       );
 

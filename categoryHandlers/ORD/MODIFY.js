@@ -35,6 +35,9 @@ const {
 } = require("../../services/orderSuggestions");
 const { buildOrderCartPromotionLines, buildOrderProductGroupPromotionApplications, ensureCartPromotionSchema } = require("../../services/cartPromotions");
 const {
+  attachProductGroupPromotionHintsToItems,
+} = require("../../services/productGroupPromotions");
+const {
   areProductAlternativesEnabled,
   buildModifyNotSoldLine,
   buildModifyOutOfStockLine,
@@ -865,11 +868,8 @@ async function applyOrderPatch({
       shop_id,
     );
 
-    return {
-      ok: true,
-      total,
-      cartPromotionLines,
-      productGroupPromotionApplications,
+    const itemsForSummary = await attachProductGroupPromotionHintsToItems({
+      shop_id,
       items: curItems.map((it) => {
         const heName = it.name;
         const enName =
@@ -906,6 +906,14 @@ async function applyOrderPatch({
           ...(hasUnits ? { units } : {}),
         };
       }),
+    });
+
+    return {
+      ok: true,
+      total,
+      cartPromotionLines,
+      productGroupPromotionApplications,
+      items: itemsForSummary,
       questions: stockQuestions,
       noticesBlock: buildModifyUnavailableBlock(stockNotices, isEnglish),
       meta: {
@@ -1365,10 +1373,15 @@ module.exports = {
 
       combinedQuestions = [...combinedQuestions, techQuestion];
 
+      const itemsForViewWithHints = await attachProductGroupPromotionHintsToItems({
+        shop_id,
+        items: itemsForView,
+      });
+
       const orderSummaryBlock = buildOrderSummaryMessage({
         orderId: order.id,
         status: order.status,
-        items: itemsForView,
+        items: itemsForViewWithHints,
         isEnglish,
         totalWithPromos: total,
         totalNoPromos,

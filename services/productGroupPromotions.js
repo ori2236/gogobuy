@@ -553,11 +553,173 @@ async function getOrderProductGroupPromotionApplications(order_id, shop_id = nul
   return rows || [];
 }
 
+async function fetchProductsForGroupPromotions(shopId, groupIds) {
+  const ids = [...new Set((groupIds || []).map((id) => Number(id)).filter(Boolean))];
+  if (!ids.length) return new Map();
+
+  const placeholders = ids.map(() => "?").join(",");
+  const [rows] = await db.query(
+    `
+    SELECT
+      gpi.group_promotion_id,
+      p.id,
+      p.name,
+      p.display_name_en,
+      p.price,
+      p.stock_amount,
+      p.category,
+      p.sub_category,
+      p.emoji
+    FROM product_group_promotion_item gpi
+    JOIN product p ON p.id = gpi.product_id AND p.shop_id = gpi.shop_id
+    WHERE gpi.shop_id = ?
+      AND gpi.group_promotion_id IN (${placeholders})
+    ORDER BY gpi.group_promotion_id ASC, p.name ASC, p.id ASC
+    `,
+    [Number(shopId), ...ids],
+  );
+
+  const byGroup = new Map();
+  for (const row of rows || []) {
+    const gid = Number(row.group_promotion_id);
+    if (!byGroup.has(gid)) byGroup.set(gid, []);
+    byGroup.get(gid).push({
+      id: Number(row.id),
+      product_id: Number(row.id),
+      name: row.name,
+      display_name_en: row.display_name_en,
+      price: row.price,
+      stock_amount: row.stock_amount,
+      category: row.category,
+      sub_category: row.sub_category,
+      emoji: row.emoji,
+    });
+  }
+  return byGroup;
+}
+
+function decorateGroupWithProducts(group, products) {
+  const list = Array.isArray(products) ? products : [];
+  return {
+    ...group,
+    type: "PRODUCT_GROUP",
+    products: list,
+    emoji: resolveProductGroupPromotionEmoji({ ...group, products: list }),
+  };
+}
+
+async function fetchActiveProductGroupPromotionsForProduct(shop_id, product_id, { limit = 5 } = {}) {
+  await ensureProductGroupPromotionColumns();
+
+  const shopId = Number(shop_id);
+  const productId = Number(product_id);
+  if (!Number.isFinite(shopId) || shopId <= 0 || !Number.isFinite(productId) || productId <= 0) {
+    return [];
+  }
+
+  const safeLimit = Math.min(Math.max(Number(limit) || 5, 1), 20);
+  const [groups] = await db.query(
+    `
+    SELECT DISTINCT pgp.*
+    FROM product_group_promotion_item gpi
+    JOIN product_group_promotion pgp
+      ON pgp.id = gpi.group_promotion_id
+     AND pgp.shop_id = gpi.shop_id
+    WHERE gpi.shop_id = ?
+      AND gpi.product_id = ?
+      AND pgp.is_active = 1
+      AND (pgp.start_at IS NULL OR pgp.start_at <= NOW())
+      AND (pgp.end_at IS NULL OR pgp.end_at >= NOW())
+    ORDER BY
+      CASE WHEN pgp.end_at IS NULL THEN 1 ELSE 0 END ASC,
+      pgp.end_at ASC,
+      pgp.id DESC
+    LIMIT ${safeLimit}
+    `,
+    [shopId, productId],
+  );
+
+  const ids = (groups || []).map((g) => Number(g.id)).filter(Boolean);
+  if (!ids.length) return [];
+  const productsByGroup = await fetchProductsForGroupPromotions(shopId, ids);
+  return (groups || []).map((group) => decorateGroupWithProducts(group, productsByGroup.get(Number(group.id)) || []));
+}
+
+function groupDealSortValue(group) {
+  const buyQty = Math.max(1, Number(group?.bundle_buy_qty || 1));
+  const pay = Number(group?.bundle_pay_price);
+  if (!Number.isFinite(pay)) return Number.MAX_SAFE_INTEGER;
+  return pay / buyQty;
+}
+
+async function getActiveProductGroupPromotionHintsForProducts(shop_id, product_ids) {
+  await ensureProductGroupPromotionColumns();
+
+  const shopId = Number(shop_id);
+  const ids = [...new Set((product_ids || []).map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0))];
+  const out = new Map();
+  if (!Number.isFinite(shopId) || shopId <= 0 || !ids.length) return out;
+
+  const placeholders = ids.map(() => "?").join(",");
+  const [rows] = await db.query(
+    `
+    SELECT
+      gpi.product_id AS matched_product_id,
+      pgp.*
+    FROM product_group_promotion_item gpi
+    JOIN product_group_promotion pgp
+      ON pgp.id = gpi.group_promotion_id
+     AND pgp.shop_id = gpi.shop_id
+    WHERE gpi.shop_id = ?
+      AND gpi.product_id IN (${placeholders})
+      AND pgp.is_active = 1
+      AND (pgp.start_at IS NULL OR pgp.start_at <= NOW())
+      AND (pgp.end_at IS NULL OR pgp.end_at >= NOW())
+    ORDER BY gpi.product_id ASC, pgp.id DESC
+    `,
+    [shopId, ...ids],
+  );
+
+  const groupIds = [...new Set((rows || []).map((r) => Number(r.id)).filter(Boolean))];
+  const productsByGroup = await fetchProductsForGroupPromotions(shopId, groupIds);
+
+  for (const row of rows || []) {
+    const pid = Number(row.matched_product_id);
+    const group = decorateGroupWithProducts(row, productsByGroup.get(Number(row.id)) || []);
+    const current = out.get(pid);
+    if (!current || groupDealSortValue(group) < groupDealSortValue(current)) {
+      out.set(pid, group);
+    }
+  }
+
+  return out;
+}
+
+async function attachProductGroupPromotionHintsToItems({ shop_id, items }) {
+  const list = Array.isArray(items) ? items : [];
+  if (!list.length) return list;
+
+  const productIds = list.map((item) => Number(item?.product_id ?? item?.productId)).filter((id) => Number.isFinite(id) && id > 0);
+  if (!productIds.length) return list;
+
+  const hints = await getActiveProductGroupPromotionHintsForProducts(shop_id, productIds);
+  if (!hints.size) return list;
+
+  return list.map((item) => {
+    const productId = Number(item?.product_id ?? item?.productId);
+    const hint = hints.get(productId);
+    return hint ? { ...item, group_promo: hint, group_promo_hint: hint } : item;
+  });
+}
+
 module.exports = {
   ensureProductGroupPromotionColumns,
   normalizeEmoji,
   resolveProductGroupPromotionEmoji,
   fetchActiveProductGroupPromotions,
+  fetchActiveProductGroupPromotionsForProduct,
+  getActiveProductGroupPromotionHintsForProducts,
+  attachProductGroupPromotionHintsToItems,
   applyProductGroupPromotionsToItems,
   getOrderProductGroupPromotionApplications,
   formatProductGroupPromotionApplication,

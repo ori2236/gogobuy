@@ -1,6 +1,9 @@
 const { saveOpenQuestions } = require("../../utilities/openQuestions");
 const { buildOrderSummaryMessage } = require("../../utilities/orderSummaryMessage");
 const { buildOrderCartPromotionLines, buildOrderProductGroupPromotionApplications } = require("../../services/cartPromotions");
+const {
+  attachProductGroupPromotionHintsToItems,
+} = require("../../services/productGroupPromotions");
 
 async function orderReview(order, items, isEnglish, customer_id, shop_id) {
   // no open order
@@ -36,7 +39,7 @@ async function orderReview(order, items, isEnglish, customer_id, shop_id) {
       : `🛒 ההזמנה שלך כרגע ריקה (הזמנה מספר: #${order.id}).`;
   }
 
-  const itemsForView = (items || []).map((it) => {
+  let itemsForView = (items || []).map((it) => {
     const displayName = isEnglish
       ? (it.display_name_en && it.display_name_en.trim()) || it.name
       : it.name;
@@ -80,6 +83,11 @@ async function orderReview(order, items, isEnglish, customer_id, shop_id) {
       ...(isWeight ? { sold_by_weight: true } : {}),
       ...(isWeight && units ? { units } : {}),
     };
+  });
+
+  itemsForView = await attachProductGroupPromotionHintsToItems({
+    shop_id,
+    items: itemsForView,
   });
 
   const cartPromotionLines = await buildOrderCartPromotionLines(
