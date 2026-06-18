@@ -554,6 +554,9 @@ async function getOrderProductGroupPromotionApplications(order_id, shop_id = nul
 }
 
 module.exports = {
+  ensureProductGroupPromotionColumns,
+  normalizeEmoji,
+  resolveProductGroupPromotionEmoji,
   fetchActiveProductGroupPromotions,
   applyProductGroupPromotionsToItems,
   getOrderProductGroupPromotionApplications,
