@@ -69,6 +69,16 @@ router.post("/webhooks", async (req, res) => {
 
     if (msg.type === "text") {
       messageText = msg.text?.body || "";
+    } else if (msg.type === "button") {
+      messageText = msg.button?.text || msg.button?.payload || "";
+    } else if (msg.type === "interactive") {
+      const interactive = msg.interactive || {};
+      messageText =
+        interactive.button_reply?.title ||
+        interactive.button_reply?.id ||
+        interactive.list_reply?.title ||
+        interactive.list_reply?.id ||
+        "";
     } else {
       messageText = "";
     }

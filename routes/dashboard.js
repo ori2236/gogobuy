@@ -8,6 +8,7 @@ const productGroupPromotions = require("../controllers/dashboardProductGroupProm
 const auth = require("../controllers/dashboardAuthController");
 const settings = require("../controllers/dashboardSettingsController");
 const staffWhatsapp = require("../controllers/dashboardStaffWhatsappController");
+const marketDay = require("../controllers/dashboardMarketDayController");
 const { requireDashboardAuth, requireDashboardAdmin } = require("../middleware/dashboardAuth");
 
 router.post("/auth/login", auth.login);
@@ -32,6 +33,14 @@ router.patch("/picker/orders/:orderId/items/:itemId", picker.updateOrderItemPick
 router.get("/stock/categories", stock.getStockCategories);
 
 router.get("/promotions", promotions.listPromotions);
+
+router.get("/promotions/market-day", marketDay.listPromotions);
+router.get("/promotions/market-day/recipients", marketDay.listRecipients);
+router.post("/promotions/market-day/recipients", requireDashboardAdmin, marketDay.createRecipient);
+router.patch("/promotions/market-day/recipients/:recipientId", requireDashboardAdmin, marketDay.updateRecipient);
+router.delete("/promotions/market-day/recipients/:recipientId", requireDashboardAdmin, marketDay.deleteRecipient);
+router.post("/promotions/market-day/recipients/:recipientId/send-template", requireDashboardAdmin, marketDay.sendTemplateToRecipient);
+router.post("/promotions/market-day/send-template", requireDashboardAdmin, marketDay.sendTemplate);
 
 router.get("/promotions/product-groups", productGroupPromotions.listProductGroupPromotions);
 

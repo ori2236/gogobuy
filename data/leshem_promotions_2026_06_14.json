@@ -1010,5 +1010,60 @@
     "active": "כן",
     "deal_text": "4.00 ב 10.00",
     "max_qty": null
+  },
+  {
+    "excel_row": 95,
+    "reward_id": 1765,
+    "title": "גרעיני חמניה 400 ב- 14.90",
+    "type": "כמות בסכום",
+    "start_date": "2026-06-01",
+    "end_date": "2026-06-30",
+    "active": "כן",
+    "deal_text": "1.00 ב 14.90",
+    "max_qty": null
+  },
+  {
+    "excel_row": 96,
+    "reward_id": 1766,
+    "title": "משקה סויה אלטרנטיב 2 ב- 16.90",
+    "type": "כמות בסכום",
+    "start_date": "2026-06-01",
+    "end_date": "2026-06-30",
+    "active": "כן",
+    "deal_text": "2.00 ב 16.90",
+    "max_qty": null
+  },
+  {
+    "excel_row": 97,
+    "reward_id": 1767,
+    "title": "משקה שיבולת שועל 2 ב-19.90",
+    "type": "כמות בסכום",
+    "start_date": "2026-06-01",
+    "end_date": "2026-06-30",
+    "active": "כן",
+    "deal_text": "2.00 ב 19.90",
+    "max_qty": null
+  },
+  {
+    "excel_row": 98,
+    "reward_id": 1768,
+    "title": "הוטפופ פופקורן למיקרוגל רק ב-14.90",
+    "type": "כמות בסכום",
+    "start_date": "2026-06-01",
+    "end_date": "2026-06-30",
+    "active": "כן",
+    "deal_text": "1.00 ב 14.90",
+    "max_qty": null
+  },
+  {
+    "excel_row": 99,
+    "reward_id": 1774,
+    "title": "בקנייה מעל 300 שקית רב פעמית גלסנר מתנה",
+    "type": "קנה בסכום הוסף קבל",
+    "start_date": "2026-06-12",
+    "end_date": "2026-12-31",
+    "active": "כן",
+    "deal_text": null,
+    "max_qty": null
   }
 ]

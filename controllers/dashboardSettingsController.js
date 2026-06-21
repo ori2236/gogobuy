@@ -16,6 +16,7 @@ const SHOP_EXTRA_COLUMNS = {
   delivery_fee: "DECIMAL(10,2) NOT NULL DEFAULT 0.00",
   cart_empty_reminder_minutes: "INT UNSIGNED NOT NULL DEFAULT 5",
   idle_customer_reminder_minutes: "INT UNSIGNED NOT NULL DEFAULT 10",
+  market_day_promotions_enabled: "TINYINT(1) NOT NULL DEFAULT 0",
   stock_release_after_inactive_minutes: "INT UNSIGNED NOT NULL DEFAULT 30",
   max_order_quantity_per_product: "INT UNSIGNED NOT NULL DEFAULT 10",
   order_same_day_cutoff_time: "TIME NOT NULL DEFAULT '15:00:00'",
@@ -327,6 +328,7 @@ exports.getBusinessSettings = async (req, res) => {
         delivery_fee,
         cart_empty_reminder_minutes,
         idle_customer_reminder_minutes,
+        market_day_promotions_enabled,
         stock_release_after_inactive_minutes,
         max_order_quantity_per_product,
         TIME_FORMAT(order_same_day_cutoff_time, '%H:%i') AS order_same_day_cutoff_time,
@@ -406,6 +408,7 @@ exports.getBusinessSettings = async (req, res) => {
         ...info,
         supports_delivery: Boolean(info.supports_delivery),
         supports_pickup: Boolean(info.supports_pickup),
+        market_day_promotions_enabled: Boolean(info.market_day_promotions_enabled),
       },
       regular_hours: normalizeRegularHours(regularRows),
       special_hours: specialRows.map((r) => ({
@@ -496,6 +499,7 @@ exports.updateBusinessSettings = async (req, res) => {
         delivery_fee = ?,
         cart_empty_reminder_minutes = ?,
         idle_customer_reminder_minutes = ?,
+        market_day_promotions_enabled = ?,
         stock_release_after_inactive_minutes = ?,
         max_order_quantity_per_product = ?,
         order_same_day_cutoff_time = ?,
@@ -530,7 +534,7 @@ exports.updateBusinessSettings = async (req, res) => {
             err.status = 400;
             throw err;
           }
-          return [cartReminder, idleReminder, stockRelease, maxPerProduct];
+          return [cartReminder, idleReminder, toBool(info.market_day_promotions_enabled) ? 1 : 0, stockRelease, maxPerProduct];
         })(),
         orderSameDayCutoffTime,
         deliveryArrivalStartTime,

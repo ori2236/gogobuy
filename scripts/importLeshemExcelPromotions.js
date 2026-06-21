@@ -4,9 +4,10 @@ const fs = require("fs");
 const path = require("path");
 const db = require("../config/db");
 const { ensureCartPromotionSchema } = require("../services/cartPromotions");
+const { ensureProductGroupPromotionColumns } = require("../services/productGroupPromotions");
 
-const SOURCE = "leshem_excel_2026_06_14";
-const DATA_FILE = path.join(__dirname, "..", "data", "leshem_promotions_2026_06_14.json");
+const DEFAULT_SOURCE = "leshem_excel_2026_06_14";
+const DEFAULT_DATA_FILE = path.join(__dirname, "..", "data", "leshem_promotions_2026_06_14.json");
 const REPORTS_DIR = path.join(__dirname, "..", "reports");
 
 function argValue(name, fallback = null) {
@@ -21,6 +22,8 @@ const SHOP_ID = Number(argValue("--shopId", process.env.PROMO_IMPORT_SHOP_ID || 
 const CONFIRM = Boolean(argValue("--confirm", false));
 const DRY_RUN = !CONFIRM || Boolean(argValue("--dryRun", false));
 const INCLUDE_EXPIRED = Boolean(argValue("--includeExpired", false));
+const DATA_FILE = path.resolve(argValue("--data", process.env.PROMO_IMPORT_DATA_FILE || DEFAULT_DATA_FILE));
+const SOURCE = String(argValue("--source", process.env.PROMO_IMPORT_SOURCE || DEFAULT_SOURCE)).trim() || DEFAULT_SOURCE;
 
 function pad2(value) {
   return String(value).padStart(2, "0");
@@ -41,33 +44,12 @@ function stamp() {
 
 function normalizeText(value) {
   let s = String(value || "").toLowerCase();
-  // Hebrew quote/apostrophe marks usually appear inside acronyms/brand names.
-  // Removing them turns סכו"ם -> סכום and ג'ריס -> גריס.
-  for (const ch of ["״", "”", "“", "׳", "’", "‘", "'", '"']) {
-    s = s.split(ch).join("");
-  }
-  const replacements = {
-    "־": " ",
-    "–": " ",
-    "—": " ",
-    "-": " ",
-    "&": " ",
-    "+": " ",
-    "₪": " ",
-    "%": " ",
-    ".": " ",
-    ",": " ",
-    ":": " ",
-    ";": " ",
-    "(": " ",
-    ")": " ",
-    "[": " ",
-    "]": " ",
-    "/": " ",
-    "\\": " ",
-  };
-  for (const [from, to] of Object.entries(replacements)) {
-    s = s.split(from).join(to);
+  s = s.normalize("NFKD").replace(/[\u0591-\u05C7]/g, "");
+  const finalLetters = { ך: "כ", ם: "מ", ן: "נ", ף: "פ", ץ: "צ" };
+  s = s.replace(/[ךםןףץ]/g, (ch) => finalLetters[ch] || ch);
+  for (const ch of ["״", "”", "“", "׳", "’", "‘", "'", '"', "`", "´"]) s = s.split(ch).join("");
+  for (const ch of ["־", "–", "—", "-", "&", "+", "₪", "%", ".", ",", ":", ";", "(", ")", "[", "]", "{", "}", "/", "\\", "|"]) {
+    s = s.split(ch).join(" ");
   }
   return s.replace(/\s+/g, " ").trim();
 }
@@ -85,8 +67,11 @@ const STOP_WORDS = new Set([
   "בקניה",
   "חינם",
   "שח",
+  "שחח",
+  "ש״ח",
   "רק",
   "יח",
+  "יחידות",
   "גרם",
   "קג",
   "לקג",
@@ -96,18 +81,38 @@ const STOP_WORDS = new Set([
   "לי",
   "מגוון",
   "מוצרי",
+  "מארז",
+  "גדול",
+  "קטן",
+]);
+
+const GENERIC_GROUP_TOKENS = new Set([
+  "חטיפים",
+  "יינות",
+  "ירק",
+  "ירקות",
+  "פירות",
+  "צלחות",
+  "כוס",
+  "כוסות",
+  "שקיות",
+  "תבניות",
+  "עוגיות",
+  "תבליני",
+  "מוצרי",
+  "מגוון",
 ]);
 
 function stripPromotionPriceText(title) {
   let s = String(title || "").toLowerCase().replace(/₪/g, " ").replace(/&/g, " ");
-  for (const ch of ["״", "”", "“", "׳", "’", "‘", "'", '"']) {
-    s = s.split(ch).join("");
-  }
+  for (const ch of ["״", "”", "“", "׳", "’", "‘", "'", '"']) s = s.split(ch).join("");
 
-  s = s.replace(/\b\d+(?:\.\d+)?\s*ב\s*-?\s*\d+(?:\.\d+)?\b/g, " ");
-  s = s.replace(/\bרק\s*ב\s*-?\s*\d+(?:\.\d+)?\b/g, " ");
-  s = s.replace(/\bב\s*-?\s*\d+(?:\.\d+)?\b/g, " ");
-  s = s.replace(/\b\d+(?:\.\d+)?\s*₪\b/g, " ");
+  s = s.replace(/בקני(?:י|)ה\s+מעל\s*\d+(?:\.\d+)?/g, " ");
+  s = s.replace(/\d+(?:\.\d+)?\s*ב\s*-?\s*\d+(?:\.\d+)?/g, " ");
+  s = s.replace(/רק\s*ב\s*-?\s*\d+(?:\.\d+)?/g, " ");
+  s = s.replace(/\bב\s*-?\s*\d+(?:\.\d+)?/g, " ");
+  s = s.replace(/\d+(?:\.\d+)?\s*(?:שח|ש״ח)/g, " ");
+  s = s.replace(/(?:ללא עלות|עלות משלוח|משלוח חינם|משלוח)/g, " ");
   return normalizeText(s);
 }
 
@@ -117,7 +122,11 @@ function tokenize(value) {
     .map((t) => t.trim())
     .filter(Boolean)
     .filter((t) => !STOP_WORDS.has(t))
-    .filter((t) => !/^\d+$/.test(t));
+    .filter((t) => !/^\d+(?:\.\d+)?$/.test(t));
+}
+
+function uniq(items) {
+  return [...new Set(items)];
 }
 
 function parseDealText(value) {
@@ -144,7 +153,7 @@ function isExpired(dateText) {
 }
 
 function productTokenSet(product) {
-  return new Set(tokenize(product.name));
+  return new Set(tokenize([product.name, product.display_name_en].filter(Boolean).join(" ")));
 }
 
 function productContainsAllTokens(product, tokens) {
@@ -152,32 +161,80 @@ function productContainsAllTokens(product, tokens) {
   return tokens.every((token) => set.has(token));
 }
 
+function scoreProductCandidate(product, phrase, tokens) {
+  if (!tokens.length) return 0;
+
+  const tokenSet = product._tokenSet || new Set();
+  const hits = tokens.filter((token) => tokenSet.has(token));
+  if (!hits.length) return 0;
+
+  const recall = hits.length / tokens.length;
+  const precision = hits.length / Math.max(1, tokenSet.size);
+  let score = recall * 62 + precision * 16;
+
+  if (phrase && product._normName.includes(phrase)) score += 28;
+  if (phrase && phrase.includes(product._normName) && product._normName.length >= 4) score += 10;
+  if (tokens.length >= 2 && productContainsAllTokens(product, tokens)) score += 18;
+  if (tokens[0] && tokenSet.has(tokens[0])) score += 4;
+  if (String(product.name || "").trim() === String(phrase || "").trim()) score += 20;
+
+  return Math.round(score * 100) / 100;
+}
+
+function isGenericSingleToken(tokens) {
+  return tokens.length <= 1 || tokens.every((token) => GENERIC_GROUP_TOKENS.has(token));
+}
+
 function findCandidates(promo, products) {
   const phrase = stripPromotionPriceText(promo.title);
-  const tokens = tokenize(phrase);
+  const tokens = uniq(tokenize(phrase));
 
-  if (tokens.length < 2) {
+  if (!tokens.length) {
     return { phrase, tokens, candidates: [], reason: "too_few_specific_tokens" };
   }
 
-  const phraseMatches = products.filter((product) => {
-    return product._normName.includes(phrase);
-  });
+  const scored = products
+    .map((product) => ({ product, score: scoreProductCandidate(product, phrase, tokens) }))
+    .filter((row) => row.score >= 42)
+    .sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      const aStock = Number(a.product.stock_amount || 0);
+      const bStock = Number(b.product.stock_amount || 0);
+      if (bStock !== aStock) return bStock - aStock;
+      return Number(a.product.id) - Number(b.product.id);
+    });
 
-  if (phraseMatches.length === 1) {
-    return { phrase, tokens, candidates: phraseMatches, reason: "unique_phrase_match" };
+  const allTokenMatches = products.filter((product) => productContainsAllTokens(product, tokens));
+  const best = scored[0];
+  const second = scored[1];
+  const generic = isGenericSingleToken(tokens);
+  const safeByAllTokens = !generic && allTokenMatches.length === 1 && scoreProductCandidate(allTokenMatches[0], phrase, tokens) >= 68;
+  const safeByScore = !generic && best && best.score >= 82 && (!second || best.score - second.score >= 9);
+
+  if (safeByAllTokens) {
+    const product = allTokenMatches[0];
+    return {
+      phrase,
+      tokens,
+      candidates: [{ ...product, match_score: scoreProductCandidate(product, phrase, tokens) }],
+      reason: "unique_fuzzy_token_match",
+    };
   }
 
-  const tokenMatches = products.filter((product) => productContainsAllTokens(product, tokens));
-  if (tokenMatches.length === 1) {
-    return { phrase, tokens, candidates: tokenMatches, reason: "unique_token_match" };
+  if (safeByScore) {
+    return {
+      phrase,
+      tokens,
+      candidates: [{ ...best.product, match_score: best.score }],
+      reason: "unique_fuzzy_score_match",
+    };
   }
 
   return {
     phrase,
     tokens,
-    candidates: tokenMatches.length ? tokenMatches : phraseMatches,
-    reason: tokenMatches.length ? "multiple_token_matches" : "no_match",
+    candidates: scored.slice(0, 35).map((row) => ({ ...row.product, match_score: row.score })),
+    reason: scored.length ? (generic ? "generic_name_requires_manual_mapping" : "multiple_fuzzy_matches") : "no_match",
   };
 }
 
@@ -185,8 +242,6 @@ function buildProductPromotionPayload(promo, product, matchInfo) {
   const deal = parseDealText(promo.deal_text);
   if (!deal) return { skip_reason: "deal_text_not_supported" };
 
-  // The current promotion engine supports bundles per single product line.
-  // 0.01 ב-price is usually a weight/kg shorthand in the source file, not a safe bundle qty.
   if (deal.qty < 1) return { skip_reason: "fractional_bundle_qty_requires_manual_mapping" };
   if (!Number.isInteger(deal.qty)) return { skip_reason: "non_integer_bundle_qty_requires_manual_mapping" };
 
@@ -349,15 +404,18 @@ async function loadProducts(conn, shopId) {
     [shopId],
   );
 
-  return (rows || []).map((row) => ({
-    id: Number(row.id),
-    name: row.name,
-    display_name_en: row.display_name_en,
-    price: row.price == null ? null : Number(row.price),
-    stock_amount: row.stock_amount == null ? null : Number(row.stock_amount),
-    _normName: normalizeText(row.name),
-    _tokenSet: productTokenSet(row),
-  }));
+  return (rows || []).map((row) => {
+    const product = {
+      id: Number(row.id),
+      name: row.name,
+      display_name_en: row.display_name_en,
+      price: row.price == null ? null : Number(row.price),
+      stock_amount: row.stock_amount == null ? null : Number(row.stock_amount),
+    };
+    product._normName = normalizeText([row.name, row.display_name_en].filter(Boolean).join(" "));
+    product._tokenSet = productTokenSet(product);
+    return product;
+  });
 }
 
 function analyzePromotions(rows, products) {
@@ -367,12 +425,12 @@ function analyzePromotions(rows, products) {
 
   for (const promo of rows) {
     if (promo.active !== "כן") {
-      skipped.push({ reward_id: promo.reward_id, title: promo.title, reason: "inactive_in_excel" });
+      skipped.push({ reward_id: promo.reward_id, title: promo.title, type: promo.type, deal_text: promo.deal_text, start_date: promo.start_date, end_date: promo.end_date, reason: "inactive_in_excel" });
       continue;
     }
 
     if (!INCLUDE_EXPIRED && isExpired(promo.end_date)) {
-      skipped.push({ reward_id: promo.reward_id, title: promo.title, reason: "expired_in_excel" });
+      skipped.push({ reward_id: promo.reward_id, title: promo.title, type: promo.type, deal_text: promo.deal_text, start_date: promo.start_date, end_date: promo.end_date, reason: "expired_in_excel" });
       continue;
     }
 
@@ -386,26 +444,41 @@ function analyzePromotions(rows, products) {
       skipped.push({
         reward_id: promo.reward_id,
         title: promo.title,
+        type: promo.type,
+        deal_text: promo.deal_text,
+        start_date: promo.start_date,
+        end_date: promo.end_date,
         reason: "cart_rule_requires_manual_reward_product_mapping",
       });
       continue;
     }
 
     if (promo.type !== "כמות בסכום") {
-      skipped.push({ reward_id: promo.reward_id, title: promo.title, reason: "unsupported_promotion_type" });
+      skipped.push({ reward_id: promo.reward_id, title: promo.title, type: promo.type, deal_text: promo.deal_text, start_date: promo.start_date, end_date: promo.end_date, reason: "unsupported_promotion_type" });
       continue;
     }
 
     const matchInfo = findCandidates(promo, products);
-    if (matchInfo.candidates.length !== 1) {
+    if (matchInfo.candidates.length !== 1 || !String(matchInfo.reason).startsWith("unique_")) {
       skipped.push({
         reward_id: promo.reward_id,
         title: promo.title,
+        type: promo.type,
+        deal_text: promo.deal_text,
+        start_date: promo.start_date,
+        end_date: promo.end_date,
+        max_qty: promo.max_qty ?? null,
         reason: matchInfo.reason,
         search_phrase: matchInfo.phrase,
         tokens: matchInfo.tokens,
         candidates_count: matchInfo.candidates.length,
-        candidates: matchInfo.candidates.slice(0, 20).map((p) => ({ id: p.id, name: p.name })),
+        candidates: matchInfo.candidates.slice(0, 35).map((p) => ({
+          id: p.id,
+          name: p.name,
+          price: p.price,
+          stock_amount: p.stock_amount,
+          match_score: p.match_score,
+        })),
       });
       continue;
     }
@@ -416,6 +489,11 @@ function analyzePromotions(rows, products) {
       skipped.push({
         reward_id: promo.reward_id,
         title: promo.title,
+        type: promo.type,
+        deal_text: promo.deal_text,
+        start_date: promo.start_date,
+        end_date: promo.end_date,
+        max_qty: promo.max_qty ?? null,
         reason: payload.skip_reason,
         matched_product_id: product.id,
         matched_product_name: product.name,
@@ -433,8 +511,77 @@ function analyzePromotions(rows, products) {
   };
 }
 
+async function tableExists(conn, tableName) {
+  const [rows] = await conn.query(
+    `
+    SELECT 1
+    FROM INFORMATION_SCHEMA.TABLES
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = ?
+    LIMIT 1
+    `,
+    [tableName],
+  );
+  return Array.isArray(rows) && rows.length > 0;
+}
+
 async function backupTable(conn, tableName, backupName, shopId) {
+  if (!(await tableExists(conn, tableName))) return false;
   await conn.query(`CREATE TABLE \`${backupName}\` AS SELECT * FROM \`${tableName}\` WHERE shop_id = ?`, [shopId]);
+  return true;
+}
+
+async function countShopRows(conn, tableName, shopId) {
+  if (!(await tableExists(conn, tableName))) return 0;
+  const [[row]] = await conn.query(`SELECT COUNT(*) AS count FROM \`${tableName}\` WHERE shop_id = ?`, [shopId]);
+  return Number(row?.count || 0);
+}
+
+async function clearShopPromotions(conn, shopId) {
+  const deleted = {};
+
+  deleted.order_product_group_promotion_application = await countShopRows(conn, "order_product_group_promotion_application", shopId);
+  if (await tableExists(conn, "order_product_group_promotion_application")) {
+    await conn.query(`DELETE FROM order_product_group_promotion_application WHERE shop_id = ?`, [shopId]);
+  }
+
+  deleted.order_promotion_application = await countShopRows(conn, "order_promotion_application", shopId);
+  if (await tableExists(conn, "order_promotion_application")) {
+    await conn.query(`DELETE FROM order_promotion_application WHERE shop_id = ?`, [shopId]);
+  }
+
+  await conn.query(
+    `
+    UPDATE order_item oi
+    JOIN orders o ON o.id = oi.order_id
+    SET oi.promo_id = NULL,
+        oi.cart_promotion_rule_id = NULL,
+        oi.is_gift = 0
+    WHERE o.shop_id = ?
+      AND (oi.promo_id IS NOT NULL OR oi.cart_promotion_rule_id IS NOT NULL OR oi.is_gift = 1)
+    `,
+    [shopId],
+  );
+
+  deleted.product_group_promotion_item = await countShopRows(conn, "product_group_promotion_item", shopId);
+  if (await tableExists(conn, "product_group_promotion_item")) {
+    await conn.query(`DELETE FROM product_group_promotion_item WHERE shop_id = ?`, [shopId]);
+  }
+
+  deleted.product_group_promotion = await countShopRows(conn, "product_group_promotion", shopId);
+  if (await tableExists(conn, "product_group_promotion")) {
+    await conn.query(`DELETE FROM product_group_promotion WHERE shop_id = ?`, [shopId]);
+  }
+
+  deleted.cart_promotion_rule = await countShopRows(conn, "cart_promotion_rule", shopId);
+  if (await tableExists(conn, "cart_promotion_rule")) {
+    await conn.query(`DELETE FROM cart_promotion_rule WHERE shop_id = ?`, [shopId]);
+  }
+
+  deleted.promotion = await countShopRows(conn, "promotion", shopId);
+  await conn.query(`DELETE FROM promotion WHERE shop_id = ?`, [shopId]);
+
+  return deleted;
 }
 
 async function insertProductPromotion(conn, shopId, payload) {
@@ -505,13 +652,14 @@ function printableSummary(report) {
   return {
     mode: report.mode,
     shop_id: report.shop_id,
+    source: report.source,
+    data_file: report.data_file,
     products_in_shop: report.products_in_shop,
     excel_promotions_total: report.excel_promotions_total,
     safe_product_promotions: report.safe_product_promotions.length,
     safe_cart_rules: report.safe_cart_rules.length,
     skipped: report.skipped.length,
-    deleted_existing_product_promotions: report.deleted_existing_product_promotions,
-    deleted_existing_cart_rules: report.deleted_existing_cart_rules,
+    deleted_existing: report.deleted_existing,
     backup_tables: report.backup_tables,
     report_file: report.report_file,
   };
@@ -521,9 +669,13 @@ async function main() {
   if (!Number.isInteger(SHOP_ID) || SHOP_ID <= 0) {
     throw new Error(`Invalid --shopId: ${SHOP_ID}`);
   }
+  if (!fs.existsSync(DATA_FILE)) {
+    throw new Error(`Data file was not found: ${DATA_FILE}`);
+  }
 
   const rows = JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));
   await ensureCartPromotionSchema();
+  await ensureProductGroupPromotionColumns();
 
   const conn = await db.getConnection();
   try {
@@ -534,12 +686,15 @@ async function main() {
       mode: DRY_RUN ? "dryRun" : "confirm",
       shop_id: SHOP_ID,
       source: SOURCE,
+      data_file: DATA_FILE,
       generated_at: new Date().toISOString(),
       products_in_shop: products.length,
       excel_promotions_total: rows.length,
       safe_product_promotions: analysis.safeProductPromotions.map((item) => ({
         reward_id: item.promo.reward_id,
         title: item.promo.title,
+        type: item.promo.type,
+        deal_text: item.promo.deal_text,
         matched_product_id: item.payload.product_id,
         matched_product_name: item.payload.product_name,
         kind: item.payload.kind,
@@ -549,11 +704,15 @@ async function main() {
         max_discounted_qty: item.payload.max_discounted_qty,
         start_at: item.payload.start_at,
         end_at: item.payload.end_at,
+        search_phrase: item.matchInfo.phrase,
+        tokens: item.matchInfo.tokens,
         match_reason: item.matchInfo.reason,
+        match_score: item.matchInfo.candidates?.[0]?.match_score ?? null,
       })),
       safe_cart_rules: analysis.safeCartRules.map((item) => ({
         reward_id: item.promo.reward_id,
         title: item.promo.title,
+        type: item.promo.type,
         rule_type: item.rule.rule_type,
         threshold_amount: item.rule.threshold_amount,
         delivery_fee_override: item.rule.delivery_fee_override,
@@ -561,37 +720,29 @@ async function main() {
         end_at: item.rule.end_at,
       })),
       skipped: analysis.skipped,
-      deleted_existing_product_promotions: 0,
-      deleted_existing_cart_rules: 0,
+      deleted_existing: {},
       backup_tables: [],
     };
 
     if (!DRY_RUN) {
-      const [[promoCount]] = await conn.query(
-        `SELECT COUNT(*) AS count FROM promotion WHERE shop_id = ?`,
-        [SHOP_ID],
-      );
-      const [[cartCount]] = await conn.query(
-        `SELECT COUNT(*) AS count FROM cart_promotion_rule WHERE shop_id = ?`,
-        [SHOP_ID],
-      );
-      report.deleted_existing_product_promotions = Number(promoCount.count || 0);
-      report.deleted_existing_cart_rules = Number(cartCount.count || 0);
-
       const suffix = stamp();
-      const promoBackup = `bak_promo_s${SHOP_ID}_${suffix}`.replace(/[^a-zA-Z0-9_]/g, "_");
-      const cartBackup = `bak_cart_rule_s${SHOP_ID}_${suffix}`.replace(/[^a-zA-Z0-9_]/g, "_");
+      const backupSpecs = [
+        ["promotion", `bak_promo_s${SHOP_ID}_${suffix}`],
+        ["cart_promotion_rule", `bak_cart_rule_s${SHOP_ID}_${suffix}`],
+        ["product_group_promotion", `bak_group_promo_s${SHOP_ID}_${suffix}`],
+        ["product_group_promotion_item", `bak_group_item_s${SHOP_ID}_${suffix}`],
+        ["order_promotion_application", `bak_order_cart_app_s${SHOP_ID}_${suffix}`],
+        ["order_product_group_promotion_application", `bak_order_group_app_s${SHOP_ID}_${suffix}`],
+      ];
 
-      // MySQL commits implicitly around CREATE TABLE, so backups are created before
-      // the actual transactional delete+insert step.
-      await backupTable(conn, "promotion", promoBackup, SHOP_ID);
-      await backupTable(conn, "cart_promotion_rule", cartBackup, SHOP_ID);
-      report.backup_tables.push(promoBackup, cartBackup);
+      for (const [table, backup] of backupSpecs) {
+        const safeBackup = backup.replace(/[^a-zA-Z0-9_]/g, "_");
+        if (await backupTable(conn, table, safeBackup, SHOP_ID)) report.backup_tables.push(safeBackup);
+      }
 
       await conn.beginTransaction();
       try {
-        await conn.query(`DELETE FROM promotion WHERE shop_id = ?`, [SHOP_ID]);
-        await conn.query(`DELETE FROM cart_promotion_rule WHERE shop_id = ?`, [SHOP_ID]);
+        report.deleted_existing = await clearShopPromotions(conn, SHOP_ID);
 
         for (const item of analysis.safeProductPromotions) {
           await insertProductPromotion(conn, SHOP_ID, item.payload);
@@ -612,7 +763,7 @@ async function main() {
 
     console.log(JSON.stringify(printableSummary(report), null, 2));
     if (DRY_RUN) {
-      console.log("\nDry run only. To actually delete existing shop promotions and insert the safe ones, run with --confirm.");
+      console.log("\nDry run only. To delete existing shop promotions and insert the safe automatic matches, run with --confirm.");
     }
   } finally {
     conn.release();

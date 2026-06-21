@@ -27,6 +27,10 @@ const { buildConversationGreetingPrefix } = require("./conversationGreeting");
 const { handleSuggestionReply } = require("./orderSuggestions");
 const { handleFulfillmentReply } = require("./fulfillment");
 const {
+  isMarketDayRequest,
+  buildMarketDayPromotionsReply,
+} = require("./marketDayPromotions");
+const {
   handlePendingCustomerName,
   requestFullNameBeforeOrder,
   shouldRequireNameBeforeOrder,
@@ -224,6 +228,30 @@ async function processMessage(
         console.error("[wa markAsRead]", e?.response?.data || e),
       );
     }, 800);
+  }
+
+  if (isMarketDayRequest(message)) {
+    const reply = await buildMarketDayPromotionsReply(shop_id);
+
+    await saveChat({
+      customer_id,
+      shop_id,
+      sender: "customer",
+      status: "classified",
+      message,
+    });
+
+    const finalReply = prependTextToBotPayload(reply, conversationGreetingPrefix);
+
+    await saveChat({
+      customer_id,
+      shop_id,
+      sender: "bot",
+      status: "classified",
+      message: normalizeOutboundMessage(finalReply),
+    });
+
+    return finalReply;
   }
 
   let effectiveMessage = message;

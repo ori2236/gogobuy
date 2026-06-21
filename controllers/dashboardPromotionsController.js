@@ -1,6 +1,7 @@
 const db = require("../config/db");
 const { parseShopId, clampInt } = require("../utilities/dashboardUtils");
 const { ensureCartPromotionSchema } = require("../services/cartPromotions");
+const { applyMarketDayOverrides, isMarketDayDescription } = require("../services/marketDayPromotions");
 
 const ALLOWED_KINDS = new Set([
   "PERCENT_OFF",
@@ -180,12 +181,12 @@ function parsePromotionPayload(body) {
 
   const maxQtyRaw = body?.max_discounted_qty ?? body?.maxDiscountedQty;
   if (maxQtyRaw !== null && maxQtyRaw !== undefined && maxQtyRaw !== "") {
-    const parsedMaxUses = intNumber(maxQtyRaw, "max_discounted_qty", {
-      min: 1,
+    const parsedMaxQty = moneyNumber(maxQtyRaw, "max_discounted_qty", {
+      min: 0.001,
       required: false,
     });
-    if (parsedMaxUses.error) return { error: parsedMaxUses.error };
-    payload.max_discounted_qty = parsedMaxUses.value;
+    if (parsedMaxQty.error) return { error: parsedMaxQty.error };
+    payload.max_discounted_qty = parsedMaxQty.value;
   }
 
   return { payload };
@@ -237,6 +238,7 @@ function mapPromotionRow(row) {
     is_upcoming: isUpcoming,
     is_expired: isExpired,
     status: isActive ? "active" : isUpcoming ? "upcoming" : isExpired ? "expired" : "inactive",
+    is_market_day: isMarketDayDescription(row.description),
   };
 }
 
@@ -414,7 +416,7 @@ exports.createPromotion = async (req, res) => {
       return res.status(404).json({ ok: false, message: "Product not found" });
     }
 
-    const p = parsed.payload;
+    const p = applyMarketDayOverrides(parsed.payload, req.body || {});
     const [ins] = await db.query(
       `
       INSERT INTO promotion
@@ -444,7 +446,7 @@ exports.createPromotion = async (req, res) => {
     return res.status(201).json({ ok: true, promotion });
   } catch (err) {
     console.error("[promotions.createPromotion]", err);
-    return res.status(500).json({ ok: false, message: "Server error" });
+    return res.status(err.status || 500).json({ ok: false, message: err.status ? err.message : "Server error" });
   }
 };
 
@@ -477,7 +479,7 @@ exports.updatePromotion = async (req, res) => {
       return res.status(404).json({ ok: false, message: "Product not found" });
     }
 
-    const p = parsed.payload;
+    const p = applyMarketDayOverrides(parsed.payload, req.body || {}, existing);
     await db.query(
       `
       UPDATE promotion
@@ -518,7 +520,7 @@ exports.updatePromotion = async (req, res) => {
     return res.json({ ok: true, promotion });
   } catch (err) {
     console.error("[promotions.updatePromotion]", err);
-    return res.status(500).json({ ok: false, message: "Server error" });
+    return res.status(err.status || 500).json({ ok: false, message: err.status ? err.message : "Server error" });
   }
 };
 

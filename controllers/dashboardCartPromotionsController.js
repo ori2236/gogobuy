@@ -4,6 +4,7 @@ const {
   RULE_TYPES,
   ensureCartPromotionSchema,
 } = require("../services/cartPromotions");
+const { applyMarketDayOverrides, isMarketDayDescription } = require("../services/marketDayPromotions");
 
 const ALLOWED_RULE_TYPES = new Set(Object.values(RULE_TYPES));
 const ALLOWED_STATUS_FILTERS = new Set(["all", "active", "inactive"]);
@@ -276,6 +277,7 @@ function mapRuleRow(row) {
         : isExpired
           ? "expired"
           : "inactive",
+    is_market_day: isMarketDayDescription(row.description),
   };
 }
 
@@ -399,7 +401,7 @@ exports.createCartPromotionRule = async (req, res) => {
     const parsed = parseCartRulePayload(req.body || {});
     if (parsed.error) return res.status(400).json({ ok: false, message: parsed.error });
 
-    const p = parsed.payload;
+    const p = applyMarketDayOverrides(parsed.payload, req.body || {});
     let product = null;
     if (p.reward_product_id) {
       product = await ensureProductExists(shopId, p.reward_product_id);
@@ -447,7 +449,7 @@ exports.createCartPromotionRule = async (req, res) => {
     if (err?.code === "ER_DUP_ENTRY") {
       return res.status(409).json({ ok: false, message: "Cart promotion rule already exists" });
     }
-    return res.status(500).json({ ok: false, message: "Server error" });
+    return res.status(err.status || 500).json({ ok: false, message: err.status ? err.message : "Server error" });
   }
 };
 
@@ -470,7 +472,7 @@ exports.updateCartPromotionRule = async (req, res) => {
     const parsed = parseCartRulePayload(req.body || {});
     if (parsed.error) return res.status(400).json({ ok: false, message: parsed.error });
 
-    const p = parsed.payload;
+    const p = applyMarketDayOverrides(parsed.payload, req.body || {}, existing);
     let product = null;
     if (p.reward_product_id) {
       product = await ensureProductExists(shopId, p.reward_product_id);
@@ -535,7 +537,7 @@ exports.updateCartPromotionRule = async (req, res) => {
     if (err?.code === "ER_DUP_ENTRY") {
       return res.status(409).json({ ok: false, message: "Cart promotion rule already exists" });
     }
-    return res.status(500).json({ ok: false, message: "Server error" });
+    return res.status(err.status || 500).json({ ok: false, message: err.status ? err.message : "Server error" });
   }
 };
 

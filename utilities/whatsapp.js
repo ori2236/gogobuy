@@ -66,23 +66,29 @@ async function sendWhatsAppTemplate(
       }
     : config.headers;
 
+  const parameters = Array.isArray(bodyParams) ? bodyParams : [];
+  const template = {
+    name: templateName,
+    language: {
+      code: languageCode,
+    },
+  };
+
+  if (parameters.length) {
+    template.components = [
+      {
+        type: "body",
+        parameters,
+      },
+    ];
+  }
+
   const payload = {
     messaging_product: "whatsapp",
     recipient_type: "individual",
     to,
     type: "template",
-    template: {
-      name: templateName,
-      language: {
-        code: languageCode,
-      },
-      components: [
-        {
-          type: "body",
-          parameters: bodyParams,
-        },
-      ],
-    },
+    template,
   };
 
   const { data } = await axios.post(config.url, payload, { headers });

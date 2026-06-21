@@ -16,7 +16,9 @@
     "publish:leshem-promos": "node scripts/importLeshemExcelPromotions.js --shopId=2 --confirm",
     "manual:leshem-promos:form": "node scripts/generateLeshemPromotionMappingTool.js --shopId=2",
     "preview:leshem-promos-manual": "node scripts/applyLeshemManualPromotionMappings.js --shopId=2 --dryRun",
-    "publish:leshem-promos-manual": "node scripts/applyLeshemManualPromotionMappings.js --shopId=2 --confirm"
+    "publish:leshem-promos-manual": "node scripts/applyLeshemManualPromotionMappings.js --shopId=2 --confirm",
+    "convert:leshem-promos": "node scripts/convertLeshemExcelPromotions.js --excel=data/leshem_promotions.xlsx --out=data/leshem_promotions_2026_06_14.json",
+    "prepare:leshem-promos": "npm run convert:leshem-promos && npm run preview:leshem-promos && npm run manual:leshem-promos:form"
   },
   "repository": {
     "type": "git",
@@ -36,6 +38,7 @@
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "mysql2": "^3.14.3",
-    "openai": "^5.15.0"
+    "openai": "^5.15.0",
+    "xlsx": "^0.18.5"
   }
 }

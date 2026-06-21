@@ -1,9 +1,9 @@
 const db = require("../config/db");
 const { parseShopId, clampInt } = require("../utilities/dashboardUtils");
-const { ensureProductGroupPromotionColumns, resolveProductGroupPromotionEmoji, normalizeEmoji } = require("../services/productGroupPromotions");
+const { applyMarketDayOverrides, isMarketDayDescription } = require("../services/marketDayPromotions");
 
 const ALLOWED_STATUS_FILTERS = new Set(["all", "active", "inactive"]);
-const ALLOWED_SORT_BY = new Set(["default", "start_at", "end_at", "created_at"]);
+const ALLOWED_SORT_BY = new Set(["default", "priority", "start_at", "end_at", "created_at"]);
 const ALLOWED_SORT_DIR = new Set(["asc", "desc"]);
 
 function trimOrNull(value, limit = 1000) {
@@ -54,6 +54,7 @@ function activeSql(alias = "pgp") {
 function buildOrderBy(sortBy, sortDir, activeCondition) {
   const dir = sortDir === "asc" ? "ASC" : "DESC";
 
+  if (sortBy === "priority") return `pgp.priority ${dir}, pgp.id DESC`;
   if (sortBy === "start_at") return `pgp.start_at ${dir}, pgp.id DESC`;
   if (sortBy === "end_at") return `pgp.end_at IS NULL ASC, pgp.end_at ${dir}, pgp.id DESC`;
   if (sortBy === "created_at") return `pgp.created_at ${dir}, pgp.id DESC`;
@@ -64,6 +65,7 @@ function buildOrderBy(sortBy, sortDir, activeCondition) {
       WHEN pgp.start_at > NOW() THEN 1
       ELSE 2
     END ASC,
+    pgp.priority ASC,
     pgp.id DESC
   `;
 }
@@ -103,25 +105,27 @@ function parsePayload(body) {
   let maxDiscountedQty = null;
   const maxRaw = body?.max_discounted_qty ?? body?.maxDiscountedQty;
   if (maxRaw !== null && maxRaw !== undefined && maxRaw !== "") {
-    const maxUses = numberValue(maxRaw, "max_discounted_qty", {
-      min: 1,
-      required: false,
-      integer: true,
-    });
-    if (maxUses.error) return { error: maxUses.error };
-    maxDiscountedQty = maxUses.value;
+    const maxQty = numberValue(maxRaw, "max_discounted_qty", { min: 0.001, required: false });
+    if (maxQty.error) return { error: maxQty.error };
+    maxDiscountedQty = maxQty.value;
   }
+
+  const priority = numberValue(body?.priority, "priority", {
+    min: 1,
+    required: false,
+    integer: true,
+  });
+  if (priority.error) return { error: priority.error };
 
   return {
     payload: {
       title,
       description: trimOrNull(body?.description, 1000),
-      emoji: normalizeEmoji(body?.emoji),
       kind: "BUNDLE",
       bundle_buy_qty: buyQty.value,
       bundle_pay_price: payPrice.value,
       max_discounted_qty: maxDiscountedQty,
-      priority: 100,
+      priority: priority.value ?? 100,
       is_active: boolValue(body?.is_active ?? body?.isActive, true),
       start_at: start.value,
       end_at: end.value,
@@ -135,7 +139,7 @@ async function ensureProductsExist(shopId, productIds) {
   const placeholders = productIds.map(() => "?").join(",");
   const [rows] = await db.query(
     `
-    SELECT id, name, display_name_en, price, category, sub_category, emoji
+    SELECT id, name, display_name_en, price, category, sub_category
     FROM product
     WHERE shop_id = ? AND id IN (${placeholders})
     `,
@@ -178,8 +182,6 @@ function mapRow(row) {
     shop_id: Number(row.shop_id),
     title: row.title,
     description: row.description ?? null,
-    emoji_custom: normalizeEmoji(row.emoji),
-    emoji: normalizeEmoji(row.emoji) || resolveProductGroupPromotionEmoji({ ...row, products }),
     kind: row.kind || "BUNDLE",
     bundle_buy_qty: Number(row.bundle_buy_qty),
     bundle_pay_price: Number(row.bundle_pay_price),
@@ -197,12 +199,11 @@ function mapRow(row) {
     is_upcoming: isUpcoming,
     is_expired: isExpired,
     status: isActive ? "active" : isUpcoming ? "upcoming" : isExpired ? "expired" : "inactive",
+    is_market_day: isMarketDayDescription(row.description),
   };
 }
 
 async function getGroupPromotionById(shopId, id) {
-  await ensureProductGroupPromotionColumns();
-
   const [rows] = await db.query(
     `
     SELECT
@@ -220,8 +221,7 @@ async function getGroupPromotionById(shopId, id) {
               'display_name_en', p.display_name_en,
               'price', p.price,
               'category', p.category,
-              'sub_category', p.sub_category,
-              'emoji', p.emoji
+              'sub_category', p.sub_category
             )
           END
         ),
@@ -273,8 +273,6 @@ exports.listProductGroupPromotions = async (req, res) => {
       return res.status(400).json({ ok: false, message: "Invalid shop_id" });
     }
 
-
-    await ensureProductGroupPromotionColumns();
 
     const status = String(req.query.status || "all").trim().toLowerCase();
     const statusFilter = ALLOWED_STATUS_FILTERS.has(status) ? status : "all";
@@ -340,8 +338,7 @@ exports.listProductGroupPromotions = async (req, res) => {
                 'display_name_en', p.display_name_en,
                 'price', p.price,
                 'category', p.category,
-                'sub_category', p.sub_category,
-                'emoji', p.emoji
+                'sub_category', p.sub_category
               )
             END
           ),
@@ -383,8 +380,6 @@ exports.createProductGroupPromotion = async (req, res) => {
       return res.status(400).json({ ok: false, message: "Invalid shop_id" });
     }
 
-    await ensureProductGroupPromotionColumns(conn);
-
     const parsed = parsePayload(req.body || {});
     if (parsed.error) {
       return res.status(400).json({ ok: false, message: parsed.error });
@@ -396,19 +391,18 @@ exports.createProductGroupPromotion = async (req, res) => {
     }
 
     await conn.beginTransaction();
-    const p = parsed.payload;
+    const p = applyMarketDayOverrides(parsed.payload, req.body || {});
     const [ins] = await conn.query(
       `
       INSERT INTO product_group_promotion
-        (shop_id, title, description, emoji, kind, bundle_buy_qty, bundle_pay_price,
+        (shop_id, title, description, kind, bundle_buy_qty, bundle_pay_price,
          max_discounted_qty, priority, is_active, start_at, end_at, created_at, updated_at)
-      VALUES (?, ?, ?, ?, 'BUNDLE', ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      VALUES (?, ?, ?, 'BUNDLE', ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       `,
       [
         shopId,
         p.title,
         p.description,
-        p.emoji,
         p.bundle_buy_qty,
         p.bundle_pay_price,
         p.max_discounted_qty,
@@ -426,7 +420,7 @@ exports.createProductGroupPromotion = async (req, res) => {
   } catch (err) {
     try { await conn.rollback(); } catch {}
     console.error("[productGroupPromotions.create]", err);
-    return res.status(500).json({ ok: false, message: "Server error" });
+    return res.status(err.status || 500).json({ ok: false, message: err.status ? err.message : "Server error" });
   } finally {
     if (conn && conn.release) conn.release();
   }
@@ -449,8 +443,6 @@ exports.updateProductGroupPromotion = async (req, res) => {
       return res.status(404).json({ ok: false, message: "Product group promotion not found" });
     }
 
-    await ensureProductGroupPromotionColumns(conn);
-
     const parsed = parsePayload(req.body || {});
     if (parsed.error) {
       return res.status(400).json({ ok: false, message: parsed.error });
@@ -462,14 +454,13 @@ exports.updateProductGroupPromotion = async (req, res) => {
     }
 
     await conn.beginTransaction();
-    const p = parsed.payload;
+    const p = applyMarketDayOverrides(parsed.payload, req.body || {}, existing);
     await conn.query(
       `
       UPDATE product_group_promotion
       SET
         title = ?,
         description = ?,
-        emoji = ?,
         bundle_buy_qty = ?,
         bundle_pay_price = ?,
         max_discounted_qty = ?,
@@ -484,7 +475,6 @@ exports.updateProductGroupPromotion = async (req, res) => {
       [
         p.title,
         p.description,
-        p.emoji,
         p.bundle_buy_qty,
         p.bundle_pay_price,
         p.max_discounted_qty,
@@ -504,7 +494,7 @@ exports.updateProductGroupPromotion = async (req, res) => {
   } catch (err) {
     try { await conn.rollback(); } catch {}
     console.error("[productGroupPromotions.update]", err);
-    return res.status(500).json({ ok: false, message: "Server error" });
+    return res.status(err.status || 500).json({ ok: false, message: err.status ? err.message : "Server error" });
   } finally {
     if (conn && conn.release) conn.release();
   }

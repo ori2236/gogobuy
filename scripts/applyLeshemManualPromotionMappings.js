@@ -4,9 +4,10 @@ const fs = require("fs");
 const path = require("path");
 const db = require("../config/db");
 const { ensureCartPromotionSchema } = require("../services/cartPromotions");
+const { ensureProductGroupPromotionColumns } = require("../services/productGroupPromotions");
 
-const SOURCE = "leshem_excel_2026_06_14";
-const DATA_FILE = path.join(__dirname, "..", "data", "leshem_promotions_2026_06_14.json");
+const DEFAULT_SOURCE = "leshem_excel_2026_06_14";
+const DEFAULT_DATA_FILE = path.join(__dirname, "..", "data", "leshem_promotions_2026_06_14.json");
 const DEFAULT_MAPPING_FILE = path.join(__dirname, "..", "data", "leshem_manual_promo_mapping.json");
 const REPORTS_DIR = path.join(__dirname, "..", "reports");
 
@@ -19,11 +20,13 @@ function argValue(name, fallback = null) {
 }
 
 const SHOP_ID = Number(argValue("--shopId", process.env.PROMO_IMPORT_SHOP_ID || 2));
+const DATA_FILE = path.resolve(argValue("--data", process.env.PROMO_IMPORT_DATA_FILE || DEFAULT_DATA_FILE));
 const MAPPING_FILE = path.resolve(argValue("--mapping", DEFAULT_MAPPING_FILE));
 const CONFIRM = Boolean(argValue("--confirm", false));
 const DRY_RUN = !CONFIRM || Boolean(argValue("--dryRun", false));
 const REPLACE = Boolean(argValue("--replace", false));
 const INCLUDE_EXPIRED = Boolean(argValue("--includeExpired", false));
+const SOURCE = String(argValue("--source", process.env.PROMO_IMPORT_SOURCE || DEFAULT_SOURCE)).trim() || DEFAULT_SOURCE;
 
 function pad2(value) {
   return String(value).padStart(2, "0");
@@ -57,8 +60,6 @@ function parseThresholdProductFixedPrice(title) {
   const fixedPriceMatch = s.match(/ב\s*-?\s*(\d+(?:\.\d+)?)/g);
   if (!thresholdMatch || !fixedPriceMatch || fixedPriceMatch.length < 1) return null;
 
-  // The first number after "ב" can be part of "בקנייה" in malformed text only rarely;
-  // in the Leshem source it is the reward fixed price, e.g. מטרנה ב-39.90.
   const last = fixedPriceMatch[fixedPriceMatch.length - 1];
   const price = Number((last.match(/(\d+(?:\.\d+)?)/) || [])[1]);
   const threshold = Number(thresholdMatch[1]);
@@ -89,18 +90,21 @@ function cleanDescription(parts, limit = 1000) {
     .slice(0, limit);
 }
 
+function parseMaxQty(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) return { error: "invalid_max_qty" };
+  return n;
+}
+
 function buildProductPromotionPayload({ promo, product, mapping }) {
   const deal = parseDealText(promo.deal_text);
   if (!deal) return { skip_reason: "deal_text_not_supported" };
   if (deal.qty < 1) return { skip_reason: "fractional_bundle_qty_requires_code_or_weight_support" };
   if (!Number.isInteger(deal.qty)) return { skip_reason: "non_integer_bundle_qty_requires_code_support" };
 
-  const maxQty = promo.max_qty === null || promo.max_qty === undefined || promo.max_qty === ""
-    ? null
-    : Number(promo.max_qty);
-  if (maxQty !== null && (!Number.isFinite(maxQty) || maxQty <= 0)) {
-    return { skip_reason: "invalid_max_qty" };
-  }
+  const maxQty = parseMaxQty(promo.max_qty);
+  if (maxQty && typeof maxQty === "object" && maxQty.error) return { skip_reason: maxQty.error };
 
   const description = cleanDescription(
     [
@@ -143,6 +147,38 @@ function buildProductPromotionPayload({ promo, product, mapping }) {
     description,
     start_at: startDateTime(promo.start_date),
     end_at: endDateTime(promo.end_date),
+  };
+}
+
+function buildProductGroupPromotionPayload({ promo, products, mapping }) {
+  const deal = parseDealText(promo.deal_text);
+  if (!deal) return { skip_reason: "deal_text_not_supported_for_group" };
+  if (!Number.isInteger(deal.qty) || deal.qty < 2) return { skip_reason: "group_promotion_requires_integer_qty_of_at_least_2" };
+  if (!Array.isArray(products) || products.length < 2) return { skip_reason: "group_promotion_requires_at_least_2_products" };
+
+  const maxQty = parseMaxQty(promo.max_qty);
+  if (maxQty && typeof maxQty === "object" && maxQty.error) return { skip_reason: maxQty.error };
+
+  return {
+    title: String(promo.title || "").trim().slice(0, 255),
+    description: cleanDescription([
+      promo.title,
+      `מקור אקסל ${SOURCE}`,
+      `תגמול ${promo.reward_id}`,
+      "התאמה ידנית כמבצע קבוצה",
+      mapping.note ? `הערה: ${mapping.note}` : null,
+    ]),
+    emoji: null,
+    kind: "BUNDLE",
+    bundle_buy_qty: deal.qty,
+    bundle_pay_price: deal.price,
+    max_discounted_qty: maxQty,
+    priority: 100,
+    is_active: 1,
+    start_at: startDateTime(promo.start_date),
+    end_at: endDateTime(promo.end_date),
+    product_ids: products.map((p) => Number(p.id)).filter(Boolean),
+    product_names: products.map((p) => p.name),
   };
 }
 
@@ -216,6 +252,20 @@ async function productPromotionExists(conn, shopId, productId, rewardId) {
   return rows?.[0] || null;
 }
 
+async function productGroupPromotionExists(conn, shopId, rewardId) {
+  const [rows] = await conn.query(
+    `
+    SELECT id
+    FROM product_group_promotion
+    WHERE shop_id = ?
+      AND description LIKE ?
+    LIMIT 1
+    `,
+    [shopId, `%תגמול ${rewardId}%`],
+  );
+  return rows?.[0] || null;
+}
+
 async function cartRuleExists(conn, shopId, externalRewardId) {
   const [rows] = await conn.query(
     `
@@ -255,6 +305,42 @@ async function insertProductPromotion(conn, shopId, payload) {
       payload.end_at,
     ],
   );
+}
+
+async function insertProductGroupPromotion(conn, shopId, payload) {
+  const [result] = await conn.query(
+    `
+    INSERT INTO product_group_promotion
+      (shop_id, title, description, emoji, kind, bundle_buy_qty, bundle_pay_price,
+       max_discounted_qty, priority, is_active, start_at, end_at, created_at, updated_at)
+    VALUES (?, ?, ?, ?, 'BUNDLE', ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
+    `,
+    [
+      shopId,
+      payload.title,
+      payload.description,
+      payload.emoji,
+      payload.bundle_buy_qty,
+      payload.bundle_pay_price,
+      payload.max_discounted_qty,
+      payload.priority,
+      payload.is_active,
+      payload.start_at,
+      payload.end_at,
+    ],
+  );
+  const groupId = Number(result.insertId);
+  if (!groupId) throw new Error("Failed to insert product group promotion");
+
+  const uniqueProductIds = Array.from(new Set(payload.product_ids.map(Number).filter(Boolean)));
+  const valuesSql = uniqueProductIds.map(() => `(?, ?, ?)`).join(", ");
+  const params = [];
+  for (const productId of uniqueProductIds) params.push(groupId, shopId, productId);
+  await conn.query(
+    `INSERT INTO product_group_promotion_item (group_promotion_id, shop_id, product_id) VALUES ${valuesSql}`,
+    params,
+  );
+  return groupId;
 }
 
 async function insertCartRule(conn, shopId, rule) {
@@ -304,6 +390,19 @@ function mappingProductIds(mapping) {
   return Array.from(new Set(ids.map((id) => Number(id)).filter((id) => Number.isInteger(id) && id > 0)));
 }
 
+function cleanDateText(value) {
+  const s = String(value ?? "").trim();
+  return s || null;
+}
+
+function promoWithMappingDates(promo, mapping) {
+  return {
+    ...promo,
+    start_date: cleanDateText(mapping.start_date ?? mapping.startDate) || promo.start_date || null,
+    end_date: cleanDateText(mapping.end_date ?? mapping.endDate) || promo.end_date || null,
+  };
+}
+
 function isGroupMapping(mapping) {
   const action = String(mapping.action || "").toLowerCase();
   const mode = String(mapping.mapping_mode || mapping.mappingMode || "").toLowerCase();
@@ -313,7 +412,6 @@ function isGroupMapping(mapping) {
 async function analyzeMappings({ conn, shopId, promotionsByRewardId, productsById, mappingRows }) {
   const inserts = [];
   const skipped = [];
-  const futureGroups = [];
 
   for (const mapping of mappingRows) {
     const rewardId = Number(mapping.reward_id ?? mapping.rewardId);
@@ -324,62 +422,84 @@ async function analyzeMappings({ conn, shopId, promotionsByRewardId, productsByI
       skipped.push({ reward_id: rewardId, reason: "reward_id_not_found_in_source", product_ids: productIds });
       continue;
     }
-    if (promo.active !== "כן") {
-      skipped.push({ reward_id: rewardId, title: promo.title, reason: "inactive_in_excel", product_ids: productIds });
+
+    const effectivePromo = promoWithMappingDates(promo, mapping);
+
+    if (effectivePromo.active !== "כן") {
+      skipped.push({ reward_id: rewardId, title: effectivePromo.title, reason: "inactive_in_excel", product_ids: productIds });
       continue;
     }
-    if (!INCLUDE_EXPIRED && isExpired(promo.end_date)) {
-      skipped.push({ reward_id: rewardId, title: promo.title, reason: "expired_in_excel", product_ids: productIds });
+    if (!INCLUDE_EXPIRED && isExpired(effectivePromo.end_date)) {
+      skipped.push({ reward_id: rewardId, title: effectivePromo.title, reason: "expired_in_excel", product_ids: productIds });
       continue;
     }
     if (!productIds.length) {
-      skipped.push({ reward_id: rewardId, title: promo.title, reason: "no_products_selected" });
+      skipped.push({ reward_id: rewardId, title: effectivePromo.title, reason: "no_products_selected" });
       continue;
     }
 
     if (isGroupMapping(mapping)) {
+      if (effectivePromo.type !== "כמות בסכום") {
+        skipped.push({ reward_id: rewardId, title: effectivePromo.title, reason: "group_mapping_supported_only_for_quantity_bundle", product_ids: productIds });
+        continue;
+      }
+
       const selectedProducts = [];
       for (const productId of productIds) {
         const product = productsById.get(Number(productId));
         if (!product) {
-          skipped.push({ reward_id: rewardId, title: promo.title, reason: "product_id_not_found_in_shop", product_id: productId, mapping_mode: "group" });
+          skipped.push({ reward_id: rewardId, title: effectivePromo.title, reason: "product_id_not_found_in_shop", product_id: productId, mapping_mode: "group" });
           continue;
         }
-        selectedProducts.push({ id: product.id, name: product.name });
+        selectedProducts.push(product);
       }
-      if (selectedProducts.length) {
-        futureGroups.push({
+
+      const payload = buildProductGroupPromotionPayload({ promo: effectivePromo, products: selectedProducts, mapping });
+      if (payload.skip_reason) {
+        skipped.push({ reward_id: rewardId, title: effectivePromo.title, reason: payload.skip_reason, product_ids: productIds });
+        continue;
+      }
+
+      const duplicate = await productGroupPromotionExists(conn, shopId, rewardId);
+      if (duplicate && !REPLACE) {
+        skipped.push({
           reward_id: rewardId,
-          title: promo.title,
-          type: promo.type,
-          deal_text: promo.deal_text,
-          max_qty: promo.max_qty ?? null,
-          start_date: promo.start_date,
-          end_date: promo.end_date,
-          product_ids: selectedProducts.map((p) => p.id),
-          products: selectedProducts,
-          note: mapping.note || "",
-          reason: "saved_for_future_group_promotion_not_inserted",
+          title: effectivePromo.title,
+          reason: "already_exists",
+          existing_id: duplicate.id,
+          product_ids: payload.product_ids,
+          mapping_mode: "group",
         });
+        continue;
       }
+
+      inserts.push({
+        kind: "product_group_promotion",
+        reward_id: rewardId,
+        title: effectivePromo.title,
+        product_ids: payload.product_ids,
+        product_names: payload.product_names,
+        existing_id: duplicate?.id || null,
+        payload,
+      });
       continue;
     }
 
-    const action = String(mapping.action || (promo.type === "קנה בסכום הוסף קבל" ? "cart_reward_product" : "product_promotion"));
+    const action = String(mapping.action || (effectivePromo.type === "קנה בסכום הוסף קבל" ? "cart_reward_product" : "product_promotion"));
 
     for (const productId of productIds) {
       const product = productsById.get(Number(productId));
       if (!product) {
-        skipped.push({ reward_id: rewardId, title: promo.title, reason: "product_id_not_found_in_shop", product_id: productId });
+        skipped.push({ reward_id: rewardId, title: effectivePromo.title, reason: "product_id_not_found_in_shop", product_id: productId });
         continue;
       }
 
-      if (action === "cart_reward_product" || promo.type === "קנה בסכום הוסף קבל") {
-        const payload = buildCartRewardRulePayload({ promo, product, mapping });
+      if (action === "cart_reward_product" || effectivePromo.type === "קנה בסכום הוסף קבל") {
+        const payload = buildCartRewardRulePayload({ promo: effectivePromo, product, mapping });
         if (payload.skip_reason) {
           skipped.push({
             reward_id: rewardId,
-            title: promo.title,
+            title: effectivePromo.title,
             reason: payload.skip_reason,
             product_id: product.id,
             product_name: product.name,
@@ -391,7 +511,7 @@ async function analyzeMappings({ conn, shopId, promotionsByRewardId, productsByI
         if (duplicate && !REPLACE) {
           skipped.push({
             reward_id: rewardId,
-            title: promo.title,
+            title: effectivePromo.title,
             reason: "already_exists",
             existing_id: duplicate.id,
             product_id: product.id,
@@ -403,7 +523,7 @@ async function analyzeMappings({ conn, shopId, promotionsByRewardId, productsByI
         inserts.push({
           kind: "cart_rule",
           reward_id: rewardId,
-          title: promo.title,
+          title: effectivePromo.title,
           product_id: product.id,
           product_name: product.name,
           existing_id: duplicate?.id || null,
@@ -412,16 +532,16 @@ async function analyzeMappings({ conn, shopId, promotionsByRewardId, productsByI
         continue;
       }
 
-      if (promo.type !== "כמות בסכום") {
-        skipped.push({ reward_id: rewardId, title: promo.title, reason: "unsupported_manual_promotion_type", product_id: product.id });
+      if (effectivePromo.type !== "כמות בסכום") {
+        skipped.push({ reward_id: rewardId, title: effectivePromo.title, reason: "unsupported_manual_promotion_type", product_id: product.id });
         continue;
       }
 
-      const payload = buildProductPromotionPayload({ promo, product, mapping });
+      const payload = buildProductPromotionPayload({ promo: effectivePromo, product, mapping });
       if (payload.skip_reason) {
         skipped.push({
           reward_id: rewardId,
-          title: promo.title,
+          title: effectivePromo.title,
           reason: payload.skip_reason,
           product_id: product.id,
           product_name: product.name,
@@ -433,7 +553,7 @@ async function analyzeMappings({ conn, shopId, promotionsByRewardId, productsByI
       if (duplicate && !REPLACE) {
         skipped.push({
           reward_id: rewardId,
-          title: promo.title,
+          title: effectivePromo.title,
           reason: "already_exists",
           existing_id: duplicate.id,
           product_id: product.id,
@@ -445,7 +565,7 @@ async function analyzeMappings({ conn, shopId, promotionsByRewardId, productsByI
       inserts.push({
         kind: "product_promotion",
         reward_id: rewardId,
-        title: promo.title,
+        title: effectivePromo.title,
         product_id: product.id,
         product_name: product.name,
         existing_id: duplicate?.id || null,
@@ -454,18 +574,19 @@ async function analyzeMappings({ conn, shopId, promotionsByRewardId, productsByI
     }
   }
 
-  return { inserts, skipped, futureGroups };
+  return { inserts, skipped };
 }
 
 function printableSummary(report) {
   return {
     mode: report.mode,
     shop_id: report.shop_id,
+    data_file: report.data_file,
     mapping_file: report.mapping_file,
     manual_mappings: report.manual_mappings,
     planned_inserts: report.planned_inserts,
-    future_group_mappings: report.future_group_mappings,
     inserted_product_promotions: report.inserted_product_promotions,
+    inserted_product_group_promotions: report.inserted_product_group_promotions,
     inserted_cart_rules: report.inserted_cart_rules,
     skipped: report.skipped.length,
     replace: report.replace,
@@ -478,6 +599,9 @@ async function main() {
   if (!Number.isInteger(SHOP_ID) || SHOP_ID <= 0) {
     throw new Error(`Invalid --shopId: ${SHOP_ID}`);
   }
+  if (!fs.existsSync(DATA_FILE)) {
+    throw new Error(`Data file was not found: ${DATA_FILE}`);
+  }
   if (!fs.existsSync(MAPPING_FILE)) {
     throw new Error(`Mapping file was not found: ${MAPPING_FILE}\nCreate it with: npm run manual:leshem-promos:form`);
   }
@@ -488,6 +612,7 @@ async function main() {
   const promotionsByRewardId = new Map(sourcePromotions.map((promo) => [Number(promo.reward_id), promo]));
 
   await ensureCartPromotionSchema();
+  await ensureProductGroupPromotionColumns();
   const conn = await db.getConnection();
 
   try {
@@ -504,21 +629,24 @@ async function main() {
       mode: DRY_RUN ? "dryRun" : "confirm",
       shop_id: SHOP_ID,
       source: SOURCE,
+      data_file: DATA_FILE,
       mapping_file: MAPPING_FILE,
       generated_at: new Date().toISOString(),
       replace: REPLACE,
       include_expired: INCLUDE_EXPIRED,
       manual_mappings: mappingRows.length,
       planned_inserts: analysis.inserts.length,
-      future_group_mappings: analysis.futureGroups.length,
       inserted_product_promotions: 0,
+      inserted_product_group_promotions: 0,
       inserted_cart_rules: 0,
       inserts: analysis.inserts.map((item) => ({
         kind: item.kind,
         reward_id: item.reward_id,
         title: item.title,
-        product_id: item.product_id,
-        product_name: item.product_name,
+        product_id: item.product_id ?? null,
+        product_name: item.product_name ?? null,
+        product_ids: item.product_ids ?? null,
+        product_names: item.product_names ?? null,
         promotion_kind: item.payload.kind || item.payload.rule_type,
         fixed_price: item.payload.fixed_price ?? item.payload.reward_fixed_price ?? null,
         bundle_buy_qty: item.payload.bundle_buy_qty ?? null,
@@ -528,7 +656,6 @@ async function main() {
         end_at: item.payload.end_at,
         existing_id: item.existing_id,
       })),
-      future_groups: analysis.futureGroups,
       skipped: analysis.skipped,
       backup_tables: [],
     };
@@ -537,10 +664,14 @@ async function main() {
       const suffix = stamp();
       const promoBackup = `bak_promo_manual_s${SHOP_ID}_${suffix}`.replace(/[^a-zA-Z0-9_]/g, "_");
       const cartBackup = `bak_cart_rule_manual_s${SHOP_ID}_${suffix}`.replace(/[^a-zA-Z0-9_]/g, "_");
+      const groupBackup = `bak_group_promo_manual_s${SHOP_ID}_${suffix}`.replace(/[^a-zA-Z0-9_]/g, "_");
+      const groupItemBackup = `bak_group_item_manual_s${SHOP_ID}_${suffix}`.replace(/[^a-zA-Z0-9_]/g, "_");
 
       await backupTable(conn, "promotion", promoBackup, SHOP_ID);
       await backupTable(conn, "cart_promotion_rule", cartBackup, SHOP_ID);
-      report.backup_tables.push(promoBackup, cartBackup);
+      await backupTable(conn, "product_group_promotion", groupBackup, SHOP_ID);
+      await backupTable(conn, "product_group_promotion_item", groupItemBackup, SHOP_ID);
+      report.backup_tables.push(promoBackup, cartBackup, groupBackup, groupItemBackup);
 
       await conn.beginTransaction();
       try {
@@ -548,6 +679,9 @@ async function main() {
           if (REPLACE && item.existing_id) {
             if (item.kind === "product_promotion") {
               await conn.query(`DELETE FROM promotion WHERE id = ? AND shop_id = ?`, [item.existing_id, SHOP_ID]);
+            } else if (item.kind === "product_group_promotion") {
+              await conn.query(`DELETE FROM product_group_promotion_item WHERE group_promotion_id = ? AND shop_id = ?`, [item.existing_id, SHOP_ID]);
+              await conn.query(`DELETE FROM product_group_promotion WHERE id = ? AND shop_id = ?`, [item.existing_id, SHOP_ID]);
             } else {
               await conn.query(`DELETE FROM cart_promotion_rule WHERE id = ? AND shop_id = ?`, [item.existing_id, SHOP_ID]);
             }
@@ -556,6 +690,9 @@ async function main() {
           if (item.kind === "product_promotion") {
             await insertProductPromotion(conn, SHOP_ID, item.payload);
             report.inserted_product_promotions += 1;
+          } else if (item.kind === "product_group_promotion") {
+            await insertProductGroupPromotion(conn, SHOP_ID, item.payload);
+            report.inserted_product_group_promotions += 1;
           } else {
             await insertCartRule(conn, SHOP_ID, item.payload);
             report.inserted_cart_rules += 1;
