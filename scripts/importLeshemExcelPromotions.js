@@ -242,8 +242,9 @@ function buildProductPromotionPayload(promo, product, matchInfo) {
   const deal = parseDealText(promo.deal_text);
   if (!deal) return { skip_reason: "deal_text_not_supported" };
 
-  if (deal.qty < 1) return { skip_reason: "fractional_bundle_qty_requires_manual_mapping" };
-  if (!Number.isInteger(deal.qty)) return { skip_reason: "non_integer_bundle_qty_requires_manual_mapping" };
+  const fractionalFixedUnitPrice = deal.qty > 0 && deal.qty < 1;
+  if (deal.qty < 1 && !fractionalFixedUnitPrice) return { skip_reason: "fractional_bundle_qty_requires_manual_mapping" };
+  if (!fractionalFixedUnitPrice && !Number.isInteger(deal.qty)) return { skip_reason: "non_integer_bundle_qty_requires_manual_mapping" };
 
   const maxQty = promo.max_qty === null || promo.max_qty === undefined || promo.max_qty === ""
     ? null
@@ -257,9 +258,10 @@ function buildProductPromotionPayload(promo, product, matchInfo) {
     `מקור אקסל ${SOURCE}`,
     `תגמול ${promo.reward_id}`,
     `התאמה: ${matchInfo.reason}`,
-  ].join(" | ").slice(0, 255);
+    fractionalFixedUnitPrice ? "כמות חלקית מהאקסל הומרה למחיר יחידה" : null,
+  ].filter(Boolean).join(" | ").slice(0, 255);
 
-  if (deal.qty === 1) {
+  if (deal.qty === 1 || fractionalFixedUnitPrice) {
     return {
       product_id: product.id,
       product_name: product.name,

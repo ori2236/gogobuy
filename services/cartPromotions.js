@@ -227,6 +227,7 @@ async function loadOrderItemsForPromotion(conn, order_id, shop_id) {
       p.display_name_en,
       p.price AS unit_price,
       p.stock_amount,
+      p.is_consignment,
 
       pr.id AS promo_id2,
       pr.kind AS promo_kind,
@@ -281,7 +282,7 @@ async function restoreAndRemoveOldGiftItems(conn, { order_id, shop_id }) {
 
   for (const gift of giftRows || []) {
     await conn.query(
-      `UPDATE product SET stock_amount = stock_amount + ? WHERE id = ? AND shop_id = ?`,
+      `UPDATE product SET stock_amount = stock_amount + ? WHERE id = ? AND shop_id = ? AND COALESCE(is_consignment,0) = 0`,
       [qty(gift.amount), Number(gift.product_id), Number(shop_id)],
     );
   }
@@ -386,12 +387,13 @@ async function applyGiftProduct(conn, { order_id, shop_id, items, rule, applicat
   }
 
   const [[product]] = await conn.query(
-    `SELECT id, price, stock_amount FROM product WHERE id = ? AND shop_id = ? FOR UPDATE`,
+    `SELECT id, price, stock_amount, is_consignment FROM product WHERE id = ? AND shop_id = ? FOR UPDATE`,
     [rewardProductId, Number(shop_id)],
   );
   if (!product) return;
 
-  const stock = Number(product.stock_amount);
+  const isConsignment = Number(product.is_consignment || 0) === 1;
+  const stock = isConsignment ? Infinity : Number(product.stock_amount);
   if (Number.isFinite(stock) && stock < giftQty) {
     applications.push({
       rule,
@@ -408,10 +410,12 @@ async function applyGiftProduct(conn, { order_id, shop_id, items, rule, applicat
     return;
   }
 
-  await conn.query(
-    `UPDATE product SET stock_amount = stock_amount - ? WHERE id = ? AND shop_id = ?`,
-    [giftQty, rewardProductId, Number(shop_id)],
-  );
+  if (!isConsignment) {
+    await conn.query(
+      `UPDATE product SET stock_amount = stock_amount - ? WHERE id = ? AND shop_id = ?`,
+      [giftQty, rewardProductId, Number(shop_id)],
+    );
+  }
 
   await conn.query(
     `

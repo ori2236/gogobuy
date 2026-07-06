@@ -403,7 +403,7 @@ async function addSuggestionActionsToOrder({
 
     for (const action of cleanActions) {
       const [[product]] = await conn.query(
-        `SELECT id, name, display_name_en, price, stock_amount, category, sub_category
+        `SELECT id, name, display_name_en, price, stock_amount, is_consignment, category, sub_category
            FROM product
           WHERE id = ? AND shop_id = ?
           FOR UPDATE`,
@@ -450,18 +450,21 @@ async function addSuggestionActionsToOrder({
         else delta = Math.trunc(delta);
       }
 
-      const stock = Number(product.stock_amount);
-      if (!Number.isFinite(stock) || stock < delta) {
+      const productIsConsignment = Number(product.is_consignment || 0) === 1;
+      const stock = productIsConsignment ? Infinity : Number(product.stock_amount);
+      if (!productIsConsignment && (!Number.isFinite(stock) || stock < delta)) {
         skipped.push({ ...action, reason: "INSUFFICIENT_STOCK", available: stock });
         continue;
       }
 
-      await conn.query(
-        `UPDATE product
-            SET stock_amount = stock_amount - ?
-          WHERE id = ? AND shop_id = ?`,
-        [Number(delta), Number(product.id), Number(shop_id)],
-      );
+      if (!productIsConsignment) {
+        await conn.query(
+          `UPDATE product
+              SET stock_amount = stock_amount - ?
+            WHERE id = ? AND shop_id = ?`,
+          [Number(delta), Number(product.id), Number(shop_id)],
+        );
+      }
 
       const finalQty = isWeight
         ? roundTo(existingQty + delta, 3)
@@ -667,6 +670,7 @@ async function fetchBundleRowsForOrderItems({ shop_id, order_id, productIds }) {
        p.name,
        p.display_name_en,
        p.stock_amount,
+       p.is_consignment,
        pr.id AS promo_id,
        pr.kind,
        pr.bundle_buy_qty,
@@ -693,7 +697,7 @@ function buildBundleNudgeActions(rows, { isEnglish, maxPerProduct }) {
   for (const r of rows || []) {
     const buyQty = Number(r.bundle_buy_qty);
     const qty = Number(r.amount);
-    const stock = Number(r.stock_amount);
+    const stock = Number(r.is_consignment || 0) === 1 ? Infinity : Number(r.stock_amount);
     const isWeight = r.sold_by_weight === 1 || r.sold_by_weight === true;
 
     if (!Number.isFinite(buyQty) || buyQty < 2) continue;
@@ -768,11 +772,13 @@ async function fetchGroupBundleRowsForOrderItems({ shop_id, order_id, productIds
        op.name AS order_product_name,
        op.display_name_en AS order_display_name_en,
        op.stock_amount AS order_stock_amount,
+       op.is_consignment AS order_is_consignment,
 
        gpi_all.product_id AS group_product_id,
        gp.name AS group_product_name,
        gp.display_name_en AS group_display_name_en,
-       gp.stock_amount AS group_stock_amount
+       gp.stock_amount AS group_stock_amount,
+       gp.is_consignment AS group_is_consignment
      FROM product_group_promotion pgp
      JOIN product_group_promotion_item gpi_match
        ON gpi_match.group_promotion_id = pgp.id
@@ -828,7 +834,8 @@ function buildGroupBundleNudgeActions(rows, { isEnglish, maxPerProduct }) {
         sold_by_weight: row.sold_by_weight === 1 || row.sold_by_weight === true,
         name: row.order_product_name,
         display_name_en: row.order_display_name_en,
-        stock_amount: Number(row.order_stock_amount),
+        stock_amount: Number(row.order_is_consignment || 0) === 1 ? null : Number(row.order_stock_amount),
+        is_consignment: Number(row.order_is_consignment || 0) === 1,
       });
     }
 
@@ -838,7 +845,8 @@ function buildGroupBundleNudgeActions(rows, { isEnglish, maxPerProduct }) {
         product_id: groupProductId,
         name: row.group_product_name,
         display_name_en: row.group_display_name_en,
-        stock_amount: Number(row.group_stock_amount),
+        stock_amount: Number(row.group_is_consignment || 0) === 1 ? null : Number(row.group_stock_amount),
+        is_consignment: Number(row.group_is_consignment || 0) === 1,
       });
     }
   }
@@ -873,7 +881,7 @@ function buildGroupBundleNudgeActions(rows, { isEnglish, maxPerProduct }) {
 
     const existingIds = new Set(orderItems.map((item) => Number(item.product_id)));
     const candidates = Array.from(group.groupProducts.values())
-      .filter((p) => Number.isFinite(Number(p.stock_amount)) ? Number(p.stock_amount) >= amountToAdd : true)
+      .filter((p) => p.is_consignment || (Number.isFinite(Number(p.stock_amount)) ? Number(p.stock_amount) >= amountToAdd : true))
       .sort((a, b) => {
         const aExisting = existingIds.has(Number(a.product_id)) ? 0 : 1;
         const bExisting = existingIds.has(Number(b.product_id)) ? 0 : 1;
@@ -1044,8 +1052,9 @@ async function findAvailableRecommendationMatch({ shop_id, customer_id, suggesti
   const row = await findBestProductForRequest(shop_id, req, { customer_id });
   if (!row) return null;
 
-  const stock = Number(row.stock_amount);
-  if (!Number.isFinite(stock) || stock < 1) return null;
+  const isConsignment = Number(row.is_consignment || 0) === 1;
+  const stock = isConsignment ? Infinity : Number(row.stock_amount);
+  if (!isConsignment && (!Number.isFinite(stock) || stock < 1)) return null;
 
   return row;
 }

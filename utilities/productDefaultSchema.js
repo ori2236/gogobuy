@@ -1,6 +1,7 @@
 const db = require("../config/db");
 
 const PRODUCT_DEFAULT_COLUMN_SQL = "TINYINT(1) NOT NULL DEFAULT 0";
+const PRODUCT_CONSIGNMENT_COLUMN_SQL = "TINYINT(1) NOT NULL DEFAULT 0";
 
 let productDefaultSchemaReadyPromise = null;
 
@@ -15,6 +16,20 @@ async function hasColumn(tableName, columnName, conn = db) {
     LIMIT 1
     `,
     [tableName, columnName],
+  );
+  return rows.length > 0;
+}
+
+async function hasTable(tableName, conn = db) {
+  const [rows] = await conn.query(
+    `
+    SELECT 1
+    FROM INFORMATION_SCHEMA.TABLES
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = ?
+    LIMIT 1
+    `,
+    [tableName],
   );
   return rows.length > 0;
 }
@@ -51,6 +66,42 @@ async function ensureProductDefaultSchemaNow(conn = db) {
       `CREATE INDEX idx_product_shop_default ON product (shop_id, is_default, updated_at, id)`,
     );
   }
+
+  if (!(await hasColumn("product", "is_consignment", conn))) {
+    const afterColumn = (await hasColumn("product", "is_default", conn))
+      ? "is_default"
+      : "stock_amount";
+    await conn.query(
+      `ALTER TABLE product ADD COLUMN is_consignment ${PRODUCT_CONSIGNMENT_COLUMN_SQL} AFTER ${afterColumn}`,
+    );
+  } else {
+    await conn.query(`UPDATE product SET is_consignment = 0 WHERE is_consignment IS NULL`);
+    await conn.query(
+      `ALTER TABLE product MODIFY COLUMN is_consignment ${PRODUCT_CONSIGNMENT_COLUMN_SQL}`,
+    );
+  }
+
+  if (!(await hasIndex("product", "idx_product_shop_consignment", conn))) {
+    await conn.query(
+      `CREATE INDEX idx_product_shop_consignment ON product (shop_id, is_consignment, updated_at, id)`,
+    );
+  }
+
+  if (await hasTable("deleted_product", conn)) {
+    if (!(await hasColumn("deleted_product", "is_consignment", conn))) {
+      const afterColumn = (await hasColumn("deleted_product", "stock_amount", conn))
+        ? "stock_amount"
+        : "price";
+      await conn.query(
+        `ALTER TABLE deleted_product ADD COLUMN is_consignment ${PRODUCT_CONSIGNMENT_COLUMN_SQL} AFTER ${afterColumn}`,
+      );
+    } else {
+      await conn.query(`UPDATE deleted_product SET is_consignment = 0 WHERE is_consignment IS NULL`);
+      await conn.query(
+        `ALTER TABLE deleted_product MODIFY COLUMN is_consignment ${PRODUCT_CONSIGNMENT_COLUMN_SQL}`,
+      );
+    }
+  }
 }
 
 async function ensureProductDefaultSchema(conn = db) {
@@ -69,6 +120,10 @@ async function ensureProductDefaultSchema(conn = db) {
   return productDefaultSchemaReadyPromise;
 }
 
+function isConsignmentRow(row) {
+  return Number(row?.is_consignment || 0) === 1;
+}
+
 function toBool(value, fallback = false) {
   if (typeof value === "boolean") return value;
   if (typeof value === "number") return value !== 0;
@@ -83,5 +138,6 @@ function toBool(value, fallback = false) {
 module.exports = {
   ensureProductDefaultSchema,
   ensureProductDefaultSchemaNow,
+  isConsignmentRow,
   toBool,
 };

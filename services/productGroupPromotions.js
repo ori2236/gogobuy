@@ -567,6 +567,7 @@ async function fetchProductsForGroupPromotions(shopId, groupIds) {
       p.display_name_en,
       p.price,
       p.stock_amount,
+      p.is_consignment,
       p.category,
       p.sub_category,
       p.emoji
@@ -589,7 +590,8 @@ async function fetchProductsForGroupPromotions(shopId, groupIds) {
       name: row.name,
       display_name_en: row.display_name_en,
       price: row.price,
-      stock_amount: row.stock_amount,
+      stock_amount: Number(row.is_consignment || 0) === 1 ? null : row.stock_amount,
+      is_consignment: Number(row.is_consignment || 0) === 1,
       category: row.category,
       sub_category: row.sub_category,
       emoji: row.emoji,

@@ -69,7 +69,7 @@ async function fetchAlternativesWithStock(
   if (!category && !subCategory) return [];
   const params = [shop_id];
   let sql = `
-    SELECT id, name, price, stock_amount, category, sub_category
+    SELECT id, name, price, stock_amount, is_consignment, category, sub_category
     FROM product
     WHERE shop_id = ?
   `;
@@ -85,7 +85,7 @@ async function fetchAlternativesWithStock(
     sql += ` AND id NOT IN (${excludeIds.map(() => "?").join(",")})`;
     params.push(...excludeIds);
   }
-  sql += ` AND stock_amount >= ? ORDER BY updated_at DESC, id DESC LIMIT ?`;
+  sql += ` AND (COALESCE(is_consignment,0) = 1 OR stock_amount >= ?) ORDER BY updated_at DESC, id DESC LIMIT ?`;
   params.push(Number(neededQty), Number(limit));
   const [rows] = await conn.query(sql, params);
   return rows || [];
@@ -187,7 +187,7 @@ async function createOrderWithStockReserve({
     const placeholders = ids.map(() => "?").join(",");
     const [prodRows] = await conn.query(
       `
-        SELECT id, shop_id, name, price, stock_amount, category, sub_category
+        SELECT id, shop_id, name, price, stock_amount, is_consignment, category, sub_category
         FROM product
         WHERE shop_id = ? AND id IN (${placeholders})
         ORDER BY id
@@ -216,7 +216,8 @@ async function createOrderWithStockReserve({
       }
 
       const reqQty = Number(li.amount);
-      const stock = Number(p.stock_amount);
+      const isConsignment = Number(p.is_consignment || 0) === 1;
+      const stock = isConsignment ? Infinity : Number(p.stock_amount);
 
       if (stock < reqQty) {
         const missing = reqQty - stock;
@@ -252,13 +253,14 @@ async function createOrderWithStockReserve({
             product_id: a.id,
             name: a.name,
             price: Number(a.price),
-            stock_amount: Number(a.stock_amount),
+            stock_amount: Number(a.is_consignment || 0) === 1 ? null : Number(a.stock_amount),
+            is_consignment: Number(a.is_consignment || 0) === 1,
             category: a.category,
             sub_category: a.sub_category,
           })),
         });
       } else {
-        const newStock = Number((stock - reqQty).toFixed(3));
+        const newStock = isConsignment ? Number(p.stock_amount || 0) : Number((stock - reqQty).toFixed(3));
         okItems.push({
           product_id: p.id,
           name: p.name,
@@ -266,6 +268,7 @@ async function createOrderWithStockReserve({
           amount: reqQty,
           category: p.category,
           sub_category: p.sub_category,
+          is_consignment: isConsignment,
           new_stock: newStock,
 
           sold_by_weight: li.sold_by_weight === true || li.sold_by_weight === 1,
@@ -297,8 +300,10 @@ async function createOrderWithStockReserve({
       };
     }
 
-    // change the amount in stock
+    // change the amount in stock. Consignment products are unlimited-stock items,
+    // so their stored stock_amount is kept only as a legacy/display value.
     for (const it of okItems) {
+      if (it.is_consignment) continue;
       await conn.query(
         `UPDATE product
            SET stock_amount = ?

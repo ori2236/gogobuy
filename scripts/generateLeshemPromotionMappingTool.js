@@ -18,6 +18,7 @@ function argValue(name, fallback = null) {
 const SHOP_ID = Number(argValue("--shopId", process.env.PROMO_IMPORT_SHOP_ID || 2));
 const REPORT_ARG = argValue("--report", null);
 const OUT_ARG = argValue("--out", null);
+const ONLY_MISSING_FROM_SHOP = Boolean(argValue("--onlyMissingFromShop", false));
 
 function pad2(value) {
   return String(value).padStart(2, "0");
@@ -185,10 +186,10 @@ function promoCardHtml(promo) {
         <div class="box">
           <div class="box-title">כתוב ובחר מוצרים מה־DB</div>
           <div class="autocomplete-row">
-            <input class="product-input" placeholder="כתוב שם מוצר או ID, למשל: ריאו / גלידת בן&גריס / 35479" oninput="promoToolRenderSearchResults(this)" onfocus="promoToolRenderSearchResults(this)" onkeydown="promoToolInputKeydown(event)" />
+            <input class="product-input" placeholder="כתוב מילים או ID. לדוגמה: קוקה זירו / בן גריס / 35479" oninput="promoToolRenderSearchResults(this)" onfocus="promoToolRenderSearchResults(this)" onkeydown="promoToolInputKeydown(event)" />
             <button type="button" class="small secondary" onclick="promoToolAddFromInput(this)">הוסף</button>
           </div>
-          <div class="search-results empty">כתוב כדי לראות מוצרים מה־DB. אחרי בחירה הרשימה תישאר פתוחה ותסתיר מוצרים שכבר נבחרו.</div>
+          <div class="search-results empty">כתוב מילים לחיפוש. יוצגו רק מוצרים שכוללים את כל המילים שכתבת.</div>
         </div>
 
         <div class="box">
@@ -211,13 +212,15 @@ function promoCardHtml(promo) {
   `;
 }
 
-function makeHtml({ shopId, reportPath, report, products, skipped }) {
+function makeHtml({ shopId, reportPath, report, products, skipped, originalSkippedCount, existingRewardIds, onlyMissingFromShop }) {
   const cardsHtml = skipped.map((promo) => promoCardHtml(promo)).join("\n");
   const datalistHtml = products.map((p) => `<option value="${escapeAttr(productLabel(p))}"></option>`).join("\n");
   const reasons = Array.from(new Set(skipped.map((p) => p.reason || "unknown"))).sort();
   const reasonOptions = reasons
     .map((reason) => `<option value="${escapeAttr(reason)}">${escapeHtml(reasonLabel(reason))} (${skipped.filter((p) => (p.reason || "unknown") === reason).length})</option>`)
     .join("\n");
+  const existingCount = existingRewardIds instanceof Set ? existingRewardIds.size : 0;
+  const modeText = onlyMissingFromShop ? `מציג רק מבצעים שלא קיימים כרגע בסניף ${shopId}` : "מציג את כל המבצעים שדולגו בדוח";
   const productsJson = JSON.stringify(products.map((p) => ({
     id: Number(p.id),
     name: p.name || "",
@@ -245,7 +248,7 @@ function makeHtml({ shopId, reportPath, report, products, skipped }) {
     button,.file-label { border:0; border-radius:12px; padding:10px 14px; cursor:pointer; font-weight:700; background:var(--primary); color:#fff; box-shadow:0 3px 8px rgba(37,99,235,.16); }
     button:hover,.file-label:hover { background:var(--primary-dark); } button.secondary { background:#eef4ff; color:#1d4ed8; box-shadow:none; border:1px solid #bfdbfe; } button.danger { background:var(--soft-red); color:var(--danger); box-shadow:none; border:1px solid #fecaca; } button.small { padding:6px 10px; border-radius:9px; font-size:12px; }
     main { max-width:1400px; margin:22px auto; padding:0 22px 40px; }
-    .stats { display:grid; grid-template-columns:repeat(5,minmax(150px,1fr)); gap:12px; margin-bottom:18px; }
+    .stats { display:grid; grid-template-columns:repeat(6,minmax(140px,1fr)); gap:12px; margin-bottom:18px; }
     .stat { background:var(--card); border:1px solid var(--border); border-radius:18px; padding:14px; box-shadow:var(--shadow); } .stat strong { display:block; font-size:24px; } .stat span { color:var(--muted); font-size:13px; }
     .notice { background:#fff8e6; border:1px solid #fedf89; color:#7a4b00; border-radius:16px; padding:12px 14px; margin-bottom:18px; }
     .toolbar { display:grid; grid-template-columns:1.4fr 1fr 1fr; gap:10px; margin:16px 0 20px; }
@@ -283,56 +286,64 @@ function makeHtml({ shopId, reportPath, report, products, skipped }) {
         .trim();
     }
     function promoToolTokens(s) {
-      var stop={"ב":1,"של":1,"עם":1,"על":1,"מעל":1,"בקניה":1,"בקנייה":1,"רק":1,"שח":1,"גרם":1,"קג":1,"לקג":1,"מל":1,"ליטר":1,"יח":1,"מגוון":1,"מוצרי":1};
-      return promoToolNormalizeProductText(s).split(' ').filter(function(t){ return t && !stop[t] && !/^\d+(?:\.\d+)?$/.test(t); });
+      return promoToolNormalizeProductText(s).split(' ').filter(function(t){ return !!t; });
+    }
+    function promoToolProductSearchText(product) {
+      return promoToolNormalizeProductText([
+        product.id,
+        product.name,
+        product.label,
+        product.category,
+        product.sub_category
+      ].join(' '));
     }
     function promoToolAllTokensMatch(product, tokens) {
-      var text=promoToolNormalizeProductText([product.name, product.label, product.category, product.sub_category].join(' '));
-      return tokens.length>0 && tokens.every(function(t){ return text.split(' ').indexOf(t)>=0; });
+      var text=promoToolProductSearchText(product);
+      return tokens.length>0 && tokens.every(function(t){ return text.indexOf(t)>=0; });
     }
     function promoToolParseInputValue(value) {
       var raw=String(value||'').trim();
       if(!raw) return null;
-      var idMatch=raw.match(/(?:^|\D)(\d{3,})(?:\D|$)/);
-      if(idMatch) {
-        var id=Number(idMatch[1]);
-        var product=PROMO_TOOL_PRODUCTS_BY_ID[id];
-        return { id:id, name: product ? promoToolProductDisplayName(product) : ('ID '+id) };
-      }
       var norm=promoToolNormalizeProductText(raw);
+      var exactId=/^\d+$/.test(norm) ? Number(norm) : null;
+      if(exactId && PROMO_TOOL_PRODUCTS_BY_ID[exactId]) {
+        var exactProduct=PROMO_TOOL_PRODUCTS_BY_ID[exactId];
+        return { id:exactId, name:promoToolProductDisplayName(exactProduct) };
+      }
+      var idFromLabel=raw.match(/^\s*(\d{3,})\s*\|/);
+      if(idFromLabel) {
+        var id=Number(idFromLabel[1]);
+        var product=PROMO_TOOL_PRODUCTS_BY_ID[id];
+        if(product) return { id:id, name:promoToolProductDisplayName(product) };
+      }
       if(!norm) return null;
       var exact=PROMO_TOOL_PRODUCTS.filter(function(p){ return promoToolNormalizeProductText(p.name)===norm || promoToolNormalizeProductText(p.label)===norm; });
-      if(exact.length===1) return { id:Number(exact[0].id), name: promoToolProductDisplayName(exact[0]) };
-      var starts=PROMO_TOOL_PRODUCTS.filter(function(p){ return promoToolNormalizeProductText(p.name).indexOf(norm)===0; });
-      if(starts.length===1) return { id:Number(starts[0].id), name: promoToolProductDisplayName(starts[0]) };
-      var contains=PROMO_TOOL_PRODUCTS.filter(function(p){ return promoToolNormalizeProductText(p.name).indexOf(norm)>=0 || promoToolNormalizeProductText(p.label).indexOf(norm)>=0; });
-      if(contains.length===1) return { id:Number(contains[0].id), name: promoToolProductDisplayName(contains[0]) };
+      if(exact.length===1) return { id:Number(exact[0].id), name:promoToolProductDisplayName(exact[0]) };
       var tokens=promoToolTokens(raw);
       var tokenMatches=PROMO_TOOL_PRODUCTS.filter(function(p){ return promoToolAllTokensMatch(p, tokens); });
-      if(tokenMatches.length===1) return { id:Number(tokenMatches[0].id), name: promoToolProductDisplayName(tokenMatches[0]) };
-      var combined=contains.length ? contains : tokenMatches;
-      if(combined.length>1) { return { error:'multiple', count:combined.length, options:combined.slice(0,8).map(function(p){ return p.id+' | '+p.name; }) }; }
+      if(tokenMatches.length===1) return { id:Number(tokenMatches[0].id), name:promoToolProductDisplayName(tokenMatches[0]) };
+      if(tokenMatches.length>1) { return { error:'multiple', count:tokenMatches.length, options:tokenMatches.slice(0,8).map(function(p){ return p.id+' | '+p.name; }) }; }
       return null;
     }
     function promoToolSelectedIds(card) { var out={}; if(!card) return out; card.querySelectorAll('.selected-row').forEach(function(row){ var id=Number(row.getAttribute('data-selected-product-id')); if(id) out[id]=true; }); return out; }
     function promoToolSearchScore(product, raw, tokens, norm) {
       var name=promoToolNormalizeProductText(product.name);
       var label=promoToolNormalizeProductText(product.label);
-      var cat=promoToolNormalizeProductText([product.category, product.sub_category].join(' '));
-      var text=[name,label,cat].join(' ');
-      if(!norm && !tokens.length) return 0;
+      var text=promoToolProductSearchText(product);
       var score=0;
       if(norm && String(product.id)===norm) score+=1000;
-      if(norm && name===norm) score+=250;
-      if(norm && label.indexOf(norm)>=0) score+=80;
-      if(norm && name.indexOf(norm)>=0) score+=120;
-      if(norm && name.indexOf(norm)===0) score+=40;
-      var words=text.split(' ');
-      var hits=0;
-      tokens.forEach(function(t){ if(words.indexOf(t)>=0 || text.indexOf(t)>=0) hits+=1; });
-      if(tokens.length) score += (hits/tokens.length)*160 + hits*8;
-      var stock=Number(product.stock_amount||0);
-      if(stock>0) score+=Math.min(12, stock/40);
+      if(norm && name===norm) score+=500;
+      if(norm && label===norm) score+=450;
+      if(norm && name.indexOf(norm)===0) score+=300;
+      if(norm && name.indexOf(norm)>=0) score+=220;
+      if(norm && label.indexOf(norm)>=0) score+=160;
+      tokens.forEach(function(t){
+        if(name.indexOf(t)===0) score+=70;
+        else if(name.indexOf(t)>=0) score+=50;
+        else if(label.indexOf(t)>=0) score+=30;
+        else if(text.indexOf(t)>=0) score+=10;
+      });
+      score+=Math.max(0, 80 - Math.min(80, name.length));
       return score;
     }
     function promoToolSearchProducts(value, card) {
@@ -340,13 +351,13 @@ function makeHtml({ shopId, reportPath, report, products, skipped }) {
       var norm=promoToolNormalizeProductText(raw);
       var tokens=promoToolTokens(raw);
       var selected=promoToolSelectedIds(card);
-      if(!norm && !tokens.length) return [];
+      if(!tokens.length) return [];
       return PROMO_TOOL_PRODUCTS
         .filter(function(p){ return !selected[Number(p.id)]; })
+        .filter(function(p){ return promoToolAllTokensMatch(p, tokens); })
         .map(function(p){ return { product:p, score:promoToolSearchScore(p, raw, tokens, norm) }; })
-        .filter(function(row){ return row.score>0; })
         .sort(function(a,b){ if(b.score!==a.score) return b.score-a.score; return Number(a.product.id)-Number(b.product.id); })
-        .slice(0,60)
+        .slice(0,80)
         .map(function(row){ return row.product; });
     }
     function promoToolRenderSearchResults(input) {
@@ -357,7 +368,7 @@ function makeHtml({ shopId, reportPath, report, products, skipped }) {
       var rows=promoToolSearchProducts(input && input.value, card);
       if(!rows.length) {
         box.className='search-results empty';
-        box.innerHTML=(input && input.value) ? 'לא נמצאו מוצרים זמינים שלא נבחרו כבר. אפשר להקליד ID מדויק.' : 'כתוב כדי לראות מוצרים מה־DB. אחרי בחירה הרשימה תישאר פתוחה ותסתיר מוצרים שכבר נבחרו.';
+        box.innerHTML=(input && input.value) ? 'לא נמצאו מוצרים שכוללים את כל המילים שכתבת. אפשר לנסות פחות מילים או להקליד ID מדויק.' : 'כתוב מילים לחיפוש. יוצגו רק מוצרים שכוללים את כל המילים שכתבת.';
         return;
       }
       box.className='search-results';
@@ -431,7 +442,7 @@ function makeHtml({ shopId, reportPath, report, products, skipped }) {
     <div class="header-row">
       <div>
         <h1>מיפוי ידני למבצעי לשם</h1>
-        <div class="sub">סניף ${escapeHtml(shopId)} · נוצר מתוך ${escapeHtml(path.basename(reportPath))} · קובץ יציאה מומלץ: <b>data/leshem_manual_promo_mapping.json</b></div>
+        <div class="sub">סניף ${escapeHtml(shopId)} · נוצר מתוך ${escapeHtml(path.basename(reportPath))} · מצב: <b>${escapeHtml(modeText)}</b> · קובץ יציאה מומלץ: <b>data/leshem_manual_promo_mapping_current.json</b></div>
       </div>
       <div class="actions">
         <label class="file-label">טען mapping קיים<input id="importFile" type="file" accept="application/json" style="display:none" /></label>
@@ -444,14 +455,16 @@ function makeHtml({ shopId, reportPath, report, products, skipped }) {
   <main>
     <div class="stats">
       <div class="stat"><strong id="mappedCount">0</strong><span>מבצעים שמופו ידנית</span></div>
-      <div class="stat"><strong>${escapeHtml(skipped.length)}</strong><span>מבצעים שדורשים החלטה</span></div>
+      <div class="stat"><strong>${escapeHtml(skipped.length)}</strong><span>${onlyMissingFromShop ? "מבצעים שעדיין לא הוכנסו" : "מבצעים שדורשים החלטה"}</span></div>
+      <div class="stat"><strong>${escapeHtml(originalSkippedCount ?? skipped.length)}</strong><span>מבצעים שדולגו בדוח המקורי</span></div>
       <div class="stat"><strong>${escapeHtml(products.length)}</strong><span>מוצרים זמינים ב־DB</span></div>
       <div class="stat"><strong id="selectedProductsCount">0</strong><span>בחירות מוצר סה״כ</span></div>
       <div class="stat"><strong id="groupCount">0</strong><span>מבצעי קבוצה</span></div>
     </div>
 
     <div id="toast" class="toast"></div>
-    <div class="notice">בכל כרטיס מופיע המבצע מהאקסל, שם המוצר/החיפוש שחולץ ממנו, ושדה חיפוש מתוך מוצרי ה־DB. אפשר להקליד חיפוש חלקי כמו "ארטיק ריאו" ולבחור כמה מוצרים ברצף. מוצר שכבר נבחר ייעלם מהמועמדים ומהחיפוש. אם בחרת יותר ממוצר אחד, הכלי יסמן אוטומטית "מבצע קבוצה / מיקס"; אפשר להוריד את הוי כדי ליצור מבצע נפרד לכל מוצר.</div>
+    <div class="notice">${onlyMissingFromShop ? "הכלי סינן מראש מבצעים שכבר קיימים בפועל בסניף לפי מזהה תגמול שמופיע בטבלאות promotion / cart_promotion_rule / product_group_promotion. אם מבצע כבר נכנס, הוא לא יוצג כאן." : ""}</div>
+    <div class="notice">בכל כרטיס מופיע המבצע מהאקסל, שם המוצר/החיפוש שחולץ ממנו, ושדה חיפוש מתוך מוצרי ה־DB. החיפוש לפי מילים: אם כתבת "קוקה זירו", יוצגו רק מוצרים שכוללים גם "קוקה" וגם "זירו". מוצר שכבר נבחר ייעלם מהמועמדים ומהחיפוש. אם בחרת יותר ממוצר אחד, הכלי יסמן אוטומטית "מבצע קבוצה / מיקס"; אפשר להוריד את הוי כדי ליצור מבצע נפרד לכל מוצר.</div>
 
     <div class="toolbar">
       <input id="globalSearch" placeholder="חיפוש מבצע לפי שם / מזהה / סיבה" />
@@ -465,6 +478,86 @@ function makeHtml({ shopId, reportPath, report, products, skipped }) {
   </main>
 </body>
 </html>`;
+}
+
+
+async function tableExists(tableName) {
+  const [rows] = await db.query(
+    `
+    SELECT 1
+    FROM INFORMATION_SCHEMA.TABLES
+    WHERE TABLE_SCHEMA = DATABASE()
+      AND TABLE_NAME = ?
+    LIMIT 1
+    `,
+    [tableName],
+  );
+  return Array.isArray(rows) && rows.length > 0;
+}
+
+function addRewardIdsFromText(target, value) {
+  const text = String(value || "");
+  const rewardRegex = /תגמול\s+(\d+)/g;
+  let match;
+  while ((match = rewardRegex.exec(text))) {
+    const id = Number(match[1]);
+    if (Number.isInteger(id) && id > 0) target.add(id);
+  }
+
+  const externalMatch = text.match(/^\s*(\d+)/);
+  if (externalMatch) {
+    const id = Number(externalMatch[1]);
+    if (Number.isInteger(id) && id > 0) target.add(id);
+  }
+}
+
+async function loadExistingPromotionRewardIds(shopId) {
+  const rewardIds = new Set();
+
+  if (await tableExists("promotion")) {
+    const [rows] = await db.query(
+      `
+      SELECT id, description
+      FROM promotion
+      WHERE shop_id = ?
+      `,
+      [shopId],
+    );
+    for (const row of rows || []) addRewardIdsFromText(rewardIds, row.description);
+  }
+
+  if (await tableExists("product_group_promotion")) {
+    const [rows] = await db.query(
+      `
+      SELECT id, title, description
+      FROM product_group_promotion
+      WHERE shop_id = ?
+      `,
+      [shopId],
+    );
+    for (const row of rows || []) {
+      addRewardIdsFromText(rewardIds, row.description);
+      addRewardIdsFromText(rewardIds, row.title);
+    }
+  }
+
+  if (await tableExists("cart_promotion_rule")) {
+    const [rows] = await db.query(
+      `
+      SELECT id, external_reward_id, title, description
+      FROM cart_promotion_rule
+      WHERE shop_id = ?
+      `,
+      [shopId],
+    );
+    for (const row of rows || []) {
+      addRewardIdsFromText(rewardIds, row.external_reward_id);
+      addRewardIdsFromText(rewardIds, row.description);
+      addRewardIdsFromText(rewardIds, row.title);
+    }
+  }
+
+  return rewardIds;
 }
 
 async function loadProducts(shopId) {
@@ -494,21 +587,37 @@ async function main() {
 
   const reportPath = path.resolve(REPORT_ARG || findLatestReport());
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  const skipped = Array.isArray(report.skipped) ? report.skipped : [];
+  const originalSkipped = Array.isArray(report.skipped) ? report.skipped : [];
+  const existingRewardIds = ONLY_MISSING_FROM_SHOP ? await loadExistingPromotionRewardIds(SHOP_ID) : new Set();
+  const skipped = ONLY_MISSING_FROM_SHOP
+    ? originalSkipped.filter((promo) => !existingRewardIds.has(Number(promo.reward_id)))
+    : originalSkipped;
   const products = await loadProducts(SHOP_ID);
 
   fs.mkdirSync(REPORTS_DIR, { recursive: true });
   const outputPath = path.resolve(OUT_ARG || path.join(REPORTS_DIR, `leshem_manual_promo_mapping_tool_${stamp()}.html`));
-  fs.writeFileSync(outputPath, makeHtml({ shopId: SHOP_ID, reportPath, report, products, skipped }), "utf8");
+  fs.writeFileSync(outputPath, makeHtml({
+    shopId: SHOP_ID,
+    reportPath,
+    report,
+    products,
+    skipped,
+    originalSkippedCount: originalSkipped.length,
+    existingRewardIds,
+    onlyMissingFromShop: ONLY_MISSING_FROM_SHOP,
+  }), "utf8");
 
   console.log(JSON.stringify({
     shop_id: SHOP_ID,
     products_in_shop: products.length,
     skipped_promotions: skipped.length,
+    original_skipped_promotions: originalSkipped.length,
+    existing_reward_ids_in_shop: existingRewardIds.size,
+    only_missing_from_shop: ONLY_MISSING_FROM_SHOP,
     report_file: reportPath,
     html_file: outputPath,
   }, null, 2));
-  console.log("\nOpen the html_file in your browser, choose products, mark group promotions where needed, then download leshem_manual_promo_mapping.json into the data folder.");
+  console.log("\nOpen the html_file in your browser, choose products, mark group promotions where needed, then download leshem_manual_promo_mapping_current.json into the data folder.");
 }
 
 main()

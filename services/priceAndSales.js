@@ -186,12 +186,14 @@ function buildQuestionsTextSmart({ questions, isEnglish }) {
 }
 
 function isOutOfStockFromFound(foundRow) {
+  if (Number(foundRow?.is_consignment || 0) === 1) return false;
   const stockRaw = Number(foundRow?.stock_amount);
   const stock = Number.isFinite(stockRaw) && stockRaw >= 0 ? stockRaw : null;
   return stock !== null && stock <= 0;
 }
 
 function isInStockRow(row) {
+  if (Number(row?.is_consignment || 0) === 1) return true;
   const s = Number(row?.stock_amount);
   if (!Number.isFinite(s)) return true;
   return s > 0;
@@ -1066,7 +1068,7 @@ async function queryBudgetPickRows({
   const params = [shop_id];
 
   let sql = `
-    SELECT id, name, display_name_en, price, stock_amount, category, sub_category
+    SELECT id, name, display_name_en, price, stock_amount, is_consignment, category, sub_category
       FROM product
      WHERE shop_id = ?
        AND price IS NOT NULL
@@ -1538,6 +1540,7 @@ async function searchPromotionsForRequest(shop_id, req, { limit = 50 } = {}) {
       p.emoji          AS emoji,
       p.price          AS price,
       p.stock_amount   AS stock_amount,
+      p.is_consignment AS is_consignment,
       p.category       AS category,
       p.sub_category   AS sub_category
     FROM promotion pr
@@ -1545,7 +1548,7 @@ async function searchPromotionsForRequest(shop_id, req, { limit = 50 } = {}) {
       ON p.id = pr.product_id
      AND p.shop_id = pr.shop_id
     WHERE pr.shop_id = ?
-      AND p.stock_amount > 0
+      AND (COALESCE(p.is_consignment,0) = 1 OR p.stock_amount > 0)
   `;
 
   if (category) {
@@ -2211,6 +2214,7 @@ async function fetchActivePromotionsOverview({
       p.emoji          AS emoji,
       p.price          AS price,
       p.stock_amount   AS stock_amount,
+      p.is_consignment AS is_consignment,
       p.category       AS category,
       p.sub_category   AS sub_category
     FROM promotion pr
@@ -2218,7 +2222,7 @@ async function fetchActivePromotionsOverview({
       ON p.id = pr.product_id
      AND p.shop_id = pr.shop_id
     WHERE pr.shop_id = ?
-      AND p.stock_amount > 0
+      AND (COALESCE(p.is_consignment,0) = 1 OR p.stock_amount > 0)
       AND (pr.start_at IS NULL OR pr.start_at <= NOW())
       AND (pr.end_at IS NULL OR pr.end_at >= NOW())
   `;
@@ -3028,12 +3032,13 @@ async function fetchPromotionDetailsFallbackRows({ shop_id, category = null, sub
       p.emoji          AS emoji,
       p.price          AS price,
       p.stock_amount   AS stock_amount,
+      p.is_consignment AS is_consignment,
       p.category       AS category,
       p.sub_category   AS sub_category
     FROM promotion pr
     JOIN product p ON p.id = pr.product_id AND p.shop_id = pr.shop_id
     WHERE pr.shop_id = ?
-      AND p.stock_amount > 0
+      AND (COALESCE(p.is_consignment,0) = 1 OR p.stock_amount > 0)
       AND (
         ((pr.start_at IS NULL OR pr.start_at <= NOW()) AND (pr.end_at IS NULL OR pr.end_at >= NOW()))
         OR (pr.start_at > NOW())

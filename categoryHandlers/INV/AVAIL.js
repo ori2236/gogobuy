@@ -125,10 +125,10 @@ async function fetchProductsByNameKeyword(
   });
 
   let sql = `
-      SELECT id, name, display_name_en, stock_amount
+      SELECT id, name, display_name_en, stock_amount, is_consignment
       FROM product
       WHERE shop_id = ?
-        AND (stock_amount IS NULL OR stock_amount > 0)
+        AND (COALESCE(is_consignment,0) = 1 OR stock_amount IS NULL OR stock_amount > 0)
   `;
   const params = [shop_id];
 
@@ -400,9 +400,11 @@ async function checkAvailability({
         continue;
       }
 
-      const stock = Number.isFinite(Number(f.stock_amount))
-        ? Number(f.stock_amount)
-        : null;
+      const stock = Number(f.is_consignment || 0) === 1
+        ? null
+        : Number.isFinite(Number(f.stock_amount))
+          ? Number(f.stock_amount)
+          : null;
 
       if (stock === null) {
         quantityNames.push(displayLabel);
@@ -427,9 +429,12 @@ async function checkAvailability({
 
     if (intent === "CHECK_AVAILABILITY") {
       if (!f) continue;
-      const stock = Number.isFinite(Number(f.stock_amount))
-        ? Number(f.stock_amount)
-        : 0;
+      const isConsignment = Number(f.is_consignment || 0) === 1;
+      const stock = isConsignment
+        ? Infinity
+        : Number.isFinite(Number(f.stock_amount))
+          ? Number(f.stock_amount)
+          : 0;
       const requestedAmount =
         Number.isFinite(Number(f.requested_amount)) &&
         Number(f.requested_amount) > 0
@@ -775,7 +780,7 @@ async function checkAvailability({
   let altQuestions = [];
   if (notFoundForAlternatives.length) {
     const foundIdsSet = new Set(
-      found.filter((f) => Number(f.stock_amount) > 0).map((f) => f.product_id),
+      found.filter((f) => f.is_consignment || Number(f.stock_amount) > 0).map((f) => f.product_id),
     );
 
     const altRes = await buildAlternativeQuestions(

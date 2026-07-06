@@ -74,6 +74,7 @@ function compactRows(rows = []) {
       r.stock_amount === null || r.stock_amount === undefined
         ? null
         : Number(r.stock_amount),
+    is_consignment: Number(r.is_consignment || 0) === 1,
   }));
 }
 
@@ -199,8 +200,9 @@ async function applyOrderPatch({
 
   const hasOwn = (obj, key) => Object.prototype.hasOwnProperty.call(obj, key);
 
-  const stockToNumber = (raw) => {
-    if (raw === null || raw === undefined) return Infinity; // unlimited stock
+  const stockToNumber = (raw, isConsignment = false) => {
+    if (isConsignment) return Infinity;
+    if (raw === null || raw === undefined) return Infinity; // legacy unlimited stock
     const n = Number(raw);
     return Number.isFinite(n) ? n : 0;
   };
@@ -212,7 +214,7 @@ async function applyOrderPatch({
            WHEN stock_amount IS NULL THEN NULL
            ELSE stock_amount - ?
          END
-       WHERE id = ? AND shop_id = ?`,
+       WHERE id = ? AND shop_id = ? AND COALESCE(is_consignment,0) = 0`,
       [Number(delta), Number(pid), Number(shop_id)],
     );
   };
@@ -224,7 +226,7 @@ async function applyOrderPatch({
            WHEN stock_amount IS NULL THEN NULL
            ELSE stock_amount + ?
          END
-       WHERE id = ? AND shop_id = ?`,
+       WHERE id = ? AND shop_id = ? AND COALESCE(is_consignment,0) = 0`,
       [Number(delta), Number(pid), Number(shop_id)],
     );
   };
@@ -289,6 +291,7 @@ async function applyOrderPatch({
          p.name,
          p.display_name_en,
          p.stock_amount,
+         p.is_consignment,
          p.category,
          p.sub_category
        FROM order_item oi
@@ -376,14 +379,14 @@ async function applyOrderPatch({
 
       if (delta > 0) {
         const [[prod]] = await conn.query(
-          `SELECT stock_amount, category, sub_category
+          `SELECT stock_amount, is_consignment, category, sub_category
              FROM product
              WHERE id = ? AND shop_id = ?
             FOR UPDATE`,
           [Number(row.product_id), Number(shop_id)],
         );
 
-        const stock = stockToNumber(prod?.stock_amount);
+        const stock = stockToNumber(prod?.stock_amount, Number(prod?.is_consignment || 0) === 1);
 
         if (stock >= delta) {
           await decStock(Number(row.product_id), delta);
@@ -579,14 +582,14 @@ async function applyOrderPatch({
 
       // lock product row
       const [[prod]] = await conn.query(
-        `SELECT stock_amount, price, category, sub_category
+        `SELECT stock_amount, is_consignment, price, category, sub_category
            FROM product
           WHERE id = ? AND shop_id = ?
           FOR UPDATE`,
         [pid, Number(shop_id)],
       );
 
-      const stock = stockToNumber(prod?.stock_amount);
+      const stock = stockToNumber(prod?.stock_amount, Number(prod?.is_consignment || 0) === 1);
 
       // lock existing order item for this product (if any)
       const [[existingOrderItem]] = await conn.query(

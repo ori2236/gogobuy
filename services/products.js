@@ -54,6 +54,7 @@ function compactRows(rows = []) {
         ? null
         : Number(r.stock_amount),
     is_default: Number(r.is_default || 0) === 1,
+    is_consignment: Number(r.is_consignment || 0) === 1,
     customer_default: Number(r.customer_default || 0) === 1,
     has_active_promotion: Number(r.has_active_promotion || 0) === 1,
   }));
@@ -233,6 +234,7 @@ async function queryRowsByTokens({
       p.price,
       p.stock_amount,
       p.is_default,
+      p.is_consignment,
       p.category,
       p.sub_category,
       p.updated_at,
@@ -265,7 +267,7 @@ async function queryRowsByTokens({
   const params = [shop_id];
 
   if (includeStockFilter) {
-    sql += ` AND (p.stock_amount IS NULL OR p.stock_amount > 0)`;
+    sql += ` AND (COALESCE(p.is_consignment,0) = 1 OR p.stock_amount IS NULL OR p.stock_amount > 0)`;
   }
 
   if (category) {
@@ -587,7 +589,7 @@ async function findBestProductForRequest(shop_id, req, opts = {}) {
     if (category && primarySub) {
       const params = [shop_id, category, primarySub];
       let sql = `
-        SELECT id, name, display_name_en, price, stock_amount, is_default, category, sub_category, updated_at
+        SELECT id, name, display_name_en, price, stock_amount, is_default, is_consignment, category, sub_category, updated_at
         FROM product
         WHERE shop_id = ?
           AND category = ?
@@ -631,7 +633,7 @@ async function findBestProductForRequest(shop_id, req, opts = {}) {
       if (otherSubs.length) {
         const params2 = [shop_id, category, ...otherSubs];
         let sql2 = `
-          SELECT id, name, display_name_en, price, stock_amount, is_default, category, sub_category
+          SELECT id, name, display_name_en, price, stock_amount, is_default, is_consignment, category, sub_category
           FROM product
           WHERE shop_id = ?
             AND category = ?
@@ -825,7 +827,8 @@ async function searchProducts(shop_id, products, opts = {}) {
         product_id: row.id,
         matched_name: row.name,
         price: Number(row.price),
-        stock_amount: Number(row.stock_amount),
+        stock_amount: Number(row.is_consignment || 0) === 1 ? null : Number(row.stock_amount),
+        is_consignment: Number(row.is_consignment || 0) === 1,
         category: row.category,
         sub_category: row.sub_category,
         requested_name: req?.name || null,
@@ -889,10 +892,10 @@ async function fetchAlternatives(
   async function fetchByCatSub(cat, sub, useGroup = true) {
     const params = [shop_id];
     let sql = `
-      SELECT id, name, display_name_en, price, stock_amount, is_default, category, sub_category
-      FROM product
-      WHERE shop_id = ?
-        AND (stock_amount IS NULL OR stock_amount > 0)
+      SELECT p.id, p.name, p.display_name_en, p.price, p.stock_amount, p.is_default, p.is_consignment, p.category, p.sub_category
+      FROM product p
+      WHERE p.shop_id = ?
+        AND (COALESCE(p.is_consignment,0) = 1 OR p.stock_amount IS NULL OR p.stock_amount > 0)
     `;
 
     if (cat) {
@@ -1134,8 +1137,9 @@ async function buildAlternativeQuestions(
       name: a.name,
       display_name_en: a.display_name_en,
       price: Number(a.price),
-      stock_amount: Number(a.stock_amount),
+      stock_amount: Number(a.is_consignment || 0) === 1 ? null : Number(a.stock_amount),
       is_default: Number(a.is_default || 0) === 1,
+      is_consignment: Number(a.is_consignment || 0) === 1,
       category: a.category,
       sub_category: a.sub_category,
     }));
@@ -1187,10 +1191,10 @@ async function searchVariants(
   const tokens = searchTermGroups[0]?.tokens || [];
 
   let sql = `
-    SELECT id, name, display_name_en, price, stock_amount, is_default, category, sub_category
-    FROM product
-    WHERE shop_id = ?
-      AND (stock_amount IS NULL OR stock_amount > 0)
+    SELECT p.id, p.name, p.display_name_en, p.price, p.stock_amount, p.is_default, p.is_consignment, p.category, p.sub_category
+    FROM product p
+    WHERE p.shop_id = ?
+      AND (COALESCE(p.is_consignment,0) = 1 OR p.stock_amount IS NULL OR p.stock_amount > 0)
   `;
   const params = [shop_id];
 

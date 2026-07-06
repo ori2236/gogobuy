@@ -25,6 +25,7 @@ router.delete("/:verifyTokenSent", async (req, res) => {
         GROUP BY product_id
       ) oi ON oi.product_id = p.id
       SET p.stock_amount = COALESCE(p.stock_amount, 0) + COALESCE(oi.qty_to_restore, 0)
+      WHERE COALESCE(p.is_consignment,0) = 0
       `
     );
 

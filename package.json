@@ -18,7 +18,18 @@
     "preview:leshem-promos-manual": "node scripts/applyLeshemManualPromotionMappings.js --shopId=2 --dryRun",
     "publish:leshem-promos-manual": "node scripts/applyLeshemManualPromotionMappings.js --shopId=2 --confirm",
     "convert:leshem-promos": "node scripts/convertLeshemExcelPromotions.js --excel=data/leshem_promotions.xlsx --out=data/leshem_promotions_2026_06_14.json",
-    "prepare:leshem-promos": "npm run convert:leshem-promos && npm run preview:leshem-promos && npm run manual:leshem-promos:form"
+    "prepare:leshem-promos": "npm run convert:leshem-promos && npm run preview:leshem-promos && npm run manual:leshem-promos:form",
+    "preview:consignment-products": "node scripts/importConsignmentProducts.js --shopId=2 --dryRun",
+    "publish:consignment-products": "node scripts/importConsignmentProducts.js --shopId=2 --confirm",
+    "preview:move-promos-2-to-4": "node scripts/transferShopPromotions.js --sourceShopId=2 --targetShopId=4 --replaceTarget --clearSource --dryRun",
+    "publish:move-promos-2-to-4": "node scripts/transferShopPromotions.js --sourceShopId=2 --targetShopId=4 --replaceTarget --clearSource --confirm",
+    "convert:shop2-promos-current": "node scripts/convertLeshemExcelPromotions.js --excel=data/4995_31295.xls --out=data/shop2_promotions_2026_07_05.json",
+    "preview:shop2-promos-current": "node scripts/importLeshemExcelPromotions.js --shopId=2 --data=data/shop2_promotions_2026_07_05.json --source=leshem_excel_2026_07_05 --dryRun",
+    "publish:shop2-promos-current": "node scripts/importLeshemExcelPromotions.js --shopId=2 --data=data/shop2_promotions_2026_07_05.json --source=leshem_excel_2026_07_05 --confirm",
+    "manual:shop2-promos-current:form": "node scripts/generateLeshemPromotionMappingTool.js --shopId=2 --onlyMissingFromShop",
+    "preview:shop2-promos-current-manual": "node scripts/applyLeshemManualPromotionMappings.js --shopId=2 --data=data/shop2_promotions_2026_07_05.json --mapping=data/leshem_manual_promo_mapping_current.json --source=leshem_excel_2026_07_05 --dryRun",
+    "publish:shop2-promos-current-manual": "node scripts/applyLeshemManualPromotionMappings.js --shopId=2 --data=data/shop2_promotions_2026_07_05.json --mapping=data/leshem_manual_promo_mapping_current.json --source=leshem_excel_2026_07_05 --confirm",
+    "manual:shop2-promos-current:all-form": "node scripts/generateLeshemPromotionMappingTool.js --shopId=2"
   },
   "repository": {
     "type": "git",

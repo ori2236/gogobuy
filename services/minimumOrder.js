@@ -173,6 +173,7 @@ async function fetchTopupSuggestions({ shop_id, order_id, missing, maxPerProduct
        p.display_name_en,
        p.price,
        p.stock_amount,
+       p.is_consignment,
        p.emoji,
        p.category,
        p.sub_category,
@@ -192,7 +193,7 @@ async function fetchTopupSuggestions({ shop_id, order_id, missing, maxPerProduct
      WHERE p.shop_id = ?
        AND p.price IS NOT NULL
        AND p.price > 0
-       AND p.stock_amount >= 1
+       AND (COALESCE(p.is_consignment,0) = 1 OR p.stock_amount >= 1)
        ${excludeSql}
      ORDER BY
        CASE WHEN pr.id IS NULL THEN 1 ELSE 0 END ASC,
@@ -212,8 +213,9 @@ async function fetchTopupSuggestions({ shop_id, order_id, missing, maxPerProduct
     seen.add(pid);
     if (maxQty <= 0) continue;
 
-    const stock = Number(row.stock_amount);
-    if (Number.isFinite(stock) && stock < 1) continue;
+    const isConsignment = Number(row.is_consignment || 0) === 1;
+    const stock = isConsignment ? Infinity : Number(row.stock_amount);
+    if (!isConsignment && Number.isFinite(stock) && stock < 1) continue;
 
     const name = displayName(row, isEnglish);
     const unitPrice = Number(row.price);

@@ -761,7 +761,7 @@ async function releaseOrderStock(order) {
         await conn.query(
           `UPDATE product
               SET stock_amount = COALESCE(stock_amount, 0) + ?
-            WHERE id = ? AND shop_id = ?`,
+            WHERE id = ? AND shop_id = ? AND COALESCE(is_consignment,0) = 0`,
           [Number(item.amount || 0), Number(item.product_id), Number(order.shop_id)],
         );
       }

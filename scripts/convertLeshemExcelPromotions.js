@@ -35,7 +35,7 @@ function excelSerialToIsoDate(value) {
   const iso = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
   if (iso) return `${iso[1]}-${iso[2].padStart(2, "0")}-${iso[3].padStart(2, "0")}`;
 
-  const il = raw.match(/^(\d{1,2})[/.\-](\d{1,2})[/.\-](\d{2,4})$/);
+  const il = raw.match(/^(\d{1,2})[/\.\-](\d{1,2})[/\.\-](\d{2,4})$/);
   if (il) {
     const year = il[3].length === 2 ? `20${il[3]}` : il[3];
     return `${year}-${il[2].padStart(2, "0")}-${il[1].padStart(2, "0")}`;
@@ -51,7 +51,8 @@ function textOrNull(value) {
 
 function numberOrNull(value) {
   if (value === null || value === undefined || value === "") return null;
-  const n = Number(value);
+  const raw = String(value).trim().replace(/,/g, "");
+  const n = Number(raw);
   return Number.isFinite(n) ? n : null;
 }
 
@@ -95,17 +96,95 @@ function normalizePromotions(rows) {
   return result;
 }
 
-function main() {
-  if (!fs.existsSync(EXCEL_FILE)) {
-    throw new Error(`Excel file was not found: ${EXCEL_FILE}`);
+function decodeHtmlEntities(value) {
+  return String(value || "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'")
+    .replace(/&apos;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&amp;/gi, "&")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(parseInt(code, 16)));
+}
+
+function htmlCellText(html) {
+  return decodeHtmlEntities(
+    String(html || "")
+      .replace(/<br\s*\/?>/gi, " ")
+      .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim(),
+  );
+}
+
+function readTextFileWithBom(filePath) {
+  const buffer = fs.readFileSync(filePath);
+  if (buffer.length >= 2 && buffer[0] === 0xff && buffer[1] === 0xfe) {
+    return buffer.toString("utf16le");
+  }
+  if (buffer.length >= 3 && buffer[0] === 0xef && buffer[1] === 0xbb && buffer[2] === 0xbf) {
+    return buffer.toString("utf8");
+  }
+  return buffer.toString("utf8");
+}
+
+function looksLikeHtmlTableFile(filePath) {
+  const buffer = fs.readFileSync(filePath);
+  let sample;
+  if (buffer.length >= 2 && buffer[0] === 0xff && buffer[1] === 0xfe) {
+    sample = buffer.subarray(0, 4000).toString("utf16le");
+  } else {
+    sample = buffer.subarray(0, 4000).toString("utf8");
+  }
+  return /<\s*(html|table|tr|td)\b/i.test(sample);
+}
+
+function readHtmlTableRows(filePath) {
+  const html = readTextFileWithBom(filePath);
+  const rows = [];
+  const trRegex = /<tr\b[^>]*>([\s\S]*?)<\/tr>/gi;
+  let trMatch;
+
+  while ((trMatch = trRegex.exec(html))) {
+    const rowHtml = trMatch[1];
+    const row = [];
+    const cellRegex = /<t[dh]\b[^>]*>([\s\S]*?)<\/t[dh]>/gi;
+    let cellMatch;
+
+    while ((cellMatch = cellRegex.exec(rowHtml))) {
+      row.push(htmlCellText(cellMatch[1]));
+    }
+
+    if (row.length) rows.push(row);
   }
 
-  const workbook = XLSX.readFile(EXCEL_FILE, { cellDates: false, raw: true });
+  return rows;
+}
+
+function readWorkbookRows(filePath) {
+  if (looksLikeHtmlTableFile(filePath)) {
+    return { sheetName: "HTML table", rows: readHtmlTableRows(filePath), reader: "html" };
+  }
+
+  const workbook = XLSX.readFile(filePath, { cellDates: false, raw: true });
   const sheetName = workbook.SheetNames[0];
   if (!sheetName) throw new Error("The workbook has no sheets");
 
   const sheet = workbook.Sheets[sheetName];
   const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null, raw: true });
+  return { sheetName, rows, reader: "xlsx" };
+}
+
+function main() {
+  if (!fs.existsSync(EXCEL_FILE)) {
+    throw new Error(`Excel file was not found: ${EXCEL_FILE}`);
+  }
+
+  const { sheetName, rows, reader } = readWorkbookRows(EXCEL_FILE);
   const promotions = normalizePromotions(rows);
 
   fs.mkdirSync(path.dirname(OUT_FILE), { recursive: true });
@@ -113,7 +192,9 @@ function main() {
 
   console.log(JSON.stringify({
     excel_file: EXCEL_FILE,
+    reader,
     sheet: sheetName,
+    rows: rows.length,
     promotions: promotions.length,
     out_file: OUT_FILE,
   }, null, 2));

@@ -126,6 +126,7 @@ function normalizeProductRow(r) {
     price: r.price == null ? null : Number(r.price),
     stock_amount: r.stock_amount == null ? null : Number(r.stock_amount),
     is_default: Number(r.is_default || 0) === 1,
+    is_consignment: Number(r.is_consignment || 0) === 1,
     emoji: cleanEmoji(r.emoji) || cleanEmoji(r.subcategory_emoji),
     subcategory_emoji: cleanEmoji(r.subcategory_emoji),
     category: r.category ?? null,
@@ -344,6 +345,7 @@ exports.listStockProducts = async (req, res) => {
         p.price,
         p.stock_amount,
         p.is_default,
+        p.is_consignment,
         p.emoji,
         ps.emoji AS subcategory_emoji,
         p.category,
@@ -387,7 +389,8 @@ exports.createStockProduct = async (req, res) => {
     const display_name_en = String(req.body?.display_name_en ?? "").trim();
 
     const price = Number(req.body?.price);
-    const stock_amount = Number(req.body?.stock_amount);
+    const is_consignment = toBool(req.body?.is_consignment, false) ? 1 : 0;
+    const stock_amount = is_consignment ? 0 : Number(req.body?.stock_amount);
     const is_default = toBool(req.body?.is_default, false) ? 1 : 0;
 
     const category = String(req.body?.category ?? "").trim();
@@ -426,9 +429,9 @@ exports.createStockProduct = async (req, res) => {
     const [ins] = await db.query(
       `
       INSERT INTO product
-        (shop_id, name, display_name_en, price, stock_amount, is_default, category, sub_category, emoji, created_at, updated_at)
+        (shop_id, name, display_name_en, price, stock_amount, is_default, is_consignment, category, sub_category, emoji, created_at, updated_at)
       VALUES
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       `,
       [
         shopId,
@@ -437,6 +440,7 @@ exports.createStockProduct = async (req, res) => {
         price,
         stock_amount,
         is_default,
+        is_consignment,
         category,
         sub_category,
         emoji,
@@ -469,7 +473,7 @@ exports.createStockProduct = async (req, res) => {
     const [rows] = await db.query(
       `
       SELECT
-        p.id, p.shop_id, p.name, p.display_name_en, p.price, p.stock_amount, p.is_default,
+        p.id, p.shop_id, p.name, p.display_name_en, p.price, p.stock_amount, p.is_default, p.is_consignment,
         p.emoji, ps.emoji AS subcategory_emoji,
         p.category, p.sub_category, p.created_at, p.updated_at
       FROM product p
@@ -509,7 +513,7 @@ exports.updateStockProduct = async (req, res) => {
 
     const [existingRows] = await conn.query(
       `
-      SELECT p.id, p.shop_id, p.name, p.category, p.sub_category, p.emoji, s.chain_id
+      SELECT p.id, p.shop_id, p.name, p.stock_amount, p.is_consignment, p.category, p.sub_category, p.emoji, s.chain_id
       FROM product p
       JOIN shop s ON s.id = p.shop_id
       WHERE p.id = ? AND p.shop_id = ?
@@ -598,6 +602,16 @@ exports.updateStockProduct = async (req, res) => {
       params.push(price);
     }
 
+    const hasConsignment = Object.prototype.hasOwnProperty.call(
+      req.body || {},
+      "is_consignment",
+    );
+    const nextIsConsignment = hasConsignment
+      ? (toBool(req.body.is_consignment, false) ? 1 : 0)
+      : Number(existing.is_consignment || 0) === 1
+        ? 1
+        : 0;
+
     if (Object.prototype.hasOwnProperty.call(req.body || {}, "stock_amount")) {
       const stock_amount = Number(req.body.stock_amount);
       if (!Number.isFinite(stock_amount) || stock_amount < 0) {
@@ -606,8 +620,15 @@ exports.updateStockProduct = async (req, res) => {
           .status(400)
           .json({ ok: false, message: "Invalid stock_amount" });
       }
-      sets.push("stock_amount = ?");
-      params.push(stock_amount);
+      if (!nextIsConsignment) {
+        sets.push("stock_amount = ?");
+        params.push(stock_amount);
+      }
+    }
+
+    if (hasConsignment) {
+      sets.push("is_consignment = ?");
+      params.push(nextIsConsignment);
     }
 
     if (hasCat) {
@@ -683,7 +704,7 @@ exports.updateStockProduct = async (req, res) => {
     const [rows] = await db.query(
       `
       SELECT
-        p.id, p.shop_id, p.name, p.display_name_en, p.price, p.stock_amount, p.is_default,
+        p.id, p.shop_id, p.name, p.display_name_en, p.price, p.stock_amount, p.is_default, p.is_consignment,
         p.emoji, ps.emoji AS subcategory_emoji,
         p.category, p.sub_category, p.created_at, p.updated_at
       FROM product p
@@ -726,12 +747,13 @@ exports.deleteStockProduct = async (req, res) => {
       return res.status(400).json({ ok: false, message: "Invalid product id" });
     }
 
+    await ensureProductDefaultSchema(conn);
     await conn.beginTransaction();
 
     const [prodRows] = await conn.query(
       `
       SELECT
-        id, shop_id, name, display_name_en, price, stock_amount,
+        id, shop_id, name, display_name_en, price, stock_amount, is_consignment,
         category, sub_category, description, image, created_at, updated_at
       FROM product
       WHERE id = ? AND shop_id = ?
@@ -796,15 +818,16 @@ exports.deleteStockProduct = async (req, res) => {
     await conn.query(
       `
       INSERT INTO deleted_product
-        (id, shop_id, name, display_name_en, price, stock_amount, category, sub_category, description, image, created_at, updated_at, deleted_at)
+        (id, shop_id, name, display_name_en, price, stock_amount, is_consignment, category, sub_category, description, image, created_at, updated_at, deleted_at)
       VALUES
-        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(6))
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(6))
       ON DUPLICATE KEY UPDATE
         shop_id = VALUES(shop_id),
         name = VALUES(name),
         display_name_en = VALUES(display_name_en),
         price = VALUES(price),
         stock_amount = VALUES(stock_amount),
+        is_consignment = VALUES(is_consignment),
         category = VALUES(category),
         sub_category = VALUES(sub_category),
         description = VALUES(description),
@@ -820,6 +843,7 @@ exports.deleteStockProduct = async (req, res) => {
         p.display_name_en,
         p.price,
         p.stock_amount,
+        p.is_consignment,
         p.category,
         p.sub_category,
         p.description,

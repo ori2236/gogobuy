@@ -25,6 +25,7 @@ const MAPPING_FILE = path.resolve(argValue("--mapping", DEFAULT_MAPPING_FILE));
 const CONFIRM = Boolean(argValue("--confirm", false));
 const DRY_RUN = !CONFIRM || Boolean(argValue("--dryRun", false));
 const REPLACE = Boolean(argValue("--replace", false));
+const BACKUP = Boolean(argValue("--backup", false));
 const INCLUDE_EXPIRED = Boolean(argValue("--includeExpired", false));
 const SOURCE = String(argValue("--source", process.env.PROMO_IMPORT_SOURCE || DEFAULT_SOURCE)).trim() || DEFAULT_SOURCE;
 
@@ -67,6 +68,17 @@ function parseThresholdProductFixedPrice(title) {
   return { threshold, price };
 }
 
+function parseThresholdGift(title) {
+  const s = String(title || "");
+  const thresholdMatch = s.match(/מעל\s*(\d+(?:\.\d+)?)/);
+  if (!thresholdMatch) return null;
+  if (!/מתנה/.test(s)) return null;
+
+  const threshold = Number(thresholdMatch[1]);
+  if (!Number.isFinite(threshold)) return null;
+  return { threshold };
+}
+
 function startDateTime(dateText) {
   return dateText ? `${dateText} 00:00:00` : null;
 }
@@ -100,8 +112,9 @@ function parseMaxQty(value) {
 function buildProductPromotionPayload({ promo, product, mapping }) {
   const deal = parseDealText(promo.deal_text);
   if (!deal) return { skip_reason: "deal_text_not_supported" };
-  if (deal.qty < 1) return { skip_reason: "fractional_bundle_qty_requires_code_or_weight_support" };
-  if (!Number.isInteger(deal.qty)) return { skip_reason: "non_integer_bundle_qty_requires_code_support" };
+  const fractionalFixedUnitPrice = deal.qty > 0 && deal.qty < 1;
+  if (deal.qty < 1 && !fractionalFixedUnitPrice) return { skip_reason: "fractional_bundle_qty_requires_code_or_weight_support" };
+  if (!fractionalFixedUnitPrice && !Number.isInteger(deal.qty)) return { skip_reason: "non_integer_bundle_qty_requires_code_support" };
 
   const maxQty = parseMaxQty(promo.max_qty);
   if (maxQty && typeof maxQty === "object" && maxQty.error) return { skip_reason: maxQty.error };
@@ -112,12 +125,13 @@ function buildProductPromotionPayload({ promo, product, mapping }) {
       `מקור אקסל ${SOURCE}`,
       `תגמול ${promo.reward_id}`,
       "התאמה ידנית",
+      fractionalFixedUnitPrice ? "כמות חלקית מהאקסל הומרה למחיר יחידה" : null,
       mapping.note ? `הערה: ${mapping.note}` : null,
     ],
     255,
   );
 
-  if (deal.qty === 1) {
+  if (deal.qty === 1 || fractionalFixedUnitPrice) {
     return {
       product_id: product.id,
       product_name: product.name,
@@ -183,31 +197,50 @@ function buildProductGroupPromotionPayload({ promo, products, mapping }) {
 }
 
 function buildCartRewardRulePayload({ promo, product, mapping }) {
-  const parsed = parseThresholdProductFixedPrice(promo.title);
-  if (!parsed) return { skip_reason: "cart_reward_rule_not_parseable" };
+  const fixedPriceReward = parseThresholdProductFixedPrice(promo.title);
+  const giftReward = parseThresholdGift(promo.title);
 
-  return {
-    rule_type: "THRESHOLD_PRODUCT_FIXED_PRICE",
+  if (!fixedPriceReward && !giftReward) {
+    return { skip_reason: "cart_reward_rule_not_parseable" };
+  }
+
+  const common = {
     title: `${promo.title} - ${product.name}`.slice(0, 255),
     description: cleanDescription([
       promo.title,
       `מקור אקסל ${SOURCE}`,
       `תגמול ${promo.reward_id}`,
-      "התאמה ידנית למוצר הטבה",
+      giftReward ? "התאמה ידנית למוצר מתנה" : "התאמה ידנית למוצר הטבה",
       mapping.note ? `הערה: ${mapping.note}` : null,
     ]),
-    threshold_amount: parsed.threshold,
+    threshold_amount: fixedPriceReward?.threshold ?? giftReward.threshold,
     delivery_fee_override: null,
     reward_product_id: product.id,
-    reward_qty: null,
-    reward_fixed_price: parsed.price,
-    reward_max_qty: null,
+    gift_text: giftReward ? product.name : null,
     threshold_base_mode: "EXCLUDING_REWARD_PRODUCTS",
-    priority: 30,
+    priority: giftReward ? 25 : 30,
     source: SOURCE,
     external_reward_id: `${promo.reward_id}_${product.id}`,
     start_at: startDateTime(promo.start_date),
     end_at: endDateTime(promo.end_date),
+  };
+
+  if (giftReward) {
+    return {
+      ...common,
+      rule_type: "GIFT_PRODUCT",
+      reward_qty: 1,
+      reward_fixed_price: null,
+      reward_max_qty: 1,
+    };
+  }
+
+  return {
+    ...common,
+    rule_type: "THRESHOLD_PRODUCT_FIXED_PRICE",
+    reward_qty: null,
+    reward_fixed_price: fixedPriceReward.price,
+    reward_max_qty: null,
   };
 }
 
@@ -348,10 +381,10 @@ async function insertCartRule(conn, shopId, rule) {
     `
     INSERT INTO cart_promotion_rule
       (shop_id, rule_type, title, description, threshold_amount, delivery_fee_override,
-       reward_product_id, reward_qty, reward_fixed_price, reward_max_qty,
+       reward_product_id, gift_text, reward_qty, reward_fixed_price, reward_max_qty,
        threshold_base_mode, priority, is_active, notify_customer,
        source, external_reward_id, start_at, end_at, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?, ?, ?, NOW(), NOW())
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?, ?, ?, ?, NOW(), NOW())
     `,
     [
       shopId,
@@ -361,6 +394,7 @@ async function insertCartRule(conn, shopId, rule) {
       rule.threshold_amount,
       rule.delivery_fee_override,
       rule.reward_product_id,
+      rule.gift_text,
       rule.reward_qty,
       rule.reward_fixed_price,
       rule.reward_max_qty,
@@ -407,6 +441,72 @@ function isGroupMapping(mapping) {
   const action = String(mapping.action || "").toLowerCase();
   const mode = String(mapping.mapping_mode || mapping.mappingMode || "").toLowerCase();
   return Boolean(mapping.is_group_promotion || mapping.isGroupPromotion || action === "promotion_group" || action === "group" || mode === "group");
+}
+
+function isFixedUnitPriceDeal(promo) {
+  const deal = parseDealText(promo?.deal_text);
+  return Boolean(deal && deal.qty > 0 && deal.qty < 1 && Number.isFinite(deal.price));
+}
+
+async function pushFixedUnitPriceProductPromotions({
+  conn,
+  shopId,
+  rewardId,
+  effectivePromo,
+  selectedProducts,
+  mapping,
+  inserts,
+  skipped,
+  mappingMode = "group_fixed_unit_price_expanded_to_product_promotions",
+}) {
+  if (!Array.isArray(selectedProducts) || !selectedProducts.length) {
+    skipped.push({
+      reward_id: rewardId,
+      title: effectivePromo.title,
+      reason: "fixed_unit_price_expansion_requires_products",
+    });
+    return;
+  }
+
+  for (const product of selectedProducts) {
+    const payload = buildProductPromotionPayload({ promo: effectivePromo, product, mapping });
+    if (payload.skip_reason) {
+      skipped.push({
+        reward_id: rewardId,
+        title: effectivePromo.title,
+        reason: payload.skip_reason,
+        product_id: product.id,
+        product_name: product.name,
+        mapping_mode: mappingMode,
+      });
+      continue;
+    }
+
+    const duplicate = await productPromotionExists(conn, shopId, product.id, rewardId);
+    if (duplicate && !REPLACE) {
+      skipped.push({
+        reward_id: rewardId,
+        title: effectivePromo.title,
+        reason: "already_exists",
+        existing_id: duplicate.id,
+        product_id: product.id,
+        product_name: product.name,
+        mapping_mode: mappingMode,
+      });
+      continue;
+    }
+
+    inserts.push({
+      kind: "product_promotion",
+      reward_id: rewardId,
+      title: effectivePromo.title,
+      product_id: product.id,
+      product_name: product.name,
+      existing_id: duplicate?.id || null,
+      mapping_mode: mappingMode,
+      payload,
+    });
+  }
 }
 
 async function analyzeMappings({ conn, shopId, promotionsByRewardId, productsById, mappingRows }) {
@@ -456,6 +556,20 @@ async function analyzeMappings({ conn, shopId, promotionsByRewardId, productsByI
 
       const payload = buildProductGroupPromotionPayload({ promo: effectivePromo, products: selectedProducts, mapping });
       if (payload.skip_reason) {
+        if (payload.skip_reason === "group_promotion_requires_integer_qty_of_at_least_2" && isFixedUnitPriceDeal(effectivePromo)) {
+          await pushFixedUnitPriceProductPromotions({
+            conn,
+            shopId,
+            rewardId,
+            effectivePromo,
+            selectedProducts,
+            mapping,
+            inserts,
+            skipped,
+          });
+          continue;
+        }
+
         skipped.push({ reward_id: rewardId, title: effectivePromo.title, reason: payload.skip_reason, product_ids: productIds });
         continue;
       }
@@ -590,6 +704,7 @@ function printableSummary(report) {
     inserted_cart_rules: report.inserted_cart_rules,
     skipped: report.skipped.length,
     replace: report.replace,
+    backup: report.backup,
     backup_tables: report.backup_tables,
     report_file: report.report_file,
   };
@@ -634,6 +749,7 @@ async function main() {
       generated_at: new Date().toISOString(),
       replace: REPLACE,
       include_expired: INCLUDE_EXPIRED,
+      backup: BACKUP,
       manual_mappings: mappingRows.length,
       planned_inserts: analysis.inserts.length,
       inserted_product_promotions: 0,
@@ -655,23 +771,26 @@ async function main() {
         start_at: item.payload.start_at,
         end_at: item.payload.end_at,
         existing_id: item.existing_id,
+        mapping_mode: item.mapping_mode || null,
       })),
       skipped: analysis.skipped,
       backup_tables: [],
     };
 
     if (!DRY_RUN && analysis.inserts.length) {
-      const suffix = stamp();
-      const promoBackup = `bak_promo_manual_s${SHOP_ID}_${suffix}`.replace(/[^a-zA-Z0-9_]/g, "_");
-      const cartBackup = `bak_cart_rule_manual_s${SHOP_ID}_${suffix}`.replace(/[^a-zA-Z0-9_]/g, "_");
-      const groupBackup = `bak_group_promo_manual_s${SHOP_ID}_${suffix}`.replace(/[^a-zA-Z0-9_]/g, "_");
-      const groupItemBackup = `bak_group_item_manual_s${SHOP_ID}_${suffix}`.replace(/[^a-zA-Z0-9_]/g, "_");
+      if (BACKUP) {
+        const suffix = stamp();
+        const promoBackup = `bak_promo_manual_s${SHOP_ID}_${suffix}`.replace(/[^a-zA-Z0-9_]/g, "_");
+        const cartBackup = `bak_cart_rule_manual_s${SHOP_ID}_${suffix}`.replace(/[^a-zA-Z0-9_]/g, "_");
+        const groupBackup = `bak_group_promo_manual_s${SHOP_ID}_${suffix}`.replace(/[^a-zA-Z0-9_]/g, "_");
+        const groupItemBackup = `bak_group_item_manual_s${SHOP_ID}_${suffix}`.replace(/[^a-zA-Z0-9_]/g, "_");
 
-      await backupTable(conn, "promotion", promoBackup, SHOP_ID);
-      await backupTable(conn, "cart_promotion_rule", cartBackup, SHOP_ID);
-      await backupTable(conn, "product_group_promotion", groupBackup, SHOP_ID);
-      await backupTable(conn, "product_group_promotion_item", groupItemBackup, SHOP_ID);
-      report.backup_tables.push(promoBackup, cartBackup, groupBackup, groupItemBackup);
+        await backupTable(conn, "promotion", promoBackup, SHOP_ID);
+        await backupTable(conn, "cart_promotion_rule", cartBackup, SHOP_ID);
+        await backupTable(conn, "product_group_promotion", groupBackup, SHOP_ID);
+        await backupTable(conn, "product_group_promotion_item", groupItemBackup, SHOP_ID);
+        report.backup_tables.push(promoBackup, cartBackup, groupBackup, groupItemBackup);
+      }
 
       await conn.beginTransaction();
       try {
