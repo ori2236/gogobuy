@@ -340,7 +340,15 @@ async function insertProductPromotion(conn, shopId, payload) {
   );
 }
 
+function cleanPromotionTitle(title) {
+  if (!title) return "";
+  return String(title)
+    .replace(/\s*\d+\s*ב-?\s*\d+(\.\d+)?\s*$/gi, "")
+    .trim();
+}
+
 async function insertProductGroupPromotion(conn, shopId, payload) {
+  const cleanTitle = cleanPromotionTitle(payload.title);
   const [result] = await conn.query(
     `
     INSERT INTO product_group_promotion
@@ -350,7 +358,7 @@ async function insertProductGroupPromotion(conn, shopId, payload) {
     `,
     [
       shopId,
-      payload.title,
+      cleanTitle,
       payload.description,
       payload.emoji,
       payload.bundle_buy_qty,

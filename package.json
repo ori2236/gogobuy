@@ -29,7 +29,10 @@
     "manual:shop2-promos-current:form": "node scripts/generateLeshemPromotionMappingTool.js --shopId=2 --onlyMissingFromShop",
     "preview:shop2-promos-current-manual": "node scripts/applyLeshemManualPromotionMappings.js --shopId=2 --data=data/shop2_promotions_2026_07_05.json --mapping=data/leshem_manual_promo_mapping_current.json --source=leshem_excel_2026_07_05 --dryRun",
     "publish:shop2-promos-current-manual": "node scripts/applyLeshemManualPromotionMappings.js --shopId=2 --data=data/shop2_promotions_2026_07_05.json --mapping=data/leshem_manual_promo_mapping_current.json --source=leshem_excel_2026_07_05 --confirm",
-    "manual:shop2-promos-current:all-form": "node scripts/generateLeshemPromotionMappingTool.js --shopId=2"
+    "manual:shop2-promos-current:all-form": "node scripts/generateLeshemPromotionMappingTool.js --shopId=2",
+    "export:promotions-payload": "node scripts/exportLocalPromotionsPayload.js --shopId=2",
+    "preview:sync-promos-prod": "node scripts/applyProdPromotionsSync.js --shopId=2 --payload=data/promotions_prod_payload_shop2.json --dryRun",
+    "publish:sync-promos-prod": "node scripts/applyProdPromotionsSync.js --shopId=2 --payload=data/promotions_prod_payload_shop2.json --confirm"
   },
   "repository": {
     "type": "git",

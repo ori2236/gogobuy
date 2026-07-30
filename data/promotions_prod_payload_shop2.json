@@ -1,0 +1,2298 @@
+{
+  "metadata": {
+    "exported_at": "2026-07-30T19:26:54.946Z",
+    "shop_id": 2,
+    "source_db": "gogobuy"
+  },
+  "product_group_promotions": [
+    {
+      "group": {
+        "id": 211,
+        "shop_id": 2,
+        "title": "גלידת בן&ג'ריס 2 ב- 39.90 ₪",
+        "description": null,
+        "emoji": null,
+        "kind": "BUNDLE",
+        "bundle_buy_qty": 2,
+        "bundle_pay_price": "39.90",
+        "max_discounted_qty": null,
+        "priority": 100,
+        "is_active": 1,
+        "start_at": "2026-07-19T21:00:00.000Z",
+        "end_at": "2026-08-30T20:59:59.000Z",
+        "created_at": "2026-07-29T17:59:03.000Z",
+        "updated_at": "2026-07-29T19:51:24.000Z"
+      },
+      "items": [
+        {
+          "id": 1925,
+          "group_promotion_id": 211,
+          "shop_id": 2,
+          "product_id": 35479,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35479,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "גלידת בן&גריס קרם עוגיות"
+          }
+        },
+        {
+          "id": 1926,
+          "group_promotion_id": 211,
+          "shop_id": 2,
+          "product_id": 35551,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35551,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "גלידה בן ג'ריס פיינטים וניל צרפת 500'ג"
+          }
+        },
+        {
+          "id": 1927,
+          "group_promotion_id": 211,
+          "shop_id": 2,
+          "product_id": 35902,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35902,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "גלידת בן&גריס בצק עוגיות"
+          }
+        },
+        {
+          "id": 1928,
+          "group_promotion_id": 211,
+          "shop_id": 2,
+          "product_id": 35953,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35953,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "גלידת בן אנגרי'ס וניל טופי"
+          }
+        },
+        {
+          "id": 1929,
+          "group_promotion_id": 211,
+          "shop_id": 2,
+          "product_id": 36022,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 36022,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "בן&גריס שוקולד בראוניס"
+          }
+        },
+        {
+          "id": 1930,
+          "group_promotion_id": 211,
+          "shop_id": 2,
+          "product_id": 36030,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 36030,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "בן&גריס ריבת חלב"
+          }
+        },
+        {
+          "id": 1931,
+          "group_promotion_id": 211,
+          "shop_id": 2,
+          "product_id": 36366,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 36366,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "גלידת בן&גר'יס צאנקי מאנקי"
+          }
+        },
+        {
+          "id": 1932,
+          "group_promotion_id": 211,
+          "shop_id": 2,
+          "product_id": 36372,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 36372,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "גלידת בן &ג'ריס תות שדה 500 מ\"ל(מעיין)"
+          }
+        },
+        {
+          "id": 1933,
+          "group_promotion_id": 211,
+          "shop_id": 2,
+          "product_id": 36499,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 36499,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "גלידת בן&גר'יס ניו יורק"
+          }
+        },
+        {
+          "id": 1934,
+          "group_promotion_id": 211,
+          "shop_id": 2,
+          "product_id": 36624,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 36624,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "גלידת בן&ג'ריס עוגת גבינה ותות"
+          }
+        },
+        {
+          "id": 1935,
+          "group_promotion_id": 211,
+          "shop_id": 2,
+          "product_id": 36814,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 36814,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "בן&ג'ריס ריבת חלב 150 מל(מעיין)"
+          }
+        },
+        {
+          "id": 1936,
+          "group_promotion_id": 211,
+          "shop_id": 2,
+          "product_id": 36838,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 36838,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "בן&גריס שוקולד בראוניס 150 מל(קפואים)"
+          }
+        },
+        {
+          "id": 1937,
+          "group_promotion_id": 211,
+          "shop_id": 2,
+          "product_id": 37214,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 37214,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "בן&גריס צאנקי מאנקי"
+          }
+        },
+        {
+          "id": 1938,
+          "group_promotion_id": 211,
+          "shop_id": 2,
+          "product_id": 37429,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 37429,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "גלידת בן&ג'ריס פיינטים שוקולד 500ג'"
+          }
+        },
+        {
+          "id": 1939,
+          "group_promotion_id": 211,
+          "shop_id": 2,
+          "product_id": 37774,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 37774,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "בן&גריס שוקולד פינט באטר ספליט"
+          }
+        },
+        {
+          "id": 1940,
+          "group_promotion_id": 211,
+          "shop_id": 2,
+          "product_id": 37775,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 37775,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "בן&ג'ריס פיינט סורבה פסיפלורה ופירות יער"
+          }
+        },
+        {
+          "id": 1941,
+          "group_promotion_id": 211,
+          "shop_id": 2,
+          "product_id": 38447,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 38447,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "גלידת בן&ג'ריס גלידת קרמל מלוח 500מל"
+          }
+        },
+        {
+          "id": 1942,
+          "group_promotion_id": 211,
+          "shop_id": 2,
+          "product_id": 38522,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 38522,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "בן&גריס בצק עוגיות(שגיא)"
+          }
+        },
+        {
+          "id": 1943,
+          "group_promotion_id": 211,
+          "shop_id": 2,
+          "product_id": 38659,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 38659,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "בן&ג'ריס מאגדת טילון בצק עוגיות"
+          }
+        },
+        {
+          "id": 1944,
+          "group_promotion_id": 211,
+          "shop_id": 2,
+          "product_id": 38744,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 38744,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "בן&ג'ריס פיינט סורבה פינה קולדה"
+          }
+        },
+        {
+          "id": 1945,
+          "group_promotion_id": 211,
+          "shop_id": 2,
+          "product_id": 38890,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 38890,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "בן&גרי גלידה צרי גרסיה 500 מל"
+          }
+        },
+        {
+          "id": 1946,
+          "group_promotion_id": 211,
+          "shop_id": 2,
+          "product_id": 39179,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 39179,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "מאגדת בן&גריס בצק עוגיות סנדוויץ"
+          }
+        },
+        {
+          "id": 1947,
+          "group_promotion_id": 211,
+          "shop_id": 2,
+          "product_id": 39358,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 39358,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "בן&גריס קסטה בראוניז 80 גר(שגיא)"
+          }
+        }
+      ]
+    },
+    {
+      "group": {
+        "id": 212,
+        "shop_id": 2,
+        "title": "טיטולים ביביסיטר",
+        "description": null,
+        "emoji": null,
+        "kind": "BUNDLE",
+        "bundle_buy_qty": 3,
+        "bundle_pay_price": "84.90",
+        "max_discounted_qty": null,
+        "priority": 100,
+        "is_active": 1,
+        "start_at": "2021-11-21T22:00:00.000Z",
+        "end_at": "2026-12-31T21:59:59.000Z",
+        "created_at": "2026-07-29T17:59:03.000Z",
+        "updated_at": "2026-07-30T19:01:40.000Z"
+      },
+      "items": [
+        {
+          "id": 1948,
+          "group_promotion_id": 212,
+          "shop_id": 2,
+          "product_id": 35411,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35411,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "טיטולים בייביסיטר מידה 6"
+          }
+        },
+        {
+          "id": 1949,
+          "group_promotion_id": 212,
+          "shop_id": 2,
+          "product_id": 35419,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35419,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "טיטולים בייביסיטר מידה 5"
+          }
+        },
+        {
+          "id": 1950,
+          "group_promotion_id": 212,
+          "shop_id": 2,
+          "product_id": 35885,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35885,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "טיטולים בייביסיטר מידה 4+"
+          }
+        },
+        {
+          "id": 1951,
+          "group_promotion_id": 212,
+          "shop_id": 2,
+          "product_id": 36097,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 36097,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "טיטולים בייביסיטר מידה 4"
+          }
+        },
+        {
+          "id": 1952,
+          "group_promotion_id": 212,
+          "shop_id": 2,
+          "product_id": 36901,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 36901,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "טיטולים בייביסיטר מידה 3 (אמוץ)"
+          }
+        },
+        {
+          "id": 1953,
+          "group_promotion_id": 212,
+          "shop_id": 2,
+          "product_id": 38929,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 38929,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "טיטולים בייביסיטר NB מידה 2 (אמוץ)"
+          }
+        }
+      ]
+    },
+    {
+      "group": {
+        "id": 213,
+        "shop_id": 2,
+        "title": "פילטרים",
+        "description": null,
+        "emoji": null,
+        "kind": "BUNDLE",
+        "bundle_buy_qty": 3,
+        "bundle_pay_price": "10.00",
+        "max_discounted_qty": null,
+        "priority": 100,
+        "is_active": 1,
+        "start_at": "2022-02-22T22:00:00.000Z",
+        "end_at": "2026-12-31T21:59:59.000Z",
+        "created_at": "2026-07-29T17:59:03.000Z",
+        "updated_at": "2026-07-30T19:01:40.000Z"
+      },
+      "items": [
+        {
+          "id": 1954,
+          "group_promotion_id": 213,
+          "shop_id": 2,
+          "product_id": 35801,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35801,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "פילטר 5/22 סילבר"
+          }
+        },
+        {
+          "id": 1955,
+          "group_promotion_id": 213,
+          "shop_id": 2,
+          "product_id": 36259,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 36259,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "פילטר 6/22 (מדעי)"
+          }
+        },
+        {
+          "id": 1956,
+          "group_promotion_id": 213,
+          "shop_id": 2,
+          "product_id": 39380,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 39380,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "פילטר 120 יח` 6 מ``מ"
+          }
+        }
+      ]
+    },
+    {
+      "group": {
+        "id": 214,
+        "shop_id": 2,
+        "title": "נייר גלגול ריזלה",
+        "description": null,
+        "emoji": null,
+        "kind": "BUNDLE",
+        "bundle_buy_qty": 5,
+        "bundle_pay_price": "10.00",
+        "max_discounted_qty": null,
+        "priority": 100,
+        "is_active": 1,
+        "start_at": "2022-02-22T22:00:00.000Z",
+        "end_at": "2026-12-31T21:59:59.000Z",
+        "created_at": "2026-07-29T17:59:03.000Z",
+        "updated_at": "2026-07-30T19:01:40.000Z"
+      },
+      "items": [
+        {
+          "id": 1957,
+          "group_promotion_id": 214,
+          "shop_id": 2,
+          "product_id": 35964,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35964,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "ריזלה נייר גלגול אדום"
+          }
+        },
+        {
+          "id": 1958,
+          "group_promotion_id": 214,
+          "shop_id": 2,
+          "product_id": 36257,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 36257,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "ריזלה נייר גלגול באלי כחול"
+          }
+        },
+        {
+          "id": 1959,
+          "group_promotion_id": 214,
+          "shop_id": 2,
+          "product_id": 36977,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 36977,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "ריזלה נייר גלגול באלי שאג"
+          }
+        }
+      ]
+    },
+    {
+      "group": {
+        "id": 215,
+        "shop_id": 2,
+        "title": "ירק מהדרין ביכורי שדה",
+        "description": null,
+        "emoji": null,
+        "kind": "BUNDLE",
+        "bundle_buy_qty": 3,
+        "bundle_pay_price": "12.90",
+        "max_discounted_qty": null,
+        "priority": 100,
+        "is_active": 1,
+        "start_at": "2022-06-28T21:00:00.000Z",
+        "end_at": "2026-12-31T21:59:59.000Z",
+        "created_at": "2026-07-29T17:59:03.000Z",
+        "updated_at": "2026-07-30T19:01:41.000Z"
+      },
+      "items": [
+        {
+          "id": 1960,
+          "group_promotion_id": 215,
+          "shop_id": 2,
+          "product_id": 35789,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35789,
+            "barcode": "7290011108120",
+            "chain_product_key": null,
+            "name": "בצל ירוק מהדרין"
+          }
+        },
+        {
+          "id": 1961,
+          "group_promotion_id": 215,
+          "shop_id": 2,
+          "product_id": 37307,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 37307,
+            "barcode": "7290011108106",
+            "chain_product_key": null,
+            "name": "עלי סלק למהדרין"
+          }
+        },
+        {
+          "id": 1962,
+          "group_promotion_id": 215,
+          "shop_id": 2,
+          "product_id": 38335,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 38335,
+            "barcode": "7290011276706",
+            "chain_product_key": null,
+            "name": "כרוב אדום מהדרין"
+          }
+        },
+        {
+          "id": 1963,
+          "group_promotion_id": 215,
+          "shop_id": 2,
+          "product_id": 38386,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 38386,
+            "barcode": "7290005576690",
+            "chain_product_key": null,
+            "name": "חסה לליק מהדרין"
+          }
+        },
+        {
+          "id": 1964,
+          "group_promotion_id": 215,
+          "shop_id": 2,
+          "product_id": 40047,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 40047,
+            "barcode": "7290011108113",
+            "chain_product_key": null,
+            "name": "חסה מהדרין"
+          }
+        },
+        {
+          "id": 1965,
+          "group_promotion_id": 215,
+          "shop_id": 2,
+          "product_id": 40057,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 40057,
+            "barcode": "7290011276737",
+            "chain_product_key": null,
+            "name": "חסה ערבית מהדרין"
+          }
+        },
+        {
+          "id": 1966,
+          "group_promotion_id": 215,
+          "shop_id": 2,
+          "product_id": 40069,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 40069,
+            "barcode": "7290000001616",
+            "chain_product_key": null,
+            "name": "כוסברה 'מהדרין'"
+          }
+        },
+        {
+          "id": 1967,
+          "group_promotion_id": 215,
+          "shop_id": 2,
+          "product_id": 40076,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 40076,
+            "barcode": "7290011108007",
+            "chain_product_key": null,
+            "name": "כוסברה למהדרין"
+          }
+        },
+        {
+          "id": 1968,
+          "group_promotion_id": 215,
+          "shop_id": 2,
+          "product_id": 40095,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 40095,
+            "barcode": "7290011108052",
+            "chain_product_key": null,
+            "name": "כרוב לבן מהדרין"
+          }
+        },
+        {
+          "id": 1969,
+          "group_promotion_id": 215,
+          "shop_id": 2,
+          "product_id": 40155,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 40155,
+            "barcode": "693493224055",
+            "chain_product_key": null,
+            "name": "מנגולד עלים מהדרין"
+          }
+        },
+        {
+          "id": 1970,
+          "group_promotion_id": 215,
+          "shop_id": 2,
+          "product_id": 40177,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 40177,
+            "barcode": "7290011108021",
+            "chain_product_key": null,
+            "name": "נענע למהדרין"
+          }
+        },
+        {
+          "id": 1971,
+          "group_promotion_id": 215,
+          "shop_id": 2,
+          "product_id": 40179,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 40179,
+            "barcode": "7290011725037",
+            "chain_product_key": null,
+            "name": "נענע מהדרין (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 1972,
+          "group_promotion_id": 215,
+          "shop_id": 2,
+          "product_id": 40190,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 40190,
+            "barcode": "7290011108878",
+            "chain_product_key": null,
+            "name": "סלרי \"מהדרין\" ביכורי שדה"
+          }
+        },
+        {
+          "id": 1973,
+          "group_promotion_id": 215,
+          "shop_id": 2,
+          "product_id": 40196,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 40196,
+            "barcode": "7290015719063",
+            "chain_product_key": null,
+            "name": "סלרי למהדרין"
+          }
+        },
+        {
+          "id": 1974,
+          "group_promotion_id": 215,
+          "shop_id": 2,
+          "product_id": 40197,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 40197,
+            "barcode": "72114",
+            "chain_product_key": null,
+            "name": "סלרי מהדרין"
+          }
+        },
+        {
+          "id": 1975,
+          "group_promotion_id": 215,
+          "shop_id": 2,
+          "product_id": 40198,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 40198,
+            "barcode": "7290011108045",
+            "chain_product_key": null,
+            "name": "סלרי מהדרין ארוז"
+          }
+        },
+        {
+          "id": 1976,
+          "group_promotion_id": 215,
+          "shop_id": 2,
+          "product_id": 40202,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 40202,
+            "barcode": "7290016411645",
+            "chain_product_key": null,
+            "name": "סלרי עלים \"מהדרין\""
+          }
+        },
+        {
+          "id": 1977,
+          "group_promotion_id": 215,
+          "shop_id": 2,
+          "product_id": 40275,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 40275,
+            "barcode": "7290011480509",
+            "chain_product_key": null,
+            "name": "פטרוזיליה מהדרין"
+          }
+        },
+        {
+          "id": 1978,
+          "group_promotion_id": 215,
+          "shop_id": 2,
+          "product_id": 40390,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 40390,
+            "barcode": "7290011108014",
+            "chain_product_key": null,
+            "name": "שמיר למהדרין"
+          }
+        }
+      ]
+    },
+    {
+      "group": {
+        "id": 216,
+        "shop_id": 2,
+        "title": "ירק ביכורי שדה",
+        "description": null,
+        "emoji": null,
+        "kind": "BUNDLE",
+        "bundle_buy_qty": 3,
+        "bundle_pay_price": "8.90",
+        "max_discounted_qty": null,
+        "priority": 100,
+        "is_active": 1,
+        "start_at": "2022-10-03T21:00:00.000Z",
+        "end_at": "2026-12-31T21:59:59.000Z",
+        "created_at": "2026-07-29T17:59:03.000Z",
+        "updated_at": "2026-07-30T19:01:41.000Z"
+      },
+      "items": [
+        {
+          "id": 1979,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35128,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35128,
+            "barcode": "814",
+            "chain_product_key": null,
+            "name": "מלפפון (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 1980,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35129,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35129,
+            "barcode": "817",
+            "chain_product_key": null,
+            "name": "עגבניות חממה (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 1981,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35131,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35131,
+            "barcode": "801",
+            "chain_product_key": null,
+            "name": "בצל יבש(ביכורי שדה)"
+          }
+        },
+        {
+          "id": 1982,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35133,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35133,
+            "barcode": "917",
+            "chain_product_key": null,
+            "name": "בננה (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 1983,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35134,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35134,
+            "barcode": "820",
+            "chain_product_key": null,
+            "name": "פלפל אדום (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 1984,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35136,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35136,
+            "barcode": "934",
+            "chain_product_key": null,
+            "name": "אבטיח (ביכורי שדה )"
+          }
+        },
+        {
+          "id": 1985,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35139,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35139,
+            "barcode": "128005",
+            "chain_product_key": null,
+            "name": "גזר ארוז (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 1986,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35143,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35143,
+            "barcode": "800",
+            "chain_product_key": null,
+            "name": "בטטה מובחרת(ביכורי)"
+          }
+        },
+        {
+          "id": 1987,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35153,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35153,
+            "barcode": "808",
+            "chain_product_key": null,
+            "name": "חציל חממה(/ בלדי (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 1988,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35154,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35154,
+            "barcode": "7290003706044",
+            "chain_product_key": null,
+            "name": "כוסברה (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 1989,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35156,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35156,
+            "barcode": "830",
+            "chain_product_key": null,
+            "name": "קישואים א'(ביכורי שדה)"
+          }
+        },
+        {
+          "id": 1990,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35174,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35174,
+            "barcode": "909",
+            "chain_product_key": null,
+            "name": "תפוח עץ /סמיט /גרנד\"(ביכורי שדה)"
+          }
+        },
+        {
+          "id": 1991,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35180,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35180,
+            "barcode": "919",
+            "chain_product_key": null,
+            "name": "לימון צהוב(ביכורי שדה"
+          }
+        },
+        {
+          "id": 1992,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35186,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35186,
+            "barcode": "945",
+            "chain_product_key": null,
+            "name": "תפוח עץ פינק ליידי (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 1993,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35205,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35205,
+            "barcode": "802",
+            "chain_product_key": null,
+            "name": "בצל סגול ((ביכורי שדה)"
+          }
+        },
+        {
+          "id": 1994,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35224,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35224,
+            "barcode": "829",
+            "chain_product_key": null,
+            "name": "קולורבי (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 1995,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35245,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35245,
+            "barcode": "813",
+            "chain_product_key": null,
+            "name": "מלון (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 1996,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35246,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35246,
+            "barcode": "825",
+            "chain_product_key": null,
+            "name": "פלפל כתום (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 1997,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35255,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35255,
+            "barcode": "826",
+            "chain_product_key": null,
+            "name": "פלפל צהוב (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 1998,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35270,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35270,
+            "barcode": "3279370101106",
+            "chain_product_key": null,
+            "name": "סלק אדום בואקום (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 1999,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35272,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35272,
+            "barcode": "7290003706051",
+            "chain_product_key": null,
+            "name": "נענע (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 2000,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35291,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35291,
+            "barcode": "902",
+            "chain_product_key": null,
+            "name": "אגס (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 2001,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35301,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35301,
+            "barcode": "928",
+            "chain_product_key": null,
+            "name": "קלמנטינה (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 2002,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35303,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35303,
+            "barcode": "8900",
+            "chain_product_key": null,
+            "name": "שומר (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 2003,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35310,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35310,
+            "barcode": "7290000001586",
+            "chain_product_key": null,
+            "name": "שמיר בשקית (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 2004,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35312,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35312,
+            "barcode": "922",
+            "chain_product_key": null,
+            "name": "פומלה לבנה (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 2005,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35315,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35315,
+            "barcode": "910",
+            "chain_product_key": null,
+            "name": "תפוח עץ \"זהוב (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 2006,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35320,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35320,
+            "barcode": "7290010690428",
+            "chain_product_key": null,
+            "name": "חסה לבבות (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 2007,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35323,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35323,
+            "barcode": "7290010192038",
+            "chain_product_key": null,
+            "name": "שורש פטרוזיליה (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 2008,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35357,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35357,
+            "barcode": "7290003706037",
+            "chain_product_key": null,
+            "name": "סלרי עלים(ביכורי שדה)"
+          }
+        },
+        {
+          "id": 2009,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35394,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35394,
+            "barcode": "823",
+            "chain_product_key": null,
+            "name": "פלפל חריף(ביכורי שדה)"
+          }
+        },
+        {
+          "id": 2010,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35435,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35435,
+            "barcode": "815",
+            "chain_product_key": null,
+            "name": "סלק (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 2011,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35505,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35505,
+            "barcode": "804",
+            "chain_product_key": null,
+            "name": "דלורית (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 2012,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35582,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35582,
+            "barcode": "7290003990580",
+            "chain_product_key": null,
+            "name": "חסה לבבות(ביכורי)"
+          }
+        },
+        {
+          "id": 2013,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35715,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35715,
+            "barcode": "935",
+            "chain_product_key": null,
+            "name": "אפרסמון מובחר (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 2014,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35755,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35755,
+            "barcode": "810",
+            "chain_product_key": null,
+            "name": "כרוב אדום(ביכורי שדה)"
+          }
+        },
+        {
+          "id": 2015,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35830,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35830,
+            "barcode": "480615",
+            "chain_product_key": null,
+            "name": "עלי בייבי (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 2016,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35862,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35862,
+            "barcode": "7290017918204",
+            "chain_product_key": null,
+            "name": "גבעולי ברוקולי צעירים (ביכורי השדה)"
+          }
+        },
+        {
+          "id": 2017,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35916,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35916,
+            "barcode": "7290002766056",
+            "chain_product_key": null,
+            "name": "שרי אשכול (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 2018,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 35992,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35992,
+            "barcode": "923",
+            "chain_product_key": null,
+            "name": "פומלית (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 2019,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 36015,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 36015,
+            "barcode": "925",
+            "chain_product_key": null,
+            "name": "רימון (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 2020,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 36042,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 36042,
+            "barcode": "7290017918570",
+            "chain_product_key": null,
+            "name": "פלפל טינקרבל (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 2021,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 36189,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 36189,
+            "barcode": "916",
+            "chain_product_key": null,
+            "name": "אשכולית אדומה(ביכורי שדה)"
+          }
+        },
+        {
+          "id": 2022,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 36271,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 36271,
+            "barcode": "904",
+            "chain_product_key": null,
+            "name": "שזיף אדום(ביכורי שדה )"
+          }
+        },
+        {
+          "id": 2023,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 36527,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 36527,
+            "barcode": "1153",
+            "chain_product_key": null,
+            "name": "קישואים זוקיני (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 2024,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 36566,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 36566,
+            "barcode": "3132",
+            "chain_product_key": null,
+            "name": "משמש גדול (ביכורי שדה )"
+          }
+        },
+        {
+          "id": 2025,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 36623,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 36623,
+            "barcode": "805",
+            "chain_product_key": null,
+            "name": "דלעת (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 2026,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 36875,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 36875,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "מנגל גדול (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 2027,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 37427,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 37427,
+            "barcode": "849977",
+            "chain_product_key": null,
+            "name": "שסק (ביכורי שדה )"
+          }
+        },
+        {
+          "id": 2028,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 37428,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 37428,
+            "barcode": "949",
+            "chain_product_key": null,
+            "name": "קרמבולה ביכורי שדה"
+          }
+        },
+        {
+          "id": 2029,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 37904,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 37904,
+            "barcode": "7290002204213",
+            "chain_product_key": null,
+            "name": "דובדבנים(ביכורי שדה)"
+          }
+        },
+        {
+          "id": 2030,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 38191,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 38191,
+            "barcode": "822",
+            "chain_product_key": null,
+            "name": "פלפל בהיר (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 2031,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 38442,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 38442,
+            "barcode": "924",
+            "chain_product_key": null,
+            "name": "גויאבה (ביכורי שדה)"
+          }
+        },
+        {
+          "id": 2032,
+          "group_promotion_id": 216,
+          "shop_id": 2,
+          "product_id": 38989,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 38989,
+            "barcode": "693493158794",
+            "chain_product_key": null,
+            "name": "אוכמניות ארוז (ביכורי שדה)"
+          }
+        }
+      ]
+    },
+    {
+      "group": {
+        "id": 217,
+        "shop_id": 2,
+        "title": "שלוקים",
+        "description": null,
+        "emoji": null,
+        "kind": "BUNDLE",
+        "bundle_buy_qty": 2,
+        "bundle_pay_price": "18.00",
+        "max_discounted_qty": null,
+        "priority": 100,
+        "is_active": 1,
+        "start_at": "2024-05-08T21:00:00.000Z",
+        "end_at": "2026-08-30T20:59:59.000Z",
+        "created_at": "2026-07-29T17:59:03.000Z",
+        "updated_at": "2026-07-30T19:01:41.000Z"
+      },
+      "items": [
+        {
+          "id": 2033,
+          "group_promotion_id": 217,
+          "shop_id": 2,
+          "product_id": 35211,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35211,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "שלוקים איגלו 8 יח (ילג)"
+          }
+        },
+        {
+          "id": 2034,
+          "group_promotion_id": 217,
+          "shop_id": 2,
+          "product_id": 35277,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35277,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "שלוקים איגלו 70 יח' 4* ילג"
+          }
+        },
+        {
+          "id": 2035,
+          "group_promotion_id": 217,
+          "shop_id": 2,
+          "product_id": 36520,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 36520,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "שלוקים טרופית ענבים 18 יח"
+          }
+        }
+      ]
+    },
+    {
+      "group": {
+        "id": 218,
+        "shop_id": 2,
+        "title": "כפפות אלסטיות שחורות",
+        "description": null,
+        "emoji": null,
+        "kind": "BUNDLE",
+        "bundle_buy_qty": 3,
+        "bundle_pay_price": "9.90",
+        "max_discounted_qty": null,
+        "priority": 100,
+        "is_active": 1,
+        "start_at": "2024-06-26T21:00:00.000Z",
+        "end_at": "2026-12-31T21:59:59.000Z",
+        "created_at": "2026-07-29T17:59:03.000Z",
+        "updated_at": "2026-07-30T19:01:41.000Z"
+      },
+      "items": [
+        {
+          "id": 2036,
+          "group_promotion_id": 218,
+          "shop_id": 2,
+          "product_id": 36744,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 36744,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "כפפות L אלסטיות שחורות"
+          }
+        },
+        {
+          "id": 2037,
+          "group_promotion_id": 218,
+          "shop_id": 2,
+          "product_id": 37115,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 37115,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "כפפות S אלסטיות שחורות"
+          }
+        }
+      ]
+    },
+    {
+      "group": {
+        "id": 219,
+        "shop_id": 2,
+        "title": "תבניות אלומניום \"משי\"",
+        "description": null,
+        "emoji": null,
+        "kind": "BUNDLE",
+        "bundle_buy_qty": 4,
+        "bundle_pay_price": "18.00",
+        "max_discounted_qty": null,
+        "priority": 100,
+        "is_active": 1,
+        "start_at": "2026-05-16T21:00:00.000Z",
+        "end_at": "2026-08-30T20:59:59.000Z",
+        "created_at": "2026-07-29T17:59:03.000Z",
+        "updated_at": "2026-07-30T19:01:41.000Z"
+      },
+      "items": [
+        {
+          "id": 2038,
+          "group_promotion_id": 219,
+          "shop_id": 2,
+          "product_id": 35369,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35369,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "תבניות אלומניום אינגליש קייק \"משי\""
+          }
+        },
+        {
+          "id": 2039,
+          "group_promotion_id": 219,
+          "shop_id": 2,
+          "product_id": 35372,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35372,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "תבניות אלומניום R31 \"משי\""
+          }
+        },
+        {
+          "id": 2040,
+          "group_promotion_id": 219,
+          "shop_id": 2,
+          "product_id": 35401,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35401,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "תבניות אלומניום מלבניות \"משי\""
+          }
+        },
+        {
+          "id": 2041,
+          "group_promotion_id": 219,
+          "shop_id": 2,
+          "product_id": 35429,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35429,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "תבניות אלומניום R99 \"משי\""
+          }
+        },
+        {
+          "id": 2042,
+          "group_promotion_id": 219,
+          "shop_id": 2,
+          "product_id": 35473,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35473,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "תבניות אלומניום R64 \"משי\""
+          }
+        },
+        {
+          "id": 2043,
+          "group_promotion_id": 219,
+          "shop_id": 2,
+          "product_id": 35560,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35560,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "תבניות אלומניום R29 \"משי\""
+          }
+        },
+        {
+          "id": 2044,
+          "group_promotion_id": 219,
+          "shop_id": 2,
+          "product_id": 35936,
+          "created_at": "2026-07-29T17:59:03.000Z",
+          "_product_lookup": {
+            "id": 35936,
+            "barcode": null,
+            "chain_product_key": null,
+            "name": "תבניות אלומניום עגולות C10 \"משי\""
+          }
+        }
+      ]
+    }
+  ],
+  "cart_promotion_rules": [
+    {
+      "rule": {
+        "id": 31,
+        "shop_id": 2,
+        "rule_type": "DELIVERY_FEE_OVERRIDE",
+        "title": "בקנייה מעל 300 עלות משלוח 10 שח",
+        "description": null,
+        "threshold_amount": "300.00",
+        "delivery_fee_override": "10.00",
+        "reward_product_id": null,
+        "gift_text": null,
+        "reward_qty": null,
+        "reward_fixed_price": null,
+        "reward_max_qty": null,
+        "threshold_base_mode": "ITEMS_SUBTOTAL",
+        "priority": 20,
+        "is_active": 1,
+        "notify_customer": 1,
+        "start_at": "2022-07-09T21:00:00.000Z",
+        "end_at": "2026-12-31T21:59:59.000Z",
+        "source": "leshem_excel_2026_07_28_august_plus",
+        "external_reward_id": "828",
+        "created_at": "2026-07-29T17:55:59.000Z",
+        "updated_at": "2026-07-29T19:51:24.000Z"
+      },
+      "_reward_product_lookup": null
+    },
+    {
+      "rule": {
+        "id": 32,
+        "shop_id": 2,
+        "rule_type": "DELIVERY_FEE_OVERRIDE",
+        "title": "בקנייה מעל 500 משלוח חינם ללא עלות",
+        "description": null,
+        "threshold_amount": "500.00",
+        "delivery_fee_override": "0.00",
+        "reward_product_id": null,
+        "gift_text": null,
+        "reward_qty": null,
+        "reward_fixed_price": null,
+        "reward_max_qty": null,
+        "threshold_base_mode": "ITEMS_SUBTOTAL",
+        "priority": 10,
+        "is_active": 1,
+        "notify_customer": 1,
+        "start_at": "2022-07-09T21:00:00.000Z",
+        "end_at": "2026-12-31T21:59:59.000Z",
+        "source": "leshem_excel_2026_07_28_august_plus",
+        "external_reward_id": "829",
+        "created_at": "2026-07-29T17:55:59.000Z",
+        "updated_at": "2026-07-29T19:51:24.000Z"
+      },
+      "_reward_product_lookup": null
+    },
+    {
+      "rule": {
+        "id": 33,
+        "shop_id": 2,
+        "rule_type": "GIFT_PRODUCT",
+        "title": "בקנייה מעל 300 שקית רב פעמית גלסנר מתנה - שקית רב פעמית גלסנר",
+        "description": null,
+        "threshold_amount": "300.00",
+        "delivery_fee_override": null,
+        "reward_product_id": 37406,
+        "gift_text": "שקית רב פעמית גלסנר",
+        "reward_qty": "1.000",
+        "reward_fixed_price": null,
+        "reward_max_qty": "1.000",
+        "threshold_base_mode": "EXCLUDING_REWARD_PRODUCTS",
+        "priority": 25,
+        "is_active": 1,
+        "notify_customer": 1,
+        "start_at": "2026-06-11T21:00:00.000Z",
+        "end_at": "2026-12-31T21:59:59.000Z",
+        "source": "leshem_excel_2026_07_28_august_plus",
+        "external_reward_id": "1774_37406",
+        "created_at": "2026-07-29T17:59:03.000Z",
+        "updated_at": "2026-07-29T19:51:24.000Z"
+      },
+      "_reward_product_lookup": {
+        "id": 37406,
+        "barcode": null,
+        "chain_product_key": null,
+        "name": "שקית רב פעמית גלסנר"
+      }
+    }
+  ],
+  "product_promotions": [
+    {
+      "promotion": {
+        "id": 348,
+        "shop_id": 2,
+        "product_id": 35126,
+        "kind": "BUNDLE",
+        "percent_off": null,
+        "amount_off": null,
+        "fixed_price": null,
+        "bundle_buy_qty": 8,
+        "bundle_pay_price": "10.00",
+        "max_discounted_qty": null,
+        "description": null,
+        "start_at": "2021-11-18T22:00:00.000Z",
+        "end_at": "2026-08-30T20:59:59.000Z",
+        "created_at": "2026-07-29T17:55:59.000Z",
+        "updated_at": "2026-07-29T19:51:24.000Z"
+      },
+      "_product_lookup": {
+        "id": 35126,
+        "barcode": null,
+        "chain_product_key": null,
+        "name": "ארטיק קרח ריאו"
+      }
+    },
+    {
+      "promotion": {
+        "id": 349,
+        "shop_id": 2,
+        "product_id": 36477,
+        "kind": "BUNDLE",
+        "percent_off": null,
+        "amount_off": null,
+        "fixed_price": null,
+        "bundle_buy_qty": 2,
+        "bundle_pay_price": "39.90",
+        "max_discounted_qty": null,
+        "description": null,
+        "start_at": "2026-05-23T21:00:00.000Z",
+        "end_at": "2026-08-30T20:59:59.000Z",
+        "created_at": "2026-07-29T17:55:59.000Z",
+        "updated_at": "2026-07-29T19:51:24.000Z"
+      },
+      "_product_lookup": {
+        "id": 36477,
+        "barcode": null,
+        "chain_product_key": null,
+        "name": "נשנושים גלידה שוקו וניל פרווה 630 גרם \"קרמסימו\""
+      }
+    },
+    {
+      "promotion": {
+        "id": 350,
+        "shop_id": 2,
+        "product_id": 35342,
+        "kind": "BUNDLE",
+        "percent_off": null,
+        "amount_off": null,
+        "fixed_price": null,
+        "bundle_buy_qty": 4,
+        "bundle_pay_price": "11.90",
+        "max_discounted_qty": null,
+        "description": null,
+        "start_at": "2023-02-18T22:00:00.000Z",
+        "end_at": "2026-12-31T21:59:59.000Z",
+        "created_at": "2026-07-29T17:55:59.000Z",
+        "updated_at": "2026-07-29T19:51:24.000Z"
+      },
+      "_product_lookup": {
+        "id": 35342,
+        "barcode": null,
+        "chain_product_key": null,
+        "name": "כוס שקופה 1/100 חדפ(ילג)"
+      }
+    },
+    {
+      "promotion": {
+        "id": 351,
+        "shop_id": 2,
+        "product_id": 35151,
+        "kind": "BUNDLE",
+        "percent_off": null,
+        "amount_off": null,
+        "fixed_price": null,
+        "bundle_buy_qty": 2,
+        "bundle_pay_price": "22.00",
+        "max_discounted_qty": null,
+        "description": null,
+        "start_at": "2024-12-11T22:00:00.000Z",
+        "end_at": "2026-12-31T21:59:59.000Z",
+        "created_at": "2026-07-29T17:55:59.000Z",
+        "updated_at": "2026-07-29T19:51:24.000Z"
+      },
+      "_product_lookup": {
+        "id": 35151,
+        "barcode": "693493223645",
+        "chain_product_key": null,
+        "name": "חלת בוטיק"
+      }
+    },
+    {
+      "promotion": {
+        "id": 352,
+        "shop_id": 2,
+        "product_id": 35703,
+        "kind": "BUNDLE",
+        "percent_off": null,
+        "amount_off": null,
+        "fixed_price": null,
+        "bundle_buy_qty": 2,
+        "bundle_pay_price": "49.90",
+        "max_discounted_qty": null,
+        "description": null,
+        "start_at": "2021-11-21T22:00:00.000Z",
+        "end_at": "2026-12-31T21:59:59.000Z",
+        "created_at": "2026-07-29T17:55:59.000Z",
+        "updated_at": "2026-07-29T19:51:24.000Z"
+      },
+      "_product_lookup": {
+        "id": 35703,
+        "barcode": null,
+        "chain_product_key": null,
+        "name": "מגבונים ביביסיטר 9 יח ללא בישום"
+      }
+    },
+    {
+      "promotion": {
+        "id": 353,
+        "shop_id": 2,
+        "product_id": 40047,
+        "kind": "BUNDLE",
+        "percent_off": null,
+        "amount_off": null,
+        "fixed_price": null,
+        "bundle_buy_qty": 2,
+        "bundle_pay_price": "11.90",
+        "max_discounted_qty": null,
+        "description": null,
+        "start_at": "2022-06-28T21:00:00.000Z",
+        "end_at": "2026-12-31T21:59:59.000Z",
+        "created_at": "2026-07-29T17:59:03.000Z",
+        "updated_at": "2026-07-29T19:51:24.000Z"
+      },
+      "_product_lookup": {
+        "id": 40047,
+        "barcode": "7290011108113",
+        "chain_product_key": null,
+        "name": "חסה מהדרין"
+      }
+    },
+    {
+      "promotion": {
+        "id": 354,
+        "shop_id": 2,
+        "product_id": 35285,
+        "kind": "BUNDLE",
+        "percent_off": null,
+        "amount_off": null,
+        "fixed_price": null,
+        "bundle_buy_qty": 3,
+        "bundle_pay_price": "15.00",
+        "max_discounted_qty": null,
+        "description": null,
+        "start_at": "2023-01-03T22:00:00.000Z",
+        "end_at": "2026-12-31T21:59:59.000Z",
+        "created_at": "2026-07-29T17:59:03.000Z",
+        "updated_at": "2026-07-29T19:51:24.000Z"
+      },
+      "_product_lookup": {
+        "id": 35285,
+        "barcode": null,
+        "chain_product_key": null,
+        "name": "בלון הליום פשוט"
+      }
+    },
+    {
+      "promotion": {
+        "id": 355,
+        "shop_id": 2,
+        "product_id": 38269,
+        "kind": "BUNDLE",
+        "percent_off": null,
+        "amount_off": null,
+        "fixed_price": null,
+        "bundle_buy_qty": 2,
+        "bundle_pay_price": "15.00",
+        "max_discounted_qty": null,
+        "description": null,
+        "start_at": "2023-01-03T22:00:00.000Z",
+        "end_at": "2026-12-31T21:59:59.000Z",
+        "created_at": "2026-07-29T17:59:03.000Z",
+        "updated_at": "2026-07-29T19:51:24.000Z"
+      },
+      "_product_lookup": {
+        "id": 38269,
+        "barcode": null,
+        "chain_product_key": null,
+        "name": "בלון הליום גדול (למסחר)"
+      }
+    },
+    {
+      "promotion": {
+        "id": 356,
+        "shop_id": 2,
+        "product_id": 35259,
+        "kind": "BUNDLE",
+        "percent_off": null,
+        "amount_off": null,
+        "fixed_price": null,
+        "bundle_buy_qty": 3,
+        "bundle_pay_price": "11.90",
+        "max_discounted_qty": null,
+        "description": null,
+        "start_at": "2023-02-04T22:00:00.000Z",
+        "end_at": "2026-12-31T21:59:59.000Z",
+        "created_at": "2026-07-29T17:59:03.000Z",
+        "updated_at": "2026-07-29T19:51:24.000Z"
+      },
+      "_product_lookup": {
+        "id": 35259,
+        "barcode": null,
+        "chain_product_key": null,
+        "name": "כוס חם 8B"
+      }
+    },
+    {
+      "promotion": {
+        "id": 357,
+        "shop_id": 2,
+        "product_id": 36875,
+        "kind": "FIXED_PRICE",
+        "percent_off": null,
+        "amount_off": null,
+        "fixed_price": "69.90",
+        "bundle_buy_qty": null,
+        "bundle_pay_price": null,
+        "max_discounted_qty": null,
+        "description": null,
+        "start_at": "2024-06-08T21:00:00.000Z",
+        "end_at": "2026-08-30T20:59:59.000Z",
+        "created_at": "2026-07-29T17:59:03.000Z",
+        "updated_at": "2026-07-29T19:51:24.000Z"
+      },
+      "_product_lookup": {
+        "id": 36875,
+        "barcode": null,
+        "chain_product_key": null,
+        "name": "מנגל גדול (ביכורי שדה)"
+      }
+    },
+    {
+      "promotion": {
+        "id": 358,
+        "shop_id": 2,
+        "product_id": 35211,
+        "kind": "BUNDLE",
+        "percent_off": null,
+        "amount_off": null,
+        "fixed_price": null,
+        "bundle_buy_qty": 3,
+        "bundle_pay_price": "12.00",
+        "max_discounted_qty": null,
+        "description": null,
+        "start_at": "2024-05-08T21:00:00.000Z",
+        "end_at": "2026-08-30T20:59:59.000Z",
+        "created_at": "2026-07-29T17:59:03.000Z",
+        "updated_at": "2026-07-29T19:51:24.000Z"
+      },
+      "_product_lookup": {
+        "id": 35211,
+        "barcode": null,
+        "chain_product_key": null,
+        "name": "שלוקים איגלו 8 יח (ילג)"
+      }
+    },
+    {
+      "promotion": {
+        "id": 359,
+        "shop_id": 2,
+        "product_id": 35818,
+        "kind": "BUNDLE",
+        "percent_off": null,
+        "amount_off": null,
+        "fixed_price": null,
+        "bundle_buy_qty": 2,
+        "bundle_pay_price": "19.90",
+        "max_discounted_qty": null,
+        "description": null,
+        "start_at": "2025-07-21T21:00:00.000Z",
+        "end_at": "2026-12-31T21:59:59.000Z",
+        "created_at": "2026-07-29T17:59:03.000Z",
+        "updated_at": "2026-07-29T19:51:24.000Z"
+      },
+      "_product_lookup": {
+        "id": 35818,
+        "barcode": null,
+        "chain_product_key": null,
+        "name": "סט צלחות וינטג' 7+9 (16 יח)"
+      }
+    },
+    {
+      "promotion": {
+        "id": 360,
+        "shop_id": 2,
+        "product_id": 35531,
+        "kind": "BUNDLE",
+        "percent_off": null,
+        "amount_off": null,
+        "fixed_price": null,
+        "bundle_buy_qty": 2,
+        "bundle_pay_price": "15.00",
+        "max_discounted_qty": null,
+        "description": null,
+        "start_at": "2025-07-29T21:00:00.000Z",
+        "end_at": "2026-12-31T21:59:59.000Z",
+        "created_at": "2026-07-29T17:59:03.000Z",
+        "updated_at": "2026-07-29T19:51:24.000Z"
+      },
+      "_product_lookup": {
+        "id": 35531,
+        "barcode": null,
+        "chain_product_key": null,
+        "name": "חסה לאליק \"חממה בהר\""
+      }
+    },
+    {
+      "promotion": {
+        "id": 361,
+        "shop_id": 2,
+        "product_id": 38490,
+        "kind": "BUNDLE",
+        "percent_off": null,
+        "amount_off": null,
+        "fixed_price": null,
+        "bundle_buy_qty": 2,
+        "bundle_pay_price": "13.90",
+        "max_discounted_qty": null,
+        "description": null,
+        "start_at": "2026-02-03T22:00:00.000Z",
+        "end_at": "2026-12-31T21:59:59.000Z",
+        "created_at": "2026-07-29T17:59:03.000Z",
+        "updated_at": "2026-07-29T19:51:24.000Z"
+      },
+      "_product_lookup": {
+        "id": 38490,
+        "barcode": null,
+        "chain_product_key": null,
+        "name": "מרקיות מתכלות"
+      }
+    },
+    {
+      "promotion": {
+        "id": 362,
+        "shop_id": 2,
+        "product_id": 36943,
+        "kind": "BUNDLE",
+        "percent_off": null,
+        "amount_off": null,
+        "fixed_price": null,
+        "bundle_buy_qty": 2,
+        "bundle_pay_price": "19.90",
+        "max_discounted_qty": null,
+        "description": null,
+        "start_at": "2026-02-03T22:00:00.000Z",
+        "end_at": "2026-12-31T21:59:59.000Z",
+        "created_at": "2026-07-29T17:59:03.000Z",
+        "updated_at": "2026-07-29T19:51:24.000Z"
+      },
+      "_product_lookup": {
+        "id": 36943,
+        "barcode": null,
+        "chain_product_key": null,
+        "name": "צלחת קטנה \"7"
+      }
+    },
+    {
+      "promotion": {
+        "id": 363,
+        "shop_id": 2,
+        "product_id": 37224,
+        "kind": "BUNDLE",
+        "percent_off": null,
+        "amount_off": null,
+        "fixed_price": null,
+        "bundle_buy_qty": 2,
+        "bundle_pay_price": "32.90",
+        "max_discounted_qty": null,
+        "description": null,
+        "start_at": "2026-02-03T22:00:00.000Z",
+        "end_at": "2026-12-31T21:59:59.000Z",
+        "created_at": "2026-07-29T17:59:03.000Z",
+        "updated_at": "2026-07-29T19:51:24.000Z"
+      },
+      "_product_lookup": {
+        "id": 37224,
+        "barcode": null,
+        "chain_product_key": null,
+        "name": "צלחת ענקית 10"
+      }
+    },
+    {
+      "promotion": {
+        "id": 364,
+        "shop_id": 2,
+        "product_id": 35197,
+        "kind": "BUNDLE",
+        "percent_off": null,
+        "amount_off": null,
+        "fixed_price": null,
+        "bundle_buy_qty": 3,
+        "bundle_pay_price": "12.00",
+        "max_discounted_qty": null,
+        "description": null,
+        "start_at": "2026-07-19T21:00:00.000Z",
+        "end_at": "2026-12-31T21:59:59.000Z",
+        "created_at": "2026-07-29T18:27:13.000Z",
+        "updated_at": "2026-07-29T19:51:24.000Z"
+      },
+      "_product_lookup": {
+        "id": 35197,
+        "barcode": null,
+        "chain_product_key": null,
+        "name": "משקה בלו"
+      }
+    },
+    {
+      "promotion": {
+        "id": 365,
+        "shop_id": 2,
+        "product_id": 35349,
+        "kind": "BUNDLE",
+        "percent_off": null,
+        "amount_off": null,
+        "fixed_price": null,
+        "bundle_buy_qty": 2,
+        "bundle_pay_price": "18.00",
+        "max_discounted_qty": null,
+        "description": null,
+        "start_at": "2023-01-30T22:00:00.000Z",
+        "end_at": "2026-08-30T20:59:59.000Z",
+        "created_at": "2026-07-29T18:27:13.000Z",
+        "updated_at": "2026-07-29T19:51:24.000Z"
+      },
+      "_product_lookup": {
+        "id": 35349,
+        "barcode": null,
+        "chain_product_key": null,
+        "name": "מארז טישו 5 יח"
+      }
+    }
+  ]
+}
