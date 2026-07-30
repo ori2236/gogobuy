@@ -857,7 +857,7 @@ function buildGroupBundleNudgeActions(rows, { isEnglish, maxPerProduct }) {
     const buyQty = Number(group.bundle_buy_qty);
     if (!Number.isFinite(buyQty) || buyQty < 2) continue;
 
-    const orderItems = Array.from(group.orderItems.values()).filter((x) => !x.sold_by_weight);
+    const orderItems = Array.from(group.orderItems.values());
     if (!orderItems.length) continue;
 
     const totalQty = orderItems.reduce((sum, item) => sum + Math.floor(Number(item.amount || 0)), 0);

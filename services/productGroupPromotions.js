@@ -170,7 +170,6 @@ function buildUnitSlots(items) {
 
   for (const item of items || []) {
     if (Number(item.is_gift)) continue;
-    if (item.sold_by_weight === 1 || item.sold_by_weight === true) continue;
 
     const amount = qty(item.amount);
     const wholeUnits = Math.floor(amount);
