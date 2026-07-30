@@ -32,7 +32,9 @@
     "manual:shop2-promos-current:all-form": "node scripts/generateLeshemPromotionMappingTool.js --shopId=2",
     "export:promotions-payload": "node scripts/exportLocalPromotionsPayload.js --shopId=2",
     "preview:sync-promos-prod": "node scripts/applyProdPromotionsSync.js --shopId=2 --payload=data/promotions_prod_payload_shop2.json --dryRun",
-    "publish:sync-promos-prod": "node scripts/applyProdPromotionsSync.js --shopId=2 --payload=data/promotions_prod_payload_shop2.json --confirm"
+    "publish:sync-promos-prod": "node scripts/applyProdPromotionsSync.js --shopId=2 --payload=data/promotions_prod_payload_shop2.json --confirm",
+    "preview:clean-duplicate-promos": "node scripts/cleanupDuplicatePromotions.js --shopId=2 --dryRun",
+    "publish:clean-duplicate-promos": "node scripts/cleanupDuplicatePromotions.js --shopId=2 --confirm"
   },
   "repository": {
     "type": "git",

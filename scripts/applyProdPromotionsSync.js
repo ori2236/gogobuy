@@ -198,7 +198,17 @@ async function main() {
         const g = entry.group;
         const items = entry.items || [];
 
-        // Find existing match by external_id or title
+        function cleanTitle(title) {
+          if (!title) return "";
+          return String(title)
+            .replace(/\s*\d+\s*ב-?\s*\d+(\.\d+)?\s*(₪|ש"ח)?\s*$/gi, "")
+            .replace(/\s*\d+\s*ב-?\s*\d+\s*$/gi, "")
+            .replace(/["'״]/g, "")
+            .trim()
+            .toLowerCase();
+        }
+
+        // Find existing match by external_id, exact title, or clean base title
         let existing = null;
         if (g.external_id) {
           const [rows] = await conn.query(
@@ -213,6 +223,19 @@ async function main() {
             [SHOP_ID, g.title]
           );
           existing = rows?.[0] || null;
+        }
+        if (!existing && g.title) {
+          const targetClean = cleanTitle(g.title);
+          const [allGroups] = await conn.query(
+            `SELECT * FROM product_group_promotion WHERE shop_id = ? AND is_active = 1`,
+            [SHOP_ID]
+          );
+          for (const cand of allGroups || []) {
+            if (cleanTitle(cand.title) === targetClean) {
+              existing = cand;
+              break;
+            }
+          }
         }
 
         let groupId = existing ? Number(existing.id) : null;
