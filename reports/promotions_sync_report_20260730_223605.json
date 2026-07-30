@@ -1,0 +1,146 @@
+{
+  "timestamp": "2026-07-30T19:36:05.865Z",
+  "shop_id": 2,
+  "dry_run": true,
+  "product_group_promotions": {
+    "inserted": [],
+    "updated": [
+      {
+        "id": 211,
+        "title": "גלידת בן&ג'ריס 2 ב- 39.90 ₪"
+      },
+      {
+        "id": 212,
+        "title": "טיטולים ביביסיטר"
+      },
+      {
+        "id": 213,
+        "title": "פילטרים"
+      },
+      {
+        "id": 214,
+        "title": "נייר גלגול ריזלה"
+      },
+      {
+        "id": 215,
+        "title": "ירק מהדרין ביכורי שדה"
+      },
+      {
+        "id": 216,
+        "title": "ירק ביכורי שדה"
+      },
+      {
+        "id": 217,
+        "title": "שלוקים"
+      },
+      {
+        "id": 218,
+        "title": "כפפות אלסטיות שחורות"
+      },
+      {
+        "id": 219,
+        "title": "תבניות אלומניום \"משי\""
+      }
+    ],
+    "skipped": []
+  },
+  "cart_promotion_rules": {
+    "inserted": [],
+    "updated": [
+      {
+        "id": 31,
+        "title": "בקנייה מעל 300 עלות משלוח 10 שח"
+      },
+      {
+        "id": 32,
+        "title": "בקנייה מעל 500 משלוח חינם ללא עלות"
+      },
+      {
+        "id": 33,
+        "title": "בקנייה מעל 300 שקית רב פעמית גלסנר מתנה - שקית רב פעמית גלסנר"
+      }
+    ],
+    "skipped": []
+  },
+  "product_promotions": {
+    "inserted": [],
+    "updated": [
+      {
+        "id": 348,
+        "title": null
+      },
+      {
+        "id": 349,
+        "title": null
+      },
+      {
+        "id": 350,
+        "title": null
+      },
+      {
+        "id": 351,
+        "title": null
+      },
+      {
+        "id": 352,
+        "title": null
+      },
+      {
+        "id": 353,
+        "title": null
+      },
+      {
+        "id": 354,
+        "title": null
+      },
+      {
+        "id": 355,
+        "title": null
+      },
+      {
+        "id": 356,
+        "title": null
+      },
+      {
+        "id": 357,
+        "title": null
+      },
+      {
+        "id": 358,
+        "title": null
+      },
+      {
+        "id": 359,
+        "title": null
+      },
+      {
+        "id": 360,
+        "title": null
+      },
+      {
+        "id": 361,
+        "title": null
+      },
+      {
+        "id": 362,
+        "title": null
+      },
+      {
+        "id": 363,
+        "title": null
+      },
+      {
+        "id": 364,
+        "title": null
+      },
+      {
+        "id": 365,
+        "title": null
+      }
+    ],
+    "skipped": []
+  },
+  "unmatched_prod_promotions": [],
+  "deactivated_promotions": [],
+  "missing_products": []
+}
