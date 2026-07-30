@@ -40,6 +40,26 @@ function pad2(v) {
   return String(v).padStart(2, "0");
 }
 
+function formatSqlValue(colName, val) {
+  if (val === null || val === undefined) return null;
+  if (
+    ["start_at", "end_at", "created_at", "updated_at"].includes(colName) ||
+    (typeof val === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(val))
+  ) {
+    const d = new Date(val);
+    if (!isNaN(d.getTime())) {
+      const year = d.getFullYear();
+      const month = pad2(d.getMonth() + 1);
+      const day = pad2(d.getDate());
+      const hours = pad2(d.getHours());
+      const mins = pad2(d.getMinutes());
+      const secs = pad2(d.getSeconds());
+      return `${year}-${month}-${day} ${hours}:${mins}:${secs}`;
+    }
+  }
+  return val;
+}
+
 function stamp() {
   const d = new Date();
   return `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}_${pad2(d.getHours())}${pad2(d.getMinutes())}${pad2(d.getSeconds())}`;
@@ -202,7 +222,7 @@ async function main() {
         for (const col of groupCols) {
           if (["id", "created_at", "updated_at"].includes(col)) continue;
           if (col === "shop_id") rowData[col] = SHOP_ID;
-          else if (Object.prototype.hasOwnProperty.call(g, col)) rowData[col] = g[col];
+          else if (Object.prototype.hasOwnProperty.call(g, col)) rowData[col] = formatSqlValue(col, g[col]);
         }
 
         if (existing) {
@@ -307,7 +327,7 @@ async function main() {
           if (["id", "created_at", "updated_at"].includes(col)) continue;
           if (col === "shop_id") rowData[col] = SHOP_ID;
           else if (col === "reward_product_id") rowData[col] = rewardProdId;
-          else if (Object.prototype.hasOwnProperty.call(r, col)) rowData[col] = r[col];
+          else if (Object.prototype.hasOwnProperty.call(r, col)) rowData[col] = formatSqlValue(col, r[col]);
         }
 
         if (existing) {
@@ -393,7 +413,7 @@ async function main() {
           if (["id", "created_at", "updated_at"].includes(col)) continue;
           if (col === "shop_id") rowData[col] = SHOP_ID;
           else if (col === "product_id") rowData[col] = targetProdId;
-          else if (Object.prototype.hasOwnProperty.call(p, col)) rowData[col] = p[col];
+          else if (Object.prototype.hasOwnProperty.call(p, col)) rowData[col] = formatSqlValue(col, p[col]);
         }
 
         if (existing) {
