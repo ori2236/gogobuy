@@ -1,0 +1,1731 @@
+{
+  "mode": "confirm",
+  "shop_id": 2,
+  "source": "leshem_excel_2026_07_28_august_plus",
+  "data_file": "C:\\Users\\ORI\\Desktop\\gogobuy\\gogobuy\\data\\shop2_promotions_31752_august_plus.json",
+  "generated_at": "2026-07-29T17:55:58.846Z",
+  "products_in_shop": 5310,
+  "excel_promotions_total": 38,
+  "safe_product_promotions": [
+    {
+      "reward_id": 3,
+      "title": "ארטיק ריאו 8 ב-10",
+      "type": "כמות בסכום",
+      "deal_text": "8.00 ב 10.00",
+      "matched_product_id": 35126,
+      "matched_product_name": "ארטיק קרח ריאו",
+      "kind": "BUNDLE",
+      "fixed_price": null,
+      "bundle_buy_qty": 8,
+      "bundle_pay_price": 10,
+      "max_discounted_qty": null,
+      "start_at": "2021-11-19 00:00:00",
+      "end_at": "2026-08-30 23:59:59",
+      "search_phrase": "ארטיק ריאו",
+      "tokens": [
+        "ארטיק",
+        "ריאו"
+      ],
+      "match_reason": "unique_fuzzy_token_match",
+      "match_score": 89.33
+    },
+    {
+      "reward_id": 31,
+      "title": "גלידה קרמסימו 2 ב- 39.90",
+      "type": "כמות בסכום",
+      "deal_text": "2.00 ב 39.90",
+      "matched_product_id": 36477,
+      "matched_product_name": "נשנושים גלידה שוקו וניל פרווה 630 גרם \"קרמסימו\"",
+      "kind": "BUNDLE",
+      "fixed_price": null,
+      "bundle_buy_qty": 2,
+      "bundle_pay_price": 39.9,
+      "max_discounted_qty": null,
+      "start_at": "2026-05-24 00:00:00",
+      "end_at": "2026-08-30 23:59:59",
+      "search_phrase": "גלידה קרמסימו",
+      "tokens": [
+        "גלידה",
+        "קרמסימו"
+      ],
+      "match_reason": "unique_fuzzy_token_match",
+      "match_score": 86.13
+    },
+    {
+      "reward_id": 634,
+      "title": "כוס שקופה 4 ב-11.90",
+      "type": "כמות בסכום",
+      "deal_text": "4.00 ב 11.90",
+      "matched_product_id": 35342,
+      "matched_product_name": "כוס שקופה 1/100 חדפ(ילג)",
+      "kind": "BUNDLE",
+      "fixed_price": null,
+      "bundle_buy_qty": 4,
+      "bundle_pay_price": 11.9,
+      "max_discounted_qty": null,
+      "start_at": "2023-02-19 00:00:00",
+      "end_at": "2026-12-31 23:59:59",
+      "search_phrase": "כוס שקופה",
+      "tokens": [
+        "כוס",
+        "שקופה"
+      ],
+      "match_reason": "unique_fuzzy_token_match",
+      "match_score": 115.56
+    },
+    {
+      "reward_id": 1110,
+      "title": "חלת בוטיק 2 ב-22",
+      "type": "כמות בסכום",
+      "deal_text": "2.00 ב 22.00",
+      "matched_product_id": 35151,
+      "matched_product_name": "חלת בוטיק",
+      "kind": "BUNDLE",
+      "fixed_price": null,
+      "bundle_buy_qty": 2,
+      "bundle_pay_price": 22,
+      "max_discounted_qty": null,
+      "start_at": "2024-12-12 00:00:00",
+      "end_at": "2026-12-31 23:59:59",
+      "search_phrase": "חלת בוטיק",
+      "tokens": [
+        "חלת",
+        "בוטיק"
+      ],
+      "match_reason": "unique_fuzzy_score_match",
+      "match_score": 140
+    },
+    {
+      "reward_id": 1699,
+      "title": "מגבונים ביביסיטר 2 ב- 49.90",
+      "type": "כמות בסכום",
+      "deal_text": "2.00 ב 49.90",
+      "matched_product_id": 35703,
+      "matched_product_name": "מגבונים ביביסיטר 9 יח ללא בישום",
+      "kind": "BUNDLE",
+      "fixed_price": null,
+      "bundle_buy_qty": 2,
+      "bundle_pay_price": 49.9,
+      "max_discounted_qty": null,
+      "start_at": "2021-11-22 00:00:00",
+      "end_at": "2026-12-31 23:59:59",
+      "search_phrase": "מגבונימ ביביסיטר",
+      "tokens": [
+        "מגבונימ",
+        "ביביסיטר"
+      ],
+      "match_reason": "unique_fuzzy_token_match",
+      "match_score": 116
+    }
+  ],
+  "safe_cart_rules": [
+    {
+      "reward_id": 828,
+      "title": "בקנייה מעל 300 עלות משלוח 10 שח",
+      "type": "קנה בסכום הוסף קבל",
+      "rule_type": "DELIVERY_FEE_OVERRIDE",
+      "threshold_amount": 300,
+      "delivery_fee_override": 10,
+      "start_at": "2022-07-10 00:00:00",
+      "end_at": "2026-12-31 23:59:59"
+    },
+    {
+      "reward_id": 829,
+      "title": "בקנייה מעל 500 משלוח חינם ללא עלות",
+      "type": "קנה בסכום הוסף קבל",
+      "rule_type": "DELIVERY_FEE_OVERRIDE",
+      "threshold_amount": 500,
+      "delivery_fee_override": 0,
+      "start_at": "2022-07-10 00:00:00",
+      "end_at": "2026-12-31 23:59:59"
+    }
+  ],
+  "skipped": [
+    {
+      "reward_id": 9,
+      "title": "גלידת בן&ג'ריס 2 ב- 39.90 ₪",
+      "type": "כמות בסכום",
+      "deal_text": "2.00 ב 39.90",
+      "start_date": "2026-07-20",
+      "end_date": "2026-08-30",
+      "max_qty": null,
+      "reason": "multiple_fuzzy_matches",
+      "search_phrase": "גלידת בנ גריס",
+      "tokens": [
+        "גלידת",
+        "בנ",
+        "גריס"
+      ],
+      "candidates_count": 24,
+      "candidates": [
+        {
+          "id": 35479,
+          "name": "גלידת בן&גריס קרם עוגיות",
+          "price": 29.9,
+          "stock_amount": 329,
+          "match_score": 116.8
+        },
+        {
+          "id": 35902,
+          "name": "גלידת בן&גריס בצק עוגיות",
+          "price": 25.9,
+          "stock_amount": 156,
+          "match_score": 116.36
+        },
+        {
+          "id": 36366,
+          "name": "גלידת בן&גר'יס צאנקי מאנקי",
+          "price": 25.9,
+          "stock_amount": 93,
+          "match_score": 116.36
+        },
+        {
+          "id": 36499,
+          "name": "גלידת בן&גר'יס ניו יורק",
+          "price": 25.9,
+          "stock_amount": 82,
+          "match_score": 116.36
+        },
+        {
+          "id": 36372,
+          "name": "גלידת בן &ג'ריס תות שדה 500 מ\"ל(מעיין)",
+          "price": 29.9,
+          "stock_amount": 92,
+          "match_score": 116
+        },
+        {
+          "id": 36624,
+          "name": "גלידת בן&ג'ריס עוגת גבינה ותות",
+          "price": 25.9,
+          "stock_amount": 73,
+          "match_score": 116
+        },
+        {
+          "id": 37429,
+          "name": "גלידת בן&ג'ריס פיינטים שוקולד 500ג'",
+          "price": 29.9,
+          "stock_amount": 41,
+          "match_score": 115.69
+        },
+        {
+          "id": 38447,
+          "name": "גלידת בן&ג'ריס גלידת קרמל מלוח 500מל",
+          "price": 29.9,
+          "stock_amount": 23,
+          "match_score": 115.69
+        },
+        {
+          "id": 35953,
+          "name": "גלידת בן אנגרי'ס וניל טופי",
+          "price": 25.9,
+          "stock_amount": 148,
+          "match_score": 48.24
+        },
+        {
+          "id": 36022,
+          "name": "בן&גריס שוקולד בראוניס",
+          "price": 25.9,
+          "stock_amount": 136,
+          "match_score": 45.33
+        },
+        {
+          "id": 37214,
+          "name": "בן&גריס צאנקי מאנקי",
+          "price": 10.9,
+          "stock_amount": 48,
+          "match_score": 45.33
+        },
+        {
+          "id": 38491,
+          "name": "בן&ג'ריס וניל אישי",
+          "price": 10.9,
+          "stock_amount": 23,
+          "match_score": 44.89
+        },
+        {
+          "id": 36030,
+          "name": "בן&גריס ריבת חלב",
+          "price": 25.9,
+          "stock_amount": 134,
+          "match_score": 44.53
+        },
+        {
+          "id": 38522,
+          "name": "בן&גריס בצק עוגיות(שגיא)",
+          "price": 10.9,
+          "stock_amount": 23,
+          "match_score": 44.53
+        },
+        {
+          "id": 39179,
+          "name": "מאגדת בן&גריס בצק עוגיות סנדוויץ",
+          "price": 29.9,
+          "stock_amount": 16,
+          "match_score": 44.24
+        },
+        {
+          "id": 39358,
+          "name": "בן&גריס קסטה בראוניז 80 גר(שגיא)",
+          "price": 9.9,
+          "stock_amount": 15,
+          "match_score": 44.24
+        },
+        {
+          "id": 36838,
+          "name": "בן&גריס שוקולד בראוניס 150 מל(קפואים)",
+          "price": 10.9,
+          "stock_amount": 63,
+          "match_score": 44
+        },
+        {
+          "id": 37774,
+          "name": "בן&גריס שוקולד פינט באטר ספליט",
+          "price": 25.9,
+          "stock_amount": 34,
+          "match_score": 44
+        },
+        {
+          "id": 38659,
+          "name": "בן&ג'ריס מאגדת טילון בצק עוגיות",
+          "price": 32.9,
+          "stock_amount": 21,
+          "match_score": 44
+        },
+        {
+          "id": 38744,
+          "name": "בן&ג'ריס פיינט סורבה פינה קולדה",
+          "price": 25.9,
+          "stock_amount": 20,
+          "match_score": 44
+        },
+        {
+          "id": 35551,
+          "name": "גלידה בן ג'ריס פיינטים וניל צרפת 500'ג",
+          "price": 25.9,
+          "stock_amount": 284,
+          "match_score": 43.79
+        },
+        {
+          "id": 36814,
+          "name": "בן&ג'ריס ריבת חלב 150 מל(מעיין)",
+          "price": 9.9,
+          "stock_amount": 63,
+          "match_score": 43.79
+        },
+        {
+          "id": 37775,
+          "name": "בן&ג'ריס פיינט סורבה פסיפלורה ופירות יער",
+          "price": 25.9,
+          "stock_amount": 34,
+          "match_score": 43.79
+        },
+        {
+          "id": 37759,
+          "name": "בן&ג'ריס טילוני קרם עוגיות 4*100ג",
+          "price": 32.9,
+          "stock_amount": 34,
+          "match_score": 43.47
+        }
+      ]
+    },
+    {
+      "reward_id": 70,
+      "title": "טיטולים ביביסיטר 3 ב- 84.90",
+      "type": "כמות בסכום",
+      "deal_text": "3.00 ב 84.90",
+      "start_date": "2021-11-22",
+      "end_date": "2026-12-31",
+      "max_qty": null,
+      "reason": "no_match",
+      "search_phrase": "טיטולימ ביביסיטר",
+      "tokens": [
+        "טיטולימ",
+        "ביביסיטר"
+      ],
+      "candidates_count": 0,
+      "candidates": []
+    },
+    {
+      "reward_id": 224,
+      "title": "פילטרים 3 ב10",
+      "type": "כמות בסכום",
+      "deal_text": "3.00 ב 10.00",
+      "start_date": "2022-02-23",
+      "end_date": "2026-12-31",
+      "max_qty": null,
+      "reason": "no_match",
+      "search_phrase": "פילטרימ",
+      "tokens": [
+        "פילטרימ"
+      ],
+      "candidates_count": 0,
+      "candidates": []
+    },
+    {
+      "reward_id": 225,
+      "title": "נייר גלגול ריזלה 5 ב10",
+      "type": "כמות בסכום",
+      "deal_text": "5.00 ב 10.00",
+      "start_date": "2022-02-23",
+      "end_date": "2026-12-31",
+      "max_qty": null,
+      "reason": "multiple_fuzzy_matches",
+      "search_phrase": "נייר גלגול ריזלה",
+      "tokens": [
+        "נייר",
+        "גלגול",
+        "ריזלה"
+      ],
+      "candidates_count": 3,
+      "candidates": [
+        {
+          "id": 35964,
+          "name": "ריזלה נייר גלגול אדום",
+          "price": 2.5,
+          "stock_amount": 146,
+          "match_score": 90
+        },
+        {
+          "id": 36257,
+          "name": "ריזלה נייר גלגול באלי כחול",
+          "price": 2.5,
+          "stock_amount": 103,
+          "match_score": 88.8
+        },
+        {
+          "id": 36977,
+          "name": "ריזלה נייר גלגול באלי שאג",
+          "price": 2.5,
+          "stock_amount": 56,
+          "match_score": 88.8
+        }
+      ]
+    },
+    {
+      "reward_id": 345,
+      "title": "ירק מהדרין ביכורי שדה 3 ב-12.90",
+      "type": "כמות בסכום",
+      "deal_text": "3.00 ב 12.90",
+      "start_date": "2022-06-29",
+      "end_date": "2026-12-31",
+      "max_qty": null,
+      "reason": "multiple_fuzzy_matches",
+      "search_phrase": "ירק מהדרינ ביכורי שדה",
+      "tokens": [
+        "ירק",
+        "מהדרינ",
+        "ביכורי",
+        "שדה"
+      ],
+      "candidates_count": 2,
+      "candidates": [
+        {
+          "id": 40179,
+          "name": "נענע מהדרין (ביכורי שדה)",
+          "price": 5.9,
+          "stock_amount": 0,
+          "match_score": 58.5
+        },
+        {
+          "id": 40190,
+          "name": "סלרי \"מהדרין\" ביכורי שדה",
+          "price": 7.9,
+          "stock_amount": 0,
+          "match_score": 58.5
+        }
+      ]
+    },
+    {
+      "reward_id": 347,
+      "title": "חסה מהדרין ביכורי שדה 2 ב- 11.90",
+      "type": "כמות בסכום",
+      "deal_text": "2.00 ב 11.90",
+      "start_date": "2022-06-29",
+      "end_date": "2026-12-31",
+      "max_qty": null,
+      "reason": "multiple_fuzzy_matches",
+      "search_phrase": "חסה מהדרינ ביכורי שדה",
+      "tokens": [
+        "חסה",
+        "מהדרינ",
+        "ביכורי",
+        "שדה"
+      ],
+      "candidates_count": 17,
+      "candidates": [
+        {
+          "id": 40050,
+          "name": "חסה סלנובה (ביכורי שדה)",
+          "price": 10.9,
+          "stock_amount": 0,
+          "match_score": 62.5
+        },
+        {
+          "id": 40053,
+          "name": "חסה עגולה (ביכורי שדה)",
+          "price": 7.9,
+          "stock_amount": 0,
+          "match_score": 62.5
+        },
+        {
+          "id": 40054,
+          "name": "חסה עגולה ביכורי שדה",
+          "price": 6.9,
+          "stock_amount": 0,
+          "match_score": 62.5
+        },
+        {
+          "id": 40061,
+          "name": "חסה רומית (ביכורי שדה)",
+          "price": 8.9,
+          "stock_amount": 0,
+          "match_score": 62.5
+        },
+        {
+          "id": 40101,
+          "name": "לבבות חסה (ביכורי שדה)",
+          "price": 10.9,
+          "stock_amount": 0,
+          "match_score": 62.5
+        },
+        {
+          "id": 40040,
+          "name": "חסה גוש קטיף (ביכורי שדה)",
+          "price": 7.9,
+          "stock_amount": 0,
+          "match_score": 60.1
+        },
+        {
+          "id": 40051,
+          "name": "חסה סלנובה ארוז ביכורי שדה",
+          "price": 11.9,
+          "stock_amount": 0,
+          "match_score": 60.1
+        },
+        {
+          "id": 40059,
+          "name": "חסה צבעונית במגש (ביכורי שדה)",
+          "price": 9.9,
+          "stock_amount": 0,
+          "match_score": 60.1
+        },
+        {
+          "id": 40102,
+          "name": "לבבות חסה ארוז ביכורי שדה",
+          "price": 10.9,
+          "stock_amount": 0,
+          "match_score": 60.1
+        },
+        {
+          "id": 40179,
+          "name": "נענע מהדרין (ביכורי שדה)",
+          "price": 5.9,
+          "stock_amount": 0,
+          "match_score": 58.5
+        },
+        {
+          "id": 40190,
+          "name": "סלרי \"מהדרין\" ביכורי שדה",
+          "price": 7.9,
+          "stock_amount": 0,
+          "match_score": 58.5
+        },
+        {
+          "id": 35320,
+          "name": "חסה לבבות (ביכורי שדה)",
+          "price": 10.9,
+          "stock_amount": 0,
+          "match_score": 56.5
+        },
+        {
+          "id": 40047,
+          "name": "חסה מהדרין",
+          "price": 6.9,
+          "stock_amount": 0,
+          "match_score": 51
+        },
+        {
+          "id": 40038,
+          "name": "חסה ארוזה מהדרין",
+          "price": 7.9,
+          "stock_amount": 0,
+          "match_score": 45.67
+        },
+        {
+          "id": 40057,
+          "name": "חסה ערבית מהדרין",
+          "price": 6.9,
+          "stock_amount": 0,
+          "match_score": 45.67
+        },
+        {
+          "id": 40063,
+          "name": "חסה רומית(ביכורי)",
+          "price": 11.9,
+          "stock_amount": 0,
+          "match_score": 45.67
+        },
+        {
+          "id": 40046,
+          "name": "חסה לליק מהדרין גלאט",
+          "price": 12.9,
+          "stock_amount": 0,
+          "match_score": 43
+        }
+      ]
+    },
+    {
+      "reward_id": 433,
+      "title": "ירק ביכורי שדה 3 ב- 8.90",
+      "type": "כמות בסכום",
+      "deal_text": "3.00 ב 8.90",
+      "start_date": "2022-10-04",
+      "end_date": "2026-12-31",
+      "max_qty": null,
+      "reason": "multiple_fuzzy_matches",
+      "search_phrase": "ירק ביכורי שדה",
+      "tokens": [
+        "ירק",
+        "ביכורי",
+        "שדה"
+      ],
+      "candidates_count": 35,
+      "candidates": [
+        {
+          "id": 39960,
+          "name": "אורגנו ביכורי שדה",
+          "price": 5.9,
+          "stock_amount": 0,
+          "match_score": 52
+        },
+        {
+          "id": 39978,
+          "name": "בזיליקום ביכורי שדה",
+          "price": 5.9,
+          "stock_amount": 0,
+          "match_score": 52
+        },
+        {
+          "id": 40005,
+          "name": "ג'ינגר (ביכורי שדה )",
+          "price": 29.9,
+          "stock_amount": 0,
+          "match_score": 52
+        },
+        {
+          "id": 40025,
+          "name": "חזרת (ביכורי שדה)",
+          "price": 45,
+          "stock_amount": 0,
+          "match_score": 52
+        },
+        {
+          "id": 40129,
+          "name": "לפת(ביכורי שדה)",
+          "price": 8.9,
+          "stock_amount": 0,
+          "match_score": 52
+        },
+        {
+          "id": 40160,
+          "name": "נבטוטים (ביכורי שדה)",
+          "price": 9.9,
+          "stock_amount": 0,
+          "match_score": 52
+        },
+        {
+          "id": 40173,
+          "name": "נענע ביכורי שדה",
+          "price": 5.9,
+          "stock_amount": 0,
+          "match_score": 52
+        },
+        {
+          "id": 40228,
+          "name": "עירית \"ביכורי שדה\"",
+          "price": 5.9,
+          "stock_amount": 0,
+          "match_score": 52
+        },
+        {
+          "id": 40268,
+          "name": "פול (ביכורי שדה)",
+          "price": 19.9,
+          "stock_amount": 0,
+          "match_score": 52
+        },
+        {
+          "id": 40329,
+          "name": "צנון (ביכורי שדה)",
+          "price": 8.9,
+          "stock_amount": 0,
+          "match_score": 52
+        },
+        {
+          "id": 40337,
+          "name": "קורנית (ביכורי שדה)",
+          "price": 5.9,
+          "stock_amount": 0,
+          "match_score": 52
+        },
+        {
+          "id": 40340,
+          "name": "קייל (ביכורי שדה)",
+          "price": 9.9,
+          "stock_amount": 0,
+          "match_score": 52
+        },
+        {
+          "id": 40395,
+          "name": "תאנים (ביכורי שדה )",
+          "price": 39.9,
+          "stock_amount": 0,
+          "match_score": 52
+        },
+        {
+          "id": 40435,
+          "name": "תרד(ביכורי שדה)",
+          "price": 10.9,
+          "stock_amount": 0,
+          "match_score": 52
+        },
+        {
+          "id": 39952,
+          "name": "אגס אדום (ביכורי שדה )",
+          "price": 17.9,
+          "stock_amount": 0,
+          "match_score": 49.33
+        },
+        {
+          "id": 39953,
+          "name": "אגס קטן (ביכורי שדה)",
+          "price": 17.9,
+          "stock_amount": 0,
+          "match_score": 49.33
+        },
+        {
+          "id": 39957,
+          "name": "אוכמניות ארוז ביכורי שדה",
+          "price": 14.9,
+          "stock_amount": 0,
+          "match_score": 49.33
+        },
+        {
+          "id": 39962,
+          "name": "אנדיב עולש (ביכורי שדה)",
+          "price": 14.9,
+          "stock_amount": 0,
+          "match_score": 49.33
+        },
+        {
+          "id": 39970,
+          "name": "אפונת שלג (ביכורי שדה)",
+          "price": 22.9,
+          "stock_amount": 0,
+          "match_score": 49.33
+        },
+        {
+          "id": 39974,
+          "name": "ארטישוק מובחר (ביכורי שדה)",
+          "price": 6.9,
+          "stock_amount": 0,
+          "match_score": 49.33
+        },
+        {
+          "id": 39983,
+          "name": "בטטה קסביה(ביכורי שדה)",
+          "price": 19.9,
+          "stock_amount": 0,
+          "match_score": 49.33
+        },
+        {
+          "id": 39992,
+          "name": "בצל שאלוט (ביכורי שדה)",
+          "price": 12.9,
+          "stock_amount": 0,
+          "match_score": 49.33
+        },
+        {
+          "id": 39998,
+          "name": "ברוקולי ארוז (ביכורי שדה )",
+          "price": 15.9,
+          "stock_amount": 0,
+          "match_score": 49.33
+        },
+        {
+          "id": 39999,
+          "name": "ברוקולי ארוז (ביכורי שדה)",
+          "price": 9.9,
+          "stock_amount": 0,
+          "match_score": 49.33
+        },
+        {
+          "id": 40010,
+          "name": "גזר צבעוני (ביכורי שדה)",
+          "price": 9.9,
+          "stock_amount": 0,
+          "match_score": 49.33
+        },
+        {
+          "id": 40013,
+          "name": "גינג'ר ארוז (ביכורי שדה)",
+          "price": 10.9,
+          "stock_amount": 0,
+          "match_score": 49.33
+        },
+        {
+          "id": 40019,
+          "name": "דלעת ארוזה (ביכורי שדה)",
+          "price": 9.9,
+          "stock_amount": 0,
+          "match_score": 49.33
+        },
+        {
+          "id": 40020,
+          "name": "דלעת חתוכה (ביכורי שדה)",
+          "price": 14.9,
+          "stock_amount": 0,
+          "match_score": 49.33
+        },
+        {
+          "id": 40050,
+          "name": "חסה סלנובה (ביכורי שדה)",
+          "price": 10.9,
+          "stock_amount": 0,
+          "match_score": 49.33
+        },
+        {
+          "id": 40053,
+          "name": "חסה עגולה (ביכורי שדה)",
+          "price": 7.9,
+          "stock_amount": 0,
+          "match_score": 49.33
+        },
+        {
+          "id": 40054,
+          "name": "חסה עגולה ביכורי שדה",
+          "price": 6.9,
+          "stock_amount": 0,
+          "match_score": 49.33
+        },
+        {
+          "id": 40061,
+          "name": "חסה רומית (ביכורי שדה)",
+          "price": 8.9,
+          "stock_amount": 0,
+          "match_score": 49.33
+        },
+        {
+          "id": 40065,
+          "name": "חציל בלאדי (ביכורי שדה)",
+          "price": 12.9,
+          "stock_amount": 0,
+          "match_score": 49.33
+        },
+        {
+          "id": 40094,
+          "name": "כרוב לבן ביכורי שדה",
+          "price": 16.9,
+          "stock_amount": 0,
+          "match_score": 49.33
+        },
+        {
+          "id": 40098,
+          "name": "כרובית ארוזה (ביכורי שדה)",
+          "price": 12.9,
+          "stock_amount": 0,
+          "match_score": 49.33
+        }
+      ]
+    },
+    {
+      "reward_id": 439,
+      "title": "בלו כחול 3 ב12",
+      "type": "כמות בסכום",
+      "deal_text": "3.00 ב 12.00",
+      "start_date": "2026-07-20",
+      "end_date": "2026-12-31",
+      "max_qty": null,
+      "reason": "no_match",
+      "search_phrase": "בלו כחול",
+      "tokens": [
+        "בלו",
+        "כחול"
+      ],
+      "candidates_count": 0,
+      "candidates": []
+    },
+    {
+      "reward_id": 534,
+      "title": "בלוני הליום פשוטים 3 ב15",
+      "type": "כמות בסכום",
+      "deal_text": "3.00 ב 15.00",
+      "start_date": "2023-01-04",
+      "end_date": "2026-12-31",
+      "max_qty": null,
+      "reason": "no_match",
+      "search_phrase": "בלוני הליומ פשוטימ",
+      "tokens": [
+        "בלוני",
+        "הליומ",
+        "פשוטימ"
+      ],
+      "candidates_count": 0,
+      "candidates": []
+    },
+    {
+      "reward_id": 535,
+      "title": "בלוני הליום גדולים 2 ב- 15",
+      "type": "כמות בסכום",
+      "deal_text": "2.00 ב 15.00",
+      "start_date": "2023-01-04",
+      "end_date": "2026-12-31",
+      "max_qty": null,
+      "reason": "no_match",
+      "search_phrase": "בלוני הליומ גדולימ",
+      "tokens": [
+        "בלוני",
+        "הליומ",
+        "גדולימ"
+      ],
+      "candidates_count": 0,
+      "candidates": []
+    },
+    {
+      "reward_id": 708,
+      "title": "כוס חם 3 ב- 11.90",
+      "type": "כמות בסכום",
+      "deal_text": "3.00 ב 11.90",
+      "start_date": "2023-02-05",
+      "end_date": "2026-12-31",
+      "max_qty": null,
+      "reason": "multiple_fuzzy_matches",
+      "search_phrase": "כוס חמ",
+      "tokens": [
+        "כוס",
+        "חמ"
+      ],
+      "candidates_count": 2,
+      "candidates": [
+        {
+          "id": 35259,
+          "name": "כוס חם 8B",
+          "price": 4.9,
+          "stock_amount": 779,
+          "match_score": 117.33
+        },
+        {
+          "id": 36375,
+          "name": "כוס חם קרטון BB 1/20 50 שמאי",
+          "price": 7.9,
+          "stock_amount": 92,
+          "match_score": 115.2
+        }
+      ]
+    },
+    {
+      "reward_id": 715,
+      "title": "שלוקים 2 ב-18",
+      "type": "כמות בסכום",
+      "deal_text": "2.00 ב 18.00",
+      "start_date": "2024-05-09",
+      "end_date": "2026-08-30",
+      "max_qty": null,
+      "reason": "generic_name_requires_manual_mapping",
+      "search_phrase": "שלוקימ",
+      "tokens": [
+        "שלוקימ"
+      ],
+      "candidates_count": 4,
+      "candidates": [
+        {
+          "id": 35211,
+          "name": "שלוקים איגלו 8 יח (ילג)",
+          "price": 6.9,
+          "stock_amount": 1293,
+          "match_score": 96.29
+        },
+        {
+          "id": 35277,
+          "name": "שלוקים איגלו 70 יח' 4* ילג",
+          "price": 12.9,
+          "stock_amount": 718,
+          "match_score": 96
+        },
+        {
+          "id": 36520,
+          "name": "שלוקים טרופית ענבים 18 יח",
+          "price": 19.9,
+          "stock_amount": 81,
+          "match_score": 96
+        },
+        {
+          "id": 36167,
+          "name": "טרופית בטעם ענבים \"שלוקים\"",
+          "price": 2,
+          "stock_amount": 117,
+          "match_score": 95.6
+        }
+      ]
+    },
+    {
+      "reward_id": 767,
+      "title": "עוגיות אנטקוביץ 2 ב-29.90",
+      "type": "כמות בסכום",
+      "deal_text": "2.00 ב 29.90",
+      "start_date": "2023-07-04",
+      "end_date": "2026-12-31",
+      "max_qty": null,
+      "reason": "no_match",
+      "search_phrase": "עוגיות אנטקוביצ",
+      "tokens": [
+        "עוגיות",
+        "אנטקוביצ"
+      ],
+      "candidates_count": 0,
+      "candidates": []
+    },
+    {
+      "reward_id": 867,
+      "title": "הוואי שמפו/מרכך 2 ב- 15",
+      "type": "כמות בסכום",
+      "deal_text": "2.00 ב 15.00",
+      "start_date": "2023-11-25",
+      "end_date": "2026-08-30",
+      "max_qty": null,
+      "reason": "no_match",
+      "search_phrase": "הוואי שמפו מרככ",
+      "tokens": [
+        "הוואי",
+        "שמפו",
+        "מרככ"
+      ],
+      "candidates_count": 0,
+      "candidates": []
+    },
+    {
+      "reward_id": 935,
+      "title": "ירק גדול מהדרין ביכורי שדה 2 ב- 12.90",
+      "type": "כמות בסכום",
+      "deal_text": "2.00 ב 12.90",
+      "start_date": "2022-06-29",
+      "end_date": "2026-12-31",
+      "max_qty": null,
+      "reason": "multiple_fuzzy_matches",
+      "search_phrase": "ירק גדול מהדרינ ביכורי שדה",
+      "tokens": [
+        "ירק",
+        "מהדרינ",
+        "ביכורי",
+        "שדה"
+      ],
+      "candidates_count": 2,
+      "candidates": [
+        {
+          "id": 40179,
+          "name": "נענע מהדרין (ביכורי שדה)",
+          "price": 5.9,
+          "stock_amount": 0,
+          "match_score": 58.5
+        },
+        {
+          "id": 40190,
+          "name": "סלרי \"מהדרין\" ביכורי שדה",
+          "price": 7.9,
+          "stock_amount": 0,
+          "match_score": 58.5
+        }
+      ]
+    },
+    {
+      "reward_id": 998,
+      "title": "כפפות אלסטיות שחורות 3 ב-9.90",
+      "type": "כמות בסכום",
+      "deal_text": "3.00 ב 9.90",
+      "start_date": "2024-06-27",
+      "end_date": "2026-12-31",
+      "max_qty": null,
+      "reason": "multiple_fuzzy_matches",
+      "search_phrase": "כפפות אלסטיות שחורות",
+      "tokens": [
+        "כפפות",
+        "אלסטיות",
+        "שחורות"
+      ],
+      "candidates_count": 3,
+      "candidates": [
+        {
+          "id": 36744,
+          "name": "כפפות L אלסטיות שחורות",
+          "price": 9.9,
+          "stock_amount": 67,
+          "match_score": 90
+        },
+        {
+          "id": 37115,
+          "name": "כפפות S אלסטיות שחורות",
+          "price": 9.9,
+          "stock_amount": 51,
+          "match_score": 90
+        },
+        {
+          "id": 38042,
+          "name": "כפפות ניטריל שחורות 100 יח'",
+          "price": 22.9,
+          "stock_amount": 29,
+          "match_score": 49.9
+        }
+      ]
+    },
+    {
+      "reward_id": 1225,
+      "title": "מארז טישו 2 ב-18",
+      "type": "כמות בסכום",
+      "deal_text": "2.00 ב 18.00",
+      "start_date": "2023-01-31",
+      "end_date": "2026-08-30",
+      "max_qty": null,
+      "reason": "generic_name_requires_manual_mapping",
+      "search_phrase": "מארז טישו",
+      "tokens": [
+        "טישו"
+      ],
+      "candidates_count": 7,
+      "candidates": [
+        {
+          "id": 35349,
+          "name": "מארז טישו 5 יח",
+          "price": 10.9,
+          "stock_amount": 475,
+          "match_score": 98
+        },
+        {
+          "id": 36514,
+          "name": "מפיות טישו 100",
+          "price": 5.9,
+          "stock_amount": 81,
+          "match_score": 69.2
+        },
+        {
+          "id": 37395,
+          "name": "מארז ממחטות טישו",
+          "price": 9.9,
+          "stock_amount": 42,
+          "match_score": 68.67
+        },
+        {
+          "id": 36695,
+          "name": "טישו צבעוני חמישייה לילי",
+          "price": 19.9,
+          "stock_amount": 69,
+          "match_score": 67.78
+        },
+        {
+          "id": 35522,
+          "name": "מגבוני טישו משובחים 5X100(אינטרסן)",
+          "price": 11.9,
+          "stock_amount": 305,
+          "match_score": 67.6
+        },
+        {
+          "id": 36214,
+          "name": "טישו לילי צבעוני -שלשות (יגל)",
+          "price": 11.9,
+          "stock_amount": 109,
+          "match_score": 67.6
+        },
+        {
+          "id": 37780,
+          "name": "קלינקס טישו אוריגינל 5*70 דפים",
+          "price": 19.9,
+          "stock_amount": 34,
+          "match_score": 67.45
+        }
+      ]
+    },
+    {
+      "reward_id": 1238,
+      "title": "תבניות אלומניום \"משי\" 4 ב- 18",
+      "type": "כמות בסכום",
+      "deal_text": "4.00 ב 18.00",
+      "start_date": "2026-05-17",
+      "end_date": "2026-08-30",
+      "max_qty": null,
+      "reason": "multiple_fuzzy_matches",
+      "search_phrase": "תבניות אלומניומ משי",
+      "tokens": [
+        "תבניות",
+        "אלומניומ",
+        "משי"
+      ],
+      "candidates_count": 10,
+      "candidates": [
+        {
+          "id": 35372,
+          "name": "תבניות אלומניום R31 \"משי\"",
+          "price": 7.9,
+          "stock_amount": 447,
+          "match_score": 90.86
+        },
+        {
+          "id": 35429,
+          "name": "תבניות אלומניום R99 \"משי\"",
+          "price": 7.9,
+          "stock_amount": 378,
+          "match_score": 90.86
+        },
+        {
+          "id": 35401,
+          "name": "תבניות אלומניום מלבניות \"משי\"",
+          "price": 7.9,
+          "stock_amount": 403,
+          "match_score": 90
+        },
+        {
+          "id": 35473,
+          "name": "תבניות אלומניום R64 \"משי\"",
+          "price": 7.9,
+          "stock_amount": 334,
+          "match_score": 90
+        },
+        {
+          "id": 35560,
+          "name": "תבניות אלומניום R29 \"משי\"",
+          "price": 7.9,
+          "stock_amount": 274,
+          "match_score": 90
+        },
+        {
+          "id": 35936,
+          "name": "תבניות אלומניום עגולות C10 \"משי\"",
+          "price": 7.9,
+          "stock_amount": 151,
+          "match_score": 89.33
+        },
+        {
+          "id": 35369,
+          "name": "תבניות אלומניום אינגליש קייק \"משי\"",
+          "price": 7.9,
+          "stock_amount": 452,
+          "match_score": 88.8
+        },
+        {
+          "id": 38961,
+          "name": "תבניות אלומניום עמוקות 7 יח",
+          "price": 7.9,
+          "stock_amount": 18,
+          "match_score": 49.9
+        },
+        {
+          "id": 38422,
+          "name": "תבניות אלומניום עמוקות 3 יח",
+          "price": 7.9,
+          "stock_amount": 24,
+          "match_score": 49.33
+        },
+        {
+          "id": 37217,
+          "name": "תבניות אלומניום מלבן 9 יח` הנמל",
+          "price": 11.9,
+          "stock_amount": 47,
+          "match_score": 48.89
+        }
+      ]
+    },
+    {
+      "reward_id": 1239,
+      "title": "מנגל גדול ב-69.90",
+      "type": "כמות בסכום",
+      "deal_text": "1.00 ב 69.90",
+      "start_date": "2024-06-09",
+      "end_date": "2026-08-30",
+      "max_qty": null,
+      "reason": "generic_name_requires_manual_mapping",
+      "search_phrase": "מנגל גדול ב 69 90",
+      "tokens": [
+        "מנגל"
+      ],
+      "candidates_count": 3,
+      "candidates": [
+        {
+          "id": 40156,
+          "name": "מנגל קטן",
+          "price": 34.9,
+          "stock_amount": 0,
+          "match_score": 74
+        },
+        {
+          "id": 36875,
+          "name": "מנגל גדול (ביכורי שדה)",
+          "price": 99.9,
+          "stock_amount": 61,
+          "match_score": 68
+        },
+        {
+          "id": 39864,
+          "name": "מנגל חד פעמי הנמל (קשת )",
+          "price": 17.9,
+          "stock_amount": 11,
+          "match_score": 67.6
+        }
+      ]
+    },
+    {
+      "reward_id": 1292,
+      "title": "איגלו ארוך \"כרמית\" 3 ב-12",
+      "type": "כמות בסכום",
+      "deal_text": "3.00 ב 12.00",
+      "start_date": "2024-05-09",
+      "end_date": "2026-08-30",
+      "max_qty": null,
+      "reason": "no_match",
+      "search_phrase": "איגלו ארוכ כרמית",
+      "tokens": [
+        "איגלו",
+        "ארוכ",
+        "כרמית"
+      ],
+      "candidates_count": 0,
+      "candidates": []
+    },
+    {
+      "reward_id": 1300,
+      "title": "צלחות מתכלות ר.שמאי 2 ב-19.90",
+      "type": "כמות בסכום",
+      "deal_text": "2.00 ב 19.90",
+      "start_date": "2025-07-22",
+      "end_date": "2026-12-31",
+      "max_qty": null,
+      "reason": "no_match",
+      "search_phrase": "צלחות מתכלות ר שמאי",
+      "tokens": [
+        "צלחות",
+        "מתכלות",
+        "ר",
+        "שמאי"
+      ],
+      "candidates_count": 0,
+      "candidates": []
+    },
+    {
+      "reward_id": 1301,
+      "title": "צלחות מתכלות ר.שמאי 2 ב-29.90",
+      "type": "כמות בסכום",
+      "deal_text": "2.00 ב 29.90",
+      "start_date": "2025-07-22",
+      "end_date": "2026-12-31",
+      "max_qty": null,
+      "reason": "no_match",
+      "search_phrase": "צלחות מתכלות ר שמאי",
+      "tokens": [
+        "צלחות",
+        "מתכלות",
+        "ר",
+        "שמאי"
+      ],
+      "candidates_count": 0,
+      "candidates": []
+    },
+    {
+      "reward_id": 1302,
+      "title": "צלחות מתכלות ר.שמאי 2 ב-27.90",
+      "type": "כמות בסכום",
+      "deal_text": "2.00 ב 27.90",
+      "start_date": "2025-07-22",
+      "end_date": "2026-12-31",
+      "max_qty": null,
+      "reason": "no_match",
+      "search_phrase": "צלחות מתכלות ר שמאי",
+      "tokens": [
+        "צלחות",
+        "מתכלות",
+        "ר",
+        "שמאי"
+      ],
+      "candidates_count": 0,
+      "candidates": []
+    },
+    {
+      "reward_id": 1313,
+      "title": "דלי עוגיות הזהב 2 ב-25",
+      "type": "כמות בסכום",
+      "deal_text": "2.00 ב 25.00",
+      "start_date": "2024-06-09",
+      "end_date": "2026-12-31",
+      "max_qty": null,
+      "reason": "no_match",
+      "search_phrase": "דלי עוגיות הזהב",
+      "tokens": [
+        "דלי",
+        "עוגיות",
+        "הזהב"
+      ],
+      "candidates_count": 0,
+      "candidates": []
+    },
+    {
+      "reward_id": 1325,
+      "title": "ירק \"חממה בהר\" 2 ב-15",
+      "type": "כמות בסכום",
+      "deal_text": "2.00 ב 15.00",
+      "start_date": "2025-07-30",
+      "end_date": "2026-12-31",
+      "max_qty": null,
+      "reason": "multiple_fuzzy_matches",
+      "search_phrase": "ירק חממה בהר",
+      "tokens": [
+        "ירק",
+        "חממה",
+        "בהר"
+      ],
+      "candidates_count": 1,
+      "candidates": [
+        {
+          "id": 35531,
+          "name": "חסה לאליק \"חממה בהר\"",
+          "price": 14.9,
+          "stock_amount": 298,
+          "match_score": 45.33
+        }
+      ]
+    },
+    {
+      "reward_id": 1534,
+      "title": "פטריית חימום רק ב399.90",
+      "type": "כמות בסכום",
+      "deal_text": "1.00 ב 399.90",
+      "start_date": "2025-12-16",
+      "end_date": "2026-12-31",
+      "max_qty": null,
+      "reason": "no_match",
+      "search_phrase": "פטריית חימומ",
+      "tokens": [
+        "פטריית",
+        "חימומ"
+      ],
+      "candidates_count": 0,
+      "candidates": []
+    },
+    {
+      "reward_id": 1577,
+      "title": "מרקיה מתכלה 2 ב- 13.90",
+      "type": "כמות בסכום",
+      "deal_text": "2.00 ב 13.90",
+      "start_date": "2026-02-04",
+      "end_date": "2026-12-31",
+      "max_qty": null,
+      "reason": "no_match",
+      "search_phrase": "מרקיה מתכלה",
+      "tokens": [
+        "מרקיה",
+        "מתכלה"
+      ],
+      "candidates_count": 0,
+      "candidates": []
+    },
+    {
+      "reward_id": 1578,
+      "title": "צלחת \"7 2 ב- 19.90",
+      "type": "כמות בסכום",
+      "deal_text": "2.00 ב 19.90",
+      "start_date": "2026-02-04",
+      "end_date": "2026-12-31",
+      "max_qty": null,
+      "reason": "generic_name_requires_manual_mapping",
+      "search_phrase": "צלחת 7",
+      "tokens": [
+        "צלחת"
+      ],
+      "candidates_count": 4,
+      "candidates": [
+        {
+          "id": 38877,
+          "name": "צלחת \"7 שקוף 25 יח \"שקד\"",
+          "price": 4.9,
+          "stock_amount": 19,
+          "match_score": 96
+        },
+        {
+          "id": 36894,
+          "name": "צלחת \"9",
+          "price": 15.9,
+          "stock_amount": 60,
+          "match_score": 71.33
+        },
+        {
+          "id": 36943,
+          "name": "צלחת קטנה \"7",
+          "price": 11.9,
+          "stock_amount": 58,
+          "match_score": 70
+        },
+        {
+          "id": 37224,
+          "name": "צלחת ענקית 10",
+          "price": 18.9,
+          "stock_amount": 47,
+          "match_score": 68.67
+        }
+      ]
+    },
+    {
+      "reward_id": 1580,
+      "title": "צלחת \"10 2 ב- 32.90",
+      "type": "כמות בסכום",
+      "deal_text": "2.00 ב 32.90",
+      "start_date": "2026-02-04",
+      "end_date": "2026-12-31",
+      "max_qty": null,
+      "reason": "generic_name_requires_manual_mapping",
+      "search_phrase": "צלחת 10",
+      "tokens": [
+        "צלחת"
+      ],
+      "candidates_count": 4,
+      "candidates": [
+        {
+          "id": 36894,
+          "name": "צלחת \"9",
+          "price": 15.9,
+          "stock_amount": 60,
+          "match_score": 71.33
+        },
+        {
+          "id": 36943,
+          "name": "צלחת קטנה \"7",
+          "price": 11.9,
+          "stock_amount": 58,
+          "match_score": 70
+        },
+        {
+          "id": 37224,
+          "name": "צלחת ענקית 10",
+          "price": 18.9,
+          "stock_amount": 47,
+          "match_score": 68.67
+        },
+        {
+          "id": 38877,
+          "name": "צלחת \"7 שקוף 25 יח \"שקד\"",
+          "price": 4.9,
+          "stock_amount": 19,
+          "match_score": 68
+        }
+      ]
+    },
+    {
+      "reward_id": 1774,
+      "title": "בקנייה מעל 300 שקית רב פעמית גלסנר מתנה",
+      "type": "קנה בסכום הוסף קבל",
+      "deal_text": null,
+      "start_date": "2026-06-12",
+      "end_date": "2026-12-31",
+      "reason": "cart_rule_requires_manual_reward_product_mapping"
+    },
+    {
+      "reward_id": 1819,
+      "title": "גביע גומי 150 גרם 2 ב-18.90",
+      "type": "כמות בסכום",
+      "deal_text": "2.00 ב 18.90",
+      "start_date": "2023-11-25",
+      "end_date": "2026-12-31",
+      "max_qty": null,
+      "reason": "multiple_fuzzy_matches",
+      "search_phrase": "גביע גומי 150 גרמ",
+      "tokens": [
+        "גביע",
+        "גומי",
+        "גרמ"
+      ],
+      "candidates_count": 24,
+      "candidates": [
+        {
+          "id": 38749,
+          "name": "גביע גומי 200 גרם",
+          "price": 11.9,
+          "stock_amount": 20,
+          "match_score": 92
+        },
+        {
+          "id": 38401,
+          "name": "גביע גומי נחשים סוכר 200 גרם",
+          "price": 11.9,
+          "stock_amount": 24,
+          "match_score": 89.33
+        },
+        {
+          "id": 39062,
+          "name": "גביע גומי לב אפרסק 200 גרם",
+          "price": 11.9,
+          "stock_amount": 17,
+          "match_score": 89.33
+        },
+        {
+          "id": 36630,
+          "name": "גביע גומי יין צבעוני 200 גרם",
+          "price": 11.9,
+          "stock_amount": 73,
+          "match_score": 88.8
+        },
+        {
+          "id": 38848,
+          "name": "גביע גומי בלוק אדום 200 גרם",
+          "price": 11.9,
+          "stock_amount": 19,
+          "match_score": 88.8
+        },
+        {
+          "id": 39940,
+          "name": "גביע גומי ארטיק מסוכר 200 גרם",
+          "price": 10.9,
+          "stock_amount": 11,
+          "match_score": 88
+        },
+        {
+          "id": 39633,
+          "name": "גביע גומי בטעמים",
+          "price": 9.9,
+          "stock_amount": 12,
+          "match_score": 50.67
+        },
+        {
+          "id": 38570,
+          "name": "גביע גומי דובי מסוכר 200 גר'",
+          "price": 11.9,
+          "stock_amount": 22,
+          "match_score": 48.89
+        },
+        {
+          "id": 36157,
+          "name": "גומי בננה 50 גרם",
+          "price": 4.9,
+          "stock_amount": 118,
+          "match_score": 46.67
+        },
+        {
+          "id": 36170,
+          "name": "גומי דובי חלק 50 גרם",
+          "price": 4.9,
+          "stock_amount": 117,
+          "match_score": 45.9
+        },
+        {
+          "id": 39426,
+          "name": "מיקס גומי 250 גרם",
+          "price": 29.9,
+          "stock_amount": 14,
+          "match_score": 45.9
+        },
+        {
+          "id": 39497,
+          "name": "המבורגר גומי 50 גרם",
+          "price": 6.9,
+          "stock_amount": 13,
+          "match_score": 45.9
+        },
+        {
+          "id": 39562,
+          "name": "גומי בקופסה 200 גרם",
+          "price": 11.9,
+          "stock_amount": 13,
+          "match_score": 45.9
+        },
+        {
+          "id": 36123,
+          "name": "גומי אבטיח מסוכר 50 גרם",
+          "price": 4.9,
+          "stock_amount": 122,
+          "match_score": 45.33
+        },
+        {
+          "id": 39289,
+          "name": "מיקס גומי ליקריץ 250 גרם",
+          "price": 29.9,
+          "stock_amount": 15,
+          "match_score": 45.33
+        },
+        {
+          "id": 36839,
+          "name": "גומי הריבו דובי חלק 70 גרם",
+          "price": 10.9,
+          "stock_amount": 63,
+          "match_score": 44.89
+        },
+        {
+          "id": 36223,
+          "name": "גומי חמוץ נחש תנתה 50 גרם",
+          "price": 4.9,
+          "stock_amount": 108,
+          "match_score": 44.53
+        },
+        {
+          "id": 36742,
+          "name": "יוגוטה גומי דובדבן מוברק 150 גרם",
+          "price": 10.9,
+          "stock_amount": 67,
+          "match_score": 44.53
+        },
+        {
+          "id": 38075,
+          "name": "גומי הריבו סאוור וורמס 70 גרם",
+          "price": 10.9,
+          "stock_amount": 29,
+          "match_score": 44.53
+        },
+        {
+          "id": 36671,
+          "name": "גומי הריבו נחשים חלק 70 גרם (שגיא)",
+          "price": 10.9,
+          "stock_amount": 71,
+          "match_score": 44.24
+        },
+        {
+          "id": 37114,
+          "name": "סוכריות גומי מיני בננה 150 גרם יוגטה",
+          "price": 12.9,
+          "stock_amount": 51,
+          "match_score": 44
+        },
+        {
+          "id": 37832,
+          "name": "גומי הריבו אפרסק מסוכר 70 גרם (שגיא)",
+          "price": 10.9,
+          "stock_amount": 33,
+          "match_score": 43.79
+        },
+        {
+          "id": 39831,
+          "name": "סוכריות גומי ועט ג'ל חמוץ בטעם תות 57 גרם",
+          "price": 11.9,
+          "stock_amount": 11,
+          "match_score": 43.79
+        },
+        {
+          "id": 38132,
+          "name": "מסטיק ויטמינים גומי לעיסה בטעם פירות יער, 30 גרם",
+          "price": 11.9,
+          "stock_amount": 28,
+          "match_score": 43.62
+        }
+      ]
+    }
+  ],
+  "deleted_existing": {
+    "order_product_group_promotion_application": 0,
+    "order_promotion_application": 0,
+    "product_group_promotion_item": 272,
+    "product_group_promotion": 30,
+    "cart_promotion_rule": 3,
+    "promotion": 42
+  },
+  "backup_tables": [
+    "bak_promo_s2_20260729_205558",
+    "bak_cart_rule_s2_20260729_205558",
+    "bak_group_promo_s2_20260729_205558",
+    "bak_group_item_s2_20260729_205558",
+    "bak_order_cart_app_s2_20260729_205558",
+    "bak_order_group_app_s2_20260729_205558",
+    "bak_order_item_promo_s2_20260729_205558"
+  ],
+  "active_order_promotion_links": 0
+}

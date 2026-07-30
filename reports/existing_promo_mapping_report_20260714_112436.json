@@ -1,0 +1,1238 @@
+{
+  "shop_id": 2,
+  "source": "leshem_excel_2026_07_12",
+  "data_file": "C:\\Users\\ORI\\Desktop\\gogobuy\\gogobuy\\data\\shop2_promotions_2026_07_12.json",
+  "out_file": "C:\\Users\\ORI\\Desktop\\gogobuy\\gogobuy\\data\\leshem_manual_promo_mapping_31433_existing.json",
+  "excel_promotions_total": 100,
+  "active_promotions": 100,
+  "generated_at": "2026-07-14T08:24:35.976Z",
+  "matched_groups_by_title": [
+    {
+      "reward_id": 9,
+      "title": "גלידת בן&ג'ריס 2 ב- 39.90 ₪",
+      "group_promotion_id": 65,
+      "product_ids": [
+        35479,
+        35551,
+        35902,
+        35953,
+        36022,
+        36030,
+        36366,
+        36372,
+        36499,
+        36624,
+        36814,
+        36838,
+        37214,
+        37429,
+        37774,
+        37775,
+        38447,
+        38522,
+        38659,
+        38744,
+        38890,
+        39179,
+        39358
+      ]
+    },
+    {
+      "reward_id": 70,
+      "title": "טיטולים ביביסיטר 3 ב- 84.90",
+      "group_promotion_id": 66,
+      "product_ids": [
+        35411,
+        35419,
+        35885,
+        36097,
+        36901,
+        38929
+      ]
+    },
+    {
+      "reward_id": 224,
+      "title": "פילטרים 3 ב10",
+      "group_promotion_id": 67,
+      "product_ids": [
+        35801,
+        36259,
+        39380
+      ]
+    },
+    {
+      "reward_id": 225,
+      "title": "נייר גלגול ריזלה 5 ב10",
+      "group_promotion_id": 68,
+      "product_ids": [
+        35964,
+        36257,
+        36977
+      ]
+    },
+    {
+      "reward_id": 271,
+      "title": "שמן קנולה 2 ב- 14.90",
+      "group_promotion_id": 69,
+      "product_ids": [
+        35283,
+        35367,
+        36844
+      ]
+    },
+    {
+      "reward_id": 345,
+      "title": "ירק מהדרין ביכורי שדה 3 ב-12.90",
+      "group_promotion_id": 91,
+      "product_ids": [
+        35789,
+        37307,
+        38335,
+        38386,
+        40047,
+        40057,
+        40069,
+        40076,
+        40095,
+        40155,
+        40177,
+        40179,
+        40190,
+        40196,
+        40197,
+        40198,
+        40202,
+        40275,
+        40390
+      ]
+    },
+    {
+      "reward_id": 433,
+      "title": "ירק ביכורי שדה 3 ב- 8.90",
+      "group_promotion_id": 70,
+      "product_ids": [
+        35128,
+        35129,
+        35131,
+        35133,
+        35134,
+        35136,
+        35139,
+        35143,
+        35153,
+        35154,
+        35156,
+        35174,
+        35180,
+        35186,
+        35205,
+        35224,
+        35245,
+        35246,
+        35255,
+        35270,
+        35272,
+        35291,
+        35301,
+        35303,
+        35310,
+        35312,
+        35315,
+        35320,
+        35323,
+        35357,
+        35394,
+        35435,
+        35505,
+        35582,
+        35715,
+        35755,
+        35830,
+        35862,
+        35916,
+        35992,
+        36015,
+        36042,
+        36189,
+        36271,
+        36527,
+        36566,
+        36623,
+        36875,
+        37427,
+        37428,
+        37904,
+        38191,
+        38442,
+        38989
+      ]
+    },
+    {
+      "reward_id": 715,
+      "title": "שלוקים 2 ב-18",
+      "group_promotion_id": 71,
+      "product_ids": [
+        35211,
+        35277,
+        36520
+      ]
+    },
+    {
+      "reward_id": 998,
+      "title": "כפפות אלסטיות שחורות 3 ב-9.90",
+      "group_promotion_id": 72,
+      "product_ids": [
+        36744,
+        37115
+      ]
+    },
+    {
+      "reward_id": 1014,
+      "title": "כביסכל 2 ליטר 3 ב-99.90",
+      "group_promotion_id": 73,
+      "product_ids": [
+        36177,
+        36238,
+        36376,
+        36386,
+        36465,
+        36534,
+        36874,
+        37412,
+        39437
+      ]
+    },
+    {
+      "reward_id": 1045,
+      "title": "שישיית בירות 2 ב-69.90",
+      "group_promotion_id": 74,
+      "product_ids": [
+        36307,
+        36654,
+        37092,
+        38227,
+        38293
+      ]
+    },
+    {
+      "reward_id": 1047,
+      "title": "חטיפים 6 ב-19.90",
+      "group_promotion_id": 75,
+      "product_ids": [
+        35181,
+        35188,
+        35199,
+        35207,
+        35212,
+        35227,
+        35233,
+        35273,
+        35292,
+        35298,
+        35345,
+        35386,
+        35405,
+        35441,
+        35451,
+        35466,
+        35477,
+        35480,
+        35487,
+        35489,
+        35549,
+        35618,
+        35637,
+        35671,
+        35725,
+        35751,
+        35764,
+        35805,
+        35860,
+        35866,
+        35952,
+        35954,
+        35972,
+        36033,
+        36046,
+        36090,
+        36099,
+        36174,
+        36285,
+        36343,
+        36378,
+        36397,
+        36585,
+        36755,
+        36843,
+        36880,
+        37240,
+        37827,
+        37928,
+        38046,
+        38425,
+        38430,
+        39205
+      ]
+    },
+    {
+      "reward_id": 1176,
+      "title": "יינות פרימיום 2 ב-119.90",
+      "group_promotion_id": 76,
+      "product_ids": [
+        39152,
+        39416,
+        39702
+      ]
+    },
+    {
+      "reward_id": 1177,
+      "title": "יינות וינטג' 3 ב-99.90",
+      "group_promotion_id": 77,
+      "product_ids": [
+        37723,
+        38238,
+        38559,
+        38562,
+        39710
+      ]
+    },
+    {
+      "reward_id": 1180,
+      "title": "יינות ירושלים 187 מל 3 ב-18",
+      "group_promotion_id": 78,
+      "product_ids": [
+        37918,
+        37967,
+        38035,
+        38153
+      ]
+    },
+    {
+      "reward_id": 1189,
+      "title": "יינות וינטג' 2 ב-36.90",
+      "group_promotion_id": 79,
+      "product_ids": [
+        37723,
+        38238,
+        38559,
+        38562,
+        39710
+      ]
+    },
+    {
+      "reward_id": 1238,
+      "title": "תבניות אלומניום \"משי\" 4 ב- 18",
+      "group_promotion_id": 80,
+      "product_ids": [
+        35369,
+        35372,
+        35401,
+        35429,
+        35473,
+        35560,
+        35936
+      ]
+    },
+    {
+      "reward_id": 1284,
+      "title": "סכו\"ם הנמל 3 ב- 12",
+      "group_promotion_id": 92,
+      "product_ids": [
+        37706,
+        39637
+      ]
+    },
+    {
+      "reward_id": 1413,
+      "title": "מארז פחיות 12 יח 2 ב- 49.90",
+      "group_promotion_id": 81,
+      "product_ids": [
+        35445,
+        36371,
+        36379,
+        36455
+      ]
+    },
+    {
+      "reward_id": 1590,
+      "title": "גביעי אחסון 3 ב- 15",
+      "group_promotion_id": 82,
+      "product_ids": [
+        35786,
+        35903,
+        36674,
+        37095
+      ]
+    },
+    {
+      "reward_id": 1626,
+      "title": "מארז טישו 2 ב- 12",
+      "group_promotion_id": 83,
+      "product_ids": [
+        35349,
+        37395
+      ]
+    },
+    {
+      "reward_id": 1645,
+      "title": "תירוש 2 ב- 25",
+      "group_promotion_id": 84,
+      "product_ids": [
+        35289,
+        35530,
+        35657,
+        35809,
+        36010
+      ]
+    },
+    {
+      "reward_id": 1656,
+      "title": "קמח מצה 3 ב-10",
+      "group_promotion_id": 85,
+      "product_ids": [
+        36368,
+        37916,
+        38138,
+        39263
+      ]
+    },
+    {
+      "reward_id": 1657,
+      "title": "אפיפיות 2 ב-10",
+      "group_promotion_id": 86,
+      "product_ids": [
+        35160,
+        37817,
+        38429
+      ]
+    },
+    {
+      "reward_id": 1668,
+      "title": "חרוזית 3 ב-24",
+      "group_promotion_id": 87,
+      "product_ids": [
+        37662,
+        39395
+      ]
+    },
+    {
+      "reward_id": 1694,
+      "title": "קרקר טופז 4 ב-10.90",
+      "group_promotion_id": 88,
+      "product_ids": [
+        36657,
+        39298
+      ]
+    },
+    {
+      "reward_id": 1696,
+      "title": "תה עדנים 2 ב-19.90",
+      "group_promotion_id": 89,
+      "product_ids": [
+        38656,
+        39708,
+        39709
+      ]
+    },
+    {
+      "reward_id": 1714,
+      "title": "פסטה ברילה 3 ב- 18",
+      "group_promotion_id": 90,
+      "product_ids": [
+        36316,
+        37094,
+        37152,
+        37180,
+        37499,
+        37500,
+        37790,
+        38071,
+        38331,
+        38982,
+        39616
+      ]
+    }
+  ],
+  "matched_cart_reward_rules": [
+    {
+      "reward_id": 1774,
+      "title": "בקנייה מעל 300 שקית רב פעמית גלסנר מתנה",
+      "cart_rule_id": 18,
+      "product_id": 37406
+    }
+  ],
+  "matched_product_promotions_by_signature": [
+    {
+      "reward_id": 3,
+      "title": "ארטיק ריאו 8 ב-10",
+      "signature": "BUNDLE:8:10",
+      "product_ids": [
+        35126
+      ],
+      "product_names": [
+        "ארטיק קרח ריאו"
+      ],
+      "scores": [
+        30
+      ]
+    },
+    {
+      "reward_id": 31,
+      "title": "גלידה קרמסימו 2 ב- 39.90",
+      "signature": "BUNDLE:2:39.9",
+      "product_ids": [
+        36477
+      ],
+      "product_names": [
+        "נשנושים גלידה שוקו וניל פרווה 630 גרם \"קרמסימו\""
+      ],
+      "scores": [
+        30
+      ]
+    },
+    {
+      "reward_id": 347,
+      "title": "חסה מהדרין ביכורי שדה 2 ב- 11.90",
+      "signature": "BUNDLE:2:11.9",
+      "product_ids": [
+        40047
+      ],
+      "product_names": [
+        "חסה מהדרין"
+      ],
+      "scores": [
+        50
+      ]
+    },
+    {
+      "reward_id": 534,
+      "title": "בלוני הליום פשוטים 3 ב15",
+      "signature": "BUNDLE:3:15",
+      "product_ids": [
+        35285
+      ],
+      "product_names": [
+        "בלון הליום פשוט"
+      ],
+      "scores": [
+        10
+      ]
+    },
+    {
+      "reward_id": 535,
+      "title": "בלוני הליום גדולים 2 ב- 15",
+      "signature": "BUNDLE:2:15",
+      "product_ids": [
+        38269
+      ],
+      "product_names": [
+        "בלון הליום גדול (למסחר)"
+      ],
+      "scores": [
+        10
+      ]
+    },
+    {
+      "reward_id": 620,
+      "title": "פחם מובחר 2 ב- 25",
+      "signature": "BUNDLE:2:25",
+      "product_ids": [
+        35373
+      ],
+      "product_names": [
+        "פחם 2 ק\"ג"
+      ],
+      "scores": [
+        10
+      ]
+    },
+    {
+      "reward_id": 634,
+      "title": "כוס שקופה 4 ב-11.90",
+      "signature": "BUNDLE:4:11.9",
+      "product_ids": [
+        35342
+      ],
+      "product_names": [
+        "כוס שקופה 1/100 חדפ(ילג)"
+      ],
+      "scores": [
+        55
+      ]
+    },
+    {
+      "reward_id": 708,
+      "title": "כוס חם 3 ב- 11.90",
+      "signature": "BUNDLE:3:11.9",
+      "product_ids": [
+        35259
+      ],
+      "product_names": [
+        "כוס חם 8B"
+      ],
+      "scores": [
+        55
+      ]
+    },
+    {
+      "reward_id": 825,
+      "title": "צלחות 1 ק\"ג 2 ב- 30",
+      "signature": "BUNDLE:2:30",
+      "product_ids": [
+        36717
+      ],
+      "product_names": [
+        "צלחות קילו הנמל"
+      ],
+      "scores": [
+        10
+      ]
+    },
+    {
+      "reward_id": 1110,
+      "title": "חלת בוטיק 2 ב-22",
+      "signature": "BUNDLE:2:22",
+      "product_ids": [
+        35151
+      ],
+      "product_names": [
+        "חלת בוטיק"
+      ],
+      "scores": [
+        75
+      ]
+    },
+    {
+      "reward_id": 1239,
+      "title": "מנגל גדול ב-69.90",
+      "signature": "FIXED_PRICE:69.9",
+      "product_ids": [
+        36875
+      ],
+      "product_names": [
+        "מנגל גדול (ביכורי שדה)"
+      ],
+      "scores": [
+        10
+      ]
+    },
+    {
+      "reward_id": 1293,
+      "title": "שמן זית תומר 2 ב- 49.90",
+      "signature": "BUNDLE:2:49.9",
+      "product_ids": [
+        35556
+      ],
+      "product_names": [
+        "שמן זית כתית מעולה (תומר)"
+      ],
+      "scores": [
+        40
+      ]
+    },
+    {
+      "reward_id": 1300,
+      "title": "צלחות מתכלות ר.שמאי 2 ב-19.90",
+      "signature": "BUNDLE:2:19.9",
+      "product_ids": [
+        35818
+      ],
+      "product_names": [
+        "סט צלחות וינטג' 7+9 (16 יח)"
+      ],
+      "scores": [
+        10
+      ]
+    },
+    {
+      "reward_id": 1325,
+      "title": "ירק \"חממה בהר\" 2 ב-15",
+      "signature": "BUNDLE:2:15",
+      "product_ids": [
+        35531
+      ],
+      "product_names": [
+        "חסה לאליק \"חממה בהר\""
+      ],
+      "scores": [
+        30
+      ]
+    },
+    {
+      "reward_id": 1463,
+      "title": "סטייק אנגוס מיושן ברשת רק ב99.90 לקג",
+      "signature": "FIXED_PRICE:99.9",
+      "product_ids": [
+        35420
+      ],
+      "product_names": [
+        "סטייק אנגוס מיושן ברשת מחפוד"
+      ],
+      "scores": [
+        50
+      ]
+    },
+    {
+      "reward_id": 1545,
+      "title": "קרטון פמפרס מידה 3 80 יח 2 ב- 99.90",
+      "signature": "BUNDLE:2:99.9",
+      "product_ids": [
+        38619
+      ],
+      "product_names": [
+        "קרטון פמפרס מידה 3 80 יח"
+      ],
+      "scores": [
+        85
+      ]
+    },
+    {
+      "reward_id": 1573,
+      "title": "סימילאק 900 גרם רק ב- 69.90",
+      "signature": "FIXED_PRICE:69.9",
+      "product_ids": [
+        38279
+      ],
+      "product_names": [
+        "סימילאק 900 גר מס' 2 בדצ"
+      ],
+      "scores": [
+        10
+      ]
+    },
+    {
+      "reward_id": 1575,
+      "title": "סט צלחות וינטג' 2 ב- 19.90",
+      "signature": "BUNDLE:2:19.9",
+      "product_ids": [
+        35818
+      ],
+      "product_names": [
+        "סט צלחות וינטג' 7+9 (16 יח)"
+      ],
+      "scores": [
+        65
+      ]
+    },
+    {
+      "reward_id": 1576,
+      "title": "סכו\"ם וינטג' 4 ב-10",
+      "signature": "BUNDLE:4:10",
+      "product_ids": [
+        35483
+      ],
+      "product_names": [
+        "סכו\"ם וינטג' (10 יח')"
+      ],
+      "scores": [
+        55
+      ]
+    },
+    {
+      "reward_id": 1578,
+      "title": "צלחת \"7 2 ב- 19.90",
+      "signature": "BUNDLE:2:19.9",
+      "product_ids": [
+        36943
+      ],
+      "product_names": [
+        "צלחת קטנה \"7"
+      ],
+      "scores": [
+        10
+      ]
+    },
+    {
+      "reward_id": 1580,
+      "title": "צלחת \"10 2 ב- 32.90",
+      "signature": "BUNDLE:2:32.9",
+      "product_ids": [
+        37224
+      ],
+      "product_names": [
+        "צלחת ענקית 10"
+      ],
+      "scores": [
+        10
+      ]
+    },
+    {
+      "reward_id": 1592,
+      "title": "יין רזרב יקבי ירושלים 3 ב- 269.90",
+      "signature": "BUNDLE:3:269.9",
+      "product_ids": [
+        37967
+      ],
+      "product_names": [
+        "יין רוזה יבש 750 מ\"ל יקבי ירושלים"
+      ],
+      "scores": [
+        40
+      ]
+    },
+    {
+      "reward_id": 1637,
+      "title": "נייר סופג שישייה 2 ב- 24",
+      "signature": "BUNDLE:2:24",
+      "product_ids": [
+        37732
+      ],
+      "product_names": [
+        "נייר סופג סופט 4 שכבות"
+      ],
+      "scores": [
+        30
+      ]
+    },
+    {
+      "reward_id": 1690,
+      "title": "פופקורן 2 ב- 19.90",
+      "signature": "BUNDLE:2:19.9",
+      "product_ids": [
+        35997
+      ],
+      "product_names": [
+        "פופקורן 500 גרם"
+      ],
+      "scores": [
+        35
+      ]
+    },
+    {
+      "reward_id": 1692,
+      "title": "קרקר קראנצי 2 ב- 12",
+      "signature": "BUNDLE:2:12",
+      "product_ids": [
+        38932
+      ],
+      "product_names": [
+        "קרקר דק קרנצ'י זיתים 140 גרם"
+      ],
+      "scores": [
+        10
+      ]
+    },
+    {
+      "reward_id": 1693,
+      "title": "טופז גולד 2 ב-10.90",
+      "signature": "BUNDLE:2:10.9",
+      "product_ids": [
+        39298
+      ],
+      "product_names": [
+        "קרקר טופז גולד שומשום 250 גר \"הדר\""
+      ],
+      "scores": [
+        55
+      ]
+    },
+    {
+      "reward_id": 1695,
+      "title": "חצי מצופה תירוש 2 ב-10",
+      "signature": "BUNDLE:2:10",
+      "product_ids": [
+        39417
+      ],
+      "product_names": [
+        "עוגיות תירוש מצופה קרמל חצי ירח"
+      ],
+      "scores": [
+        40
+      ]
+    },
+    {
+      "reward_id": 1699,
+      "title": "מגבונים ביביסיטר 2 ב- 49.90",
+      "signature": "BUNDLE:2:49.9",
+      "product_ids": [
+        35703
+      ],
+      "product_names": [
+        "מגבונים ביביסיטר 9 יח ללא בישום"
+      ],
+      "scores": [
+        55
+      ]
+    },
+    {
+      "reward_id": 1719,
+      "title": "דפי לזניה ברילה רק ב- 19.90",
+      "signature": "FIXED_PRICE:19.9",
+      "product_ids": [
+        36316
+      ],
+      "product_names": [
+        "פסטה ברילה לזניה 500 גר(מעיין)"
+      ],
+      "scores": [
+        30
+      ]
+    },
+    {
+      "reward_id": 1764,
+      "title": "בלו כחול 4 ב-10",
+      "signature": "BUNDLE:4:10",
+      "product_ids": [
+        36933
+      ],
+      "product_names": [
+        "בלו משקה אנרגיה ללא סוכר קואופ"
+      ],
+      "scores": [
+        10
+      ]
+    },
+    {
+      "reward_id": 1765,
+      "title": "גרעיני חמניה 400 ב- 14.90",
+      "signature": "FIXED_PRICE:14.9",
+      "product_ids": [
+        35638
+      ],
+      "product_names": [
+        "גרעיני חמניה 400 גרם"
+      ],
+      "scores": [
+        55
+      ]
+    },
+    {
+      "reward_id": 1788,
+      "title": "צוריסוס/מרגז/קבב 3 ק\"ג ב- 119.90",
+      "signature": "FIXED_PRICE:39.97",
+      "product_ids": [
+        38888,
+        39486
+      ],
+      "product_names": [
+        "נקניקיות מרגז טלה",
+        "קבב עיראקי חלק משופד"
+      ],
+      "scores": [
+        10,
+        10
+      ]
+    },
+    {
+      "reward_id": 1791,
+      "title": "בקר טחון 2 ק\"ג ב- 89.90",
+      "signature": "FIXED_PRICE:44.95",
+      "product_ids": [
+        39013
+      ],
+      "product_names": [
+        "בקר טחון נקי 1 קג 8 מחפוד (עוף ירושלים )"
+      ],
+      "scores": [
+        30
+      ]
+    },
+    {
+      "reward_id": 1792,
+      "title": "אמנון בלי עור ב- 19.90 לק\"ג",
+      "signature": "FIXED_PRICE:19.9",
+      "product_ids": [
+        35655
+      ],
+      "product_names": [
+        "פילה אמנון ללא עור"
+      ],
+      "scores": [
+        30
+      ]
+    },
+    {
+      "reward_id": 1797,
+      "title": "קמח 2 ב- 5.90",
+      "signature": "BUNDLE:2:5.9",
+      "product_ids": [
+        38020
+      ],
+      "product_names": [
+        "קמח לבן אנג`ל"
+      ],
+      "scores": [
+        35
+      ]
+    }
+  ],
+  "skipped_product_candidates": [
+    {
+      "reward_id": 102,
+      "title": "דנונה פרו 20 גר' 2 ב-12",
+      "signature": "BUNDLE:2:12",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 1
+    },
+    {
+      "reward_id": 123,
+      "title": "יופלה גו \"תנובה\" 2 ב-9.90",
+      "signature": "BUNDLE:2:9.9",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 0
+    },
+    {
+      "reward_id": 680,
+      "title": "כריות נוגט \"תלמה\" רק ב- 25.90",
+      "signature": "FIXED_PRICE:25.9",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 0
+    },
+    {
+      "reward_id": 767,
+      "title": "עוגיות אנטקוביץ 2 ב-29.90",
+      "signature": "BUNDLE:2:29.9",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 0
+    },
+    {
+      "reward_id": 935,
+      "title": "ירק גדול מהדרין ביכורי שדה 2 ב- 12.90",
+      "signature": "BUNDLE:2:12.9",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 0
+    },
+    {
+      "reward_id": 937,
+      "title": "שניצל פרוס עוף ירושלים 2 ק\"ג ב- 69.90",
+      "signature": "FIXED_PRICE:34.95",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 0
+    },
+    {
+      "reward_id": 1178,
+      "title": "יינות קינג קלר 3 ב-79.90",
+      "signature": "BUNDLE:3:79.9",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 0
+    },
+    {
+      "reward_id": 1292,
+      "title": "איגלו ארוך \"כרמית\" 3 ב-12",
+      "signature": "BUNDLE:3:12",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 0
+    },
+    {
+      "reward_id": 1301,
+      "title": "צלחות מתכלות ר.שמאי 2 ב-29.90",
+      "signature": "BUNDLE:2:29.9",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 0
+    },
+    {
+      "reward_id": 1302,
+      "title": "צלחות מתכלות ר.שמאי 2 ב-27.90",
+      "signature": "BUNDLE:2:27.9",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 0
+    },
+    {
+      "reward_id": 1304,
+      "title": "גביע גומי 200 גרם 2 ב-18.90",
+      "signature": "BUNDLE:2:18.9",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 0
+    },
+    {
+      "reward_id": 1313,
+      "title": "דלי עוגיות הזהב 2 ב-25",
+      "signature": "BUNDLE:2:25",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 1
+    },
+    {
+      "reward_id": 1483,
+      "title": "מארז מגבונים ב9.90",
+      "signature": "FIXED_PRICE:9.9",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 1
+    },
+    {
+      "reward_id": 1534,
+      "title": "פטריית חימום רק ב399.90",
+      "signature": "FIXED_PRICE:399.9",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 0
+    },
+    {
+      "reward_id": 1577,
+      "title": "מרקיה מתכלה 2 ב- 13.90",
+      "signature": "BUNDLE:2:13.9",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 1
+    },
+    {
+      "reward_id": 1620,
+      "title": "יין טחנות הרוח 2 ב- 239.90",
+      "signature": "BUNDLE:2:239.9",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 0
+    },
+    {
+      "reward_id": 1687,
+      "title": "עוגיות של פסח 2 ב- 20",
+      "signature": "BUNDLE:2:20",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 0
+    },
+    {
+      "reward_id": 1691,
+      "title": "עוגיות סנדוויץ הדר 3 ב-10",
+      "signature": "BUNDLE:3:10",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 0
+    },
+    {
+      "reward_id": 1710,
+      "title": "פתיבר הדר 1.7 רק ב- 19.90",
+      "signature": "FIXED_PRICE:19.9",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 3
+    },
+    {
+      "reward_id": 1715,
+      "title": "רביעייה ורד הגליל 2 ב- 49.90",
+      "signature": "BUNDLE:2:49.9",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 2
+    },
+    {
+      "reward_id": 1726,
+      "title": "שקית קרח 2 ק\"ג 2 ב- 19.90 ₪",
+      "signature": "BUNDLE:2:19.9",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 3
+    },
+    {
+      "reward_id": 1733,
+      "title": "חרוזית רק ב- 7.90",
+      "signature": "FIXED_PRICE:7.9",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 0
+    },
+    {
+      "reward_id": 1755,
+      "title": "מגוון מוצרי niit 3 ב- 39.90",
+      "signature": "BUNDLE:3:39.9",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 0
+    },
+    {
+      "reward_id": 1768,
+      "title": "הוטפופ פופקורן למיקרוגל רק ב-14.90",
+      "signature": "FIXED_PRICE:14.9",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 1
+    },
+    {
+      "reward_id": 1777,
+      "title": "בוטנים אמריקאיים סבבה 5 ב-10",
+      "signature": "BUNDLE:5:10",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 0
+    },
+    {
+      "reward_id": 1783,
+      "title": "אנטריקוט טרי ב- 199.90 לק\"ג",
+      "signature": "FIXED_PRICE:199.9",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 0
+    },
+    {
+      "reward_id": 1784,
+      "title": "פיקניה ב- 149.90 לק\"ג",
+      "signature": "FIXED_PRICE:149.9",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 0
+    },
+    {
+      "reward_id": 1785,
+      "title": "סינטה ב- 149.90 לק\"ג",
+      "signature": "FIXED_PRICE:149.9",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 0
+    },
+    {
+      "reward_id": 1786,
+      "title": "דנוור ב- 149.90 לק\"ג",
+      "signature": "FIXED_PRICE:149.9",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 0
+    },
+    {
+      "reward_id": 1787,
+      "title": "נשנושי אסאדו ב- 149.90 לק\"ג",
+      "signature": "FIXED_PRICE:149.9",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 0
+    },
+    {
+      "reward_id": 1793,
+      "title": "סלמון מנות רק ב29.90",
+      "signature": "FIXED_PRICE:29.9",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 0
+    },
+    {
+      "reward_id": 1802,
+      "title": "משחת שיניים 2 ב- 14.90",
+      "signature": "BUNDLE:2:14.9",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 0
+    },
+    {
+      "reward_id": 1815,
+      "title": "שוקיים עוף י רק ב-19.90 לק\"ג",
+      "signature": "FIXED_PRICE:19.9",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 3
+    },
+    {
+      "reward_id": 1816,
+      "title": "אפיפיות בטעם שוקולד 2 ב-16",
+      "signature": "BUNDLE:2:16",
+      "reason": "no_existing_product_promotion_name_match",
+      "db_candidates_with_same_signature": 0
+    }
+  ],
+  "manual_mappings_written": 64,
+  "unmapped_active_reward_ids": [
+    102,
+    123,
+    680,
+    767,
+    828,
+    829,
+    935,
+    937,
+    1178,
+    1292,
+    1301,
+    1302,
+    1304,
+    1313,
+    1483,
+    1534,
+    1577,
+    1620,
+    1687,
+    1691,
+    1710,
+    1715,
+    1726,
+    1733,
+    1755,
+    1768,
+    1777,
+    1783,
+    1784,
+    1785,
+    1786,
+    1787,
+    1793,
+    1802,
+    1815,
+    1816
+  ]
+}

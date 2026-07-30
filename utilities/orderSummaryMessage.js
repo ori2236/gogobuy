@@ -95,15 +95,22 @@ function fmtGroupPromoLine(app, isEnglish) {
     : `${PROMO_INDENT}🏷️ ${title}: ${buyQty} ב-₪${fmtMoney(price)}${appliedText}`;
 }
 
-function buildGroupPromoHintLine(groupPromo, isEnglish) {
+function buildGroupPromoHintLine(groupPromo, isEnglish, isWeight = false) {
   const group = groupPromo || null;
   if (!group) return "";
   const buyQty = fmtQty(group.bundle_buy_qty, 3);
   const price = Number(group.bundle_pay_price);
   if (!buyQty || !Number.isFinite(price)) return "";
+  const qtyLabel = isEnglish
+    ? isWeight
+      ? "kg"
+      : "units"
+    : isWeight
+      ? "ק״ג"
+      : "יח׳";
   return isEnglish
-    ? `${PROMO_INDENT}(🏷️ Existing promotion: ${buyQty} for ₪${fmtMoneyCompact(price)})`
-    : `${PROMO_INDENT}(🏷️ קיים מבצע: ${buyQty} יח׳ ב-₪${fmtMoneyCompact(price)})`;
+    ? `${PROMO_INDENT}(🏷️ Existing promotion: ${buyQty} ${qtyLabel} for ₪${fmtMoneyCompact(price)})`
+    : `${PROMO_INDENT}(🏷️ קיים מבצע: ${buyQty} ${qtyLabel} ב-₪${fmtMoneyCompact(price)})`;
 }
 
 function collectGroupPromotionBlocks(items, applications, isEnglish) {
@@ -580,7 +587,11 @@ function buildOrderSummaryMessage({
     });
     if (promoLine) lines.push(promoLine);
     else {
-      const groupHintLine = buildGroupPromoHintLine(displayItem.group_promo, isEnglish);
+      const groupHintLine = buildGroupPromoHintLine(
+        displayItem.group_promo,
+        isEnglish,
+        displayItem.sold_by_weight === true,
+      );
       if (groupHintLine) lines.push(groupHintLine);
     }
   }

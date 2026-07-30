@@ -1,0 +1,36 @@
+{
+  "source": "leshem_excel_2026_07_28_august_plus",
+  "shop_id": 2,
+  "based_on_report": "C:\\Users\\ORI\\Desktop\\gogobuy\\gogobuy\\reports\\leshem_promotions_import_report_20260729_205559.json",
+  "generated_at": "2026-07-29T18:14:26.194Z",
+  "mappings": [
+    {
+      "reward_id": 439,
+      "title": "בלו כחול 3 ב12",
+      "type": "כמות בסכום",
+      "start_date": "2026-07-20",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35197
+      ],
+      "note": ""
+    },
+    {
+      "reward_id": 1225,
+      "title": "מארז טישו 2 ב-18",
+      "type": "כמות בסכום",
+      "start_date": "2023-01-31",
+      "end_date": "2026-08-30",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35349
+      ],
+      "note": ""
+    }
+  ]
+}

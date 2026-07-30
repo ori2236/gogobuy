@@ -1,0 +1,1126 @@
+{
+  "source": "leshem_excel_2026_07_12",
+  "shop_id": 2,
+  "based_on_data": "C:\\Users\\ORI\\Desktop\\gogobuy\\gogobuy\\data\\shop2_promotions_2026_07_12.json",
+  "generated_at": "2026-07-14T08:24:36.074Z",
+  "mappings": [
+    {
+      "reward_id": 9,
+      "title": "גלידת בן&ג'ריס 2 ב- 39.90 ₪",
+      "type": "כמות בסכום",
+      "start_date": "2026-05-17",
+      "end_date": "2026-08-30",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35479,
+        35551,
+        35902,
+        35953,
+        36022,
+        36030,
+        36366,
+        36372,
+        36499,
+        36624,
+        36814,
+        36838,
+        37214,
+        37429,
+        37774,
+        37775,
+        38447,
+        38522,
+        38659,
+        38744,
+        38890,
+        39179,
+        39358
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה"
+    },
+    {
+      "reward_id": 70,
+      "title": "טיטולים ביביסיטר 3 ב- 84.90",
+      "type": "כמות בסכום",
+      "start_date": "2021-11-22",
+      "end_date": "2026-12-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35411,
+        35419,
+        35885,
+        36097,
+        36901,
+        38929
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה"
+    },
+    {
+      "reward_id": 224,
+      "title": "פילטרים 3 ב10",
+      "type": "כמות בסכום",
+      "start_date": "2022-02-23",
+      "end_date": "2026-12-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35801,
+        36259,
+        39380
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה"
+    },
+    {
+      "reward_id": 225,
+      "title": "נייר גלגול ריזלה 5 ב10",
+      "type": "כמות בסכום",
+      "start_date": "2022-02-23",
+      "end_date": "2026-12-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35964,
+        36257,
+        36977
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה"
+    },
+    {
+      "reward_id": 271,
+      "title": "שמן קנולה 2 ב- 14.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-02-02",
+      "end_date": "2026-08-30",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35283,
+        35367,
+        36844
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה"
+    },
+    {
+      "reward_id": 345,
+      "title": "ירק מהדרין ביכורי שדה 3 ב-12.90",
+      "type": "כמות בסכום",
+      "start_date": "2022-06-29",
+      "end_date": "2026-12-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35789,
+        37307,
+        38335,
+        38386,
+        40047,
+        40057,
+        40069,
+        40076,
+        40095,
+        40155,
+        40177,
+        40179,
+        40190,
+        40196,
+        40197,
+        40198,
+        40202,
+        40275,
+        40390
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה"
+    },
+    {
+      "reward_id": 433,
+      "title": "ירק ביכורי שדה 3 ב- 8.90",
+      "type": "כמות בסכום",
+      "start_date": "2022-10-04",
+      "end_date": "2026-12-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35128,
+        35129,
+        35131,
+        35133,
+        35134,
+        35136,
+        35139,
+        35143,
+        35153,
+        35154,
+        35156,
+        35174,
+        35180,
+        35186,
+        35205,
+        35224,
+        35245,
+        35246,
+        35255,
+        35270,
+        35272,
+        35291,
+        35301,
+        35303,
+        35310,
+        35312,
+        35315,
+        35320,
+        35323,
+        35357,
+        35394,
+        35435,
+        35505,
+        35582,
+        35715,
+        35755,
+        35830,
+        35862,
+        35916,
+        35992,
+        36015,
+        36042,
+        36189,
+        36271,
+        36527,
+        36566,
+        36623,
+        36875,
+        37427,
+        37428,
+        37904,
+        38191,
+        38442,
+        38989
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה"
+    },
+    {
+      "reward_id": 715,
+      "title": "שלוקים 2 ב-18",
+      "type": "כמות בסכום",
+      "start_date": "2024-05-09",
+      "end_date": "2026-08-30",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35211,
+        35277,
+        36520
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה"
+    },
+    {
+      "reward_id": 998,
+      "title": "כפפות אלסטיות שחורות 3 ב-9.90",
+      "type": "כמות בסכום",
+      "start_date": "2024-06-27",
+      "end_date": "2026-12-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        36744,
+        37115
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה"
+    },
+    {
+      "reward_id": 1014,
+      "title": "כביסכל 2 ליטר 3 ב-99.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-03-10",
+      "end_date": "2026-07-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        36177,
+        36238,
+        36376,
+        36386,
+        36465,
+        36534,
+        36874,
+        37412,
+        39437
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה"
+    },
+    {
+      "reward_id": 1045,
+      "title": "שישיית בירות 2 ב-69.90",
+      "type": "כמות בסכום",
+      "start_date": "2024-06-13",
+      "end_date": "2026-07-19",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        36307,
+        36654,
+        37092,
+        38227,
+        38293
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה"
+    },
+    {
+      "reward_id": 1047,
+      "title": "חטיפים 6 ב-19.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-06-01",
+      "end_date": "2026-07-19",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35181,
+        35188,
+        35199,
+        35207,
+        35212,
+        35227,
+        35233,
+        35273,
+        35292,
+        35298,
+        35345,
+        35386,
+        35405,
+        35441,
+        35451,
+        35466,
+        35477,
+        35480,
+        35487,
+        35489,
+        35549,
+        35618,
+        35637,
+        35671,
+        35725,
+        35751,
+        35764,
+        35805,
+        35860,
+        35866,
+        35952,
+        35954,
+        35972,
+        36033,
+        36046,
+        36090,
+        36099,
+        36174,
+        36285,
+        36343,
+        36378,
+        36397,
+        36585,
+        36755,
+        36843,
+        36880,
+        37240,
+        37827,
+        37928,
+        38046,
+        38425,
+        38430,
+        39205
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה"
+    },
+    {
+      "reward_id": 1176,
+      "title": "יינות פרימיום 2 ב-119.90",
+      "type": "כמות בסכום",
+      "start_date": "2025-02-16",
+      "end_date": "2026-07-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        39152,
+        39416,
+        39702
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה"
+    },
+    {
+      "reward_id": 1177,
+      "title": "יינות וינטג' 3 ב-99.90",
+      "type": "כמות בסכום",
+      "start_date": "2025-02-16",
+      "end_date": "2026-07-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        37723,
+        38238,
+        38559,
+        38562,
+        39710
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה"
+    },
+    {
+      "reward_id": 1180,
+      "title": "יינות ירושלים 187 מל 3 ב-18",
+      "type": "כמות בסכום",
+      "start_date": "2025-02-16",
+      "end_date": "2026-07-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        37918,
+        37967,
+        38035,
+        38153
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה"
+    },
+    {
+      "reward_id": 1189,
+      "title": "יינות וינטג' 2 ב-36.90",
+      "type": "כמות בסכום",
+      "start_date": "2025-02-16",
+      "end_date": "2026-07-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        37723,
+        38238,
+        38559,
+        38562,
+        39710
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה"
+    },
+    {
+      "reward_id": 1238,
+      "title": "תבניות אלומניום \"משי\" 4 ב- 18",
+      "type": "כמות בסכום",
+      "start_date": "2026-05-17",
+      "end_date": "2026-08-30",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35369,
+        35372,
+        35401,
+        35429,
+        35473,
+        35560,
+        35936
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה"
+    },
+    {
+      "reward_id": 1284,
+      "title": "סכו\"ם הנמל 3 ב- 12",
+      "type": "כמות בסכום",
+      "start_date": "2025-07-08",
+      "end_date": "2026-07-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        37706,
+        39637
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה"
+    },
+    {
+      "reward_id": 1413,
+      "title": "מארז פחיות 12 יח 2 ב- 49.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-02-05",
+      "end_date": "2026-07-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35445,
+        36371,
+        36379,
+        36455
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה"
+    },
+    {
+      "reward_id": 1590,
+      "title": "גביעי אחסון 3 ב- 15",
+      "type": "כמות בסכום",
+      "start_date": "2025-07-22",
+      "end_date": "2026-07-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35786,
+        35903,
+        36674,
+        37095
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה"
+    },
+    {
+      "reward_id": 1626,
+      "title": "מארז טישו 2 ב- 12",
+      "type": "כמות בסכום",
+      "start_date": "2026-06-25",
+      "end_date": "2026-07-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35349,
+        37395
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה"
+    },
+    {
+      "reward_id": 1645,
+      "title": "תירוש 2 ב- 25",
+      "type": "כמות בסכום",
+      "start_date": "2026-03-15",
+      "end_date": "2026-07-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35289,
+        35530,
+        35657,
+        35809,
+        36010
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה"
+    },
+    {
+      "reward_id": 1656,
+      "title": "קמח מצה 3 ב-10",
+      "type": "כמות בסכום",
+      "start_date": "2026-04-06",
+      "end_date": "2026-07-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        36368,
+        37916,
+        38138,
+        39263
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה"
+    },
+    {
+      "reward_id": 1657,
+      "title": "אפיפיות 2 ב-10",
+      "type": "כמות בסכום",
+      "start_date": "2026-03-10",
+      "end_date": "2026-07-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35160,
+        37817,
+        38429
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה"
+    },
+    {
+      "reward_id": 1668,
+      "title": "חרוזית 3 ב-24",
+      "type": "כמות בסכום",
+      "start_date": "2026-04-29",
+      "end_date": "2026-07-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        37662,
+        39395
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה"
+    },
+    {
+      "reward_id": 1694,
+      "title": "קרקר טופז 4 ב-10.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-05-10",
+      "end_date": "2026-07-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        36657,
+        39298
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה"
+    },
+    {
+      "reward_id": 1696,
+      "title": "תה עדנים 2 ב-19.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-05-10",
+      "end_date": "2026-07-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        38656,
+        39708,
+        39709
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה"
+    },
+    {
+      "reward_id": 1714,
+      "title": "פסטה ברילה 3 ב- 18",
+      "type": "כמות בסכום",
+      "start_date": "2026-05-17",
+      "end_date": "2026-07-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        36316,
+        37094,
+        37152,
+        37180,
+        37499,
+        37500,
+        37790,
+        38071,
+        38331,
+        38982,
+        39616
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה"
+    },
+    {
+      "reward_id": 1774,
+      "title": "בקנייה מעל 300 שקית רב פעמית גלסנר מתנה",
+      "type": "קנה בסכום הוסף קבל",
+      "start_date": "2026-06-12",
+      "end_date": "2026-12-31",
+      "action": "cart_reward_product",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        37406
+      ],
+      "note": "שוחזר ממבצע סל קיים בסניף 2"
+    },
+    {
+      "reward_id": 3,
+      "title": "ארטיק ריאו 8 ב-10",
+      "type": "כמות בסכום",
+      "start_date": "2021-11-19",
+      "end_date": "2026-08-30",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35126
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 31,
+      "title": "גלידה קרמסימו 2 ב- 39.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-05-24",
+      "end_date": "2026-08-30",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        36477
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 347,
+      "title": "חסה מהדרין ביכורי שדה 2 ב- 11.90",
+      "type": "כמות בסכום",
+      "start_date": "2022-06-29",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        40047
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 534,
+      "title": "בלוני הליום פשוטים 3 ב15",
+      "type": "כמות בסכום",
+      "start_date": "2023-01-04",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35285
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 535,
+      "title": "בלוני הליום גדולים 2 ב- 15",
+      "type": "כמות בסכום",
+      "start_date": "2023-01-04",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        38269
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 620,
+      "title": "פחם מובחר 2 ב- 25",
+      "type": "כמות בסכום",
+      "start_date": "2024-06-09",
+      "end_date": "2026-08-30",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35373
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 634,
+      "title": "כוס שקופה 4 ב-11.90",
+      "type": "כמות בסכום",
+      "start_date": "2023-02-19",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35342
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 708,
+      "title": "כוס חם 3 ב- 11.90",
+      "type": "כמות בסכום",
+      "start_date": "2023-02-05",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35259
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 825,
+      "title": "צלחות 1 ק\"ג 2 ב- 30",
+      "type": "כמות בסכום",
+      "start_date": "2023-09-21",
+      "end_date": "2026-07-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        36717
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 1110,
+      "title": "חלת בוטיק 2 ב-22",
+      "type": "כמות בסכום",
+      "start_date": "2024-12-12",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35151
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 1239,
+      "title": "מנגל גדול ב-69.90",
+      "type": "כמות בסכום",
+      "start_date": "2024-06-09",
+      "end_date": "2026-08-30",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        36875
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 1293,
+      "title": "שמן זית תומר 2 ב- 49.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-06-01",
+      "end_date": "2026-07-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35556
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 1300,
+      "title": "צלחות מתכלות ר.שמאי 2 ב-19.90",
+      "type": "כמות בסכום",
+      "start_date": "2025-07-22",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35818
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 1325,
+      "title": "ירק \"חממה בהר\" 2 ב-15",
+      "type": "כמות בסכום",
+      "start_date": "2025-07-30",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35531
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 1463,
+      "title": "סטייק אנגוס מיושן ברשת רק ב99.90 לקג",
+      "type": "כמות בסכום",
+      "start_date": "2025-10-05",
+      "end_date": "2026-07-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35420
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 1545,
+      "title": "קרטון פמפרס מידה 3 80 יח 2 ב- 99.90",
+      "type": "כמות בסכום",
+      "start_date": "2025-12-24",
+      "end_date": "2026-07-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        38619
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 1573,
+      "title": "סימילאק 900 גרם רק ב- 69.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-02-02",
+      "end_date": "2026-07-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        38279
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 1575,
+      "title": "סט צלחות וינטג' 2 ב- 19.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-02-03",
+      "end_date": "2026-07-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35818
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 1576,
+      "title": "סכו\"ם וינטג' 4 ב-10",
+      "type": "כמות בסכום",
+      "start_date": "2026-02-03",
+      "end_date": "2026-07-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35483
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 1578,
+      "title": "צלחת \"7 2 ב- 19.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-02-04",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        36943
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 1580,
+      "title": "צלחת \"10 2 ב- 32.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-02-04",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        37224
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 1592,
+      "title": "יין רזרב יקבי ירושלים 3 ב- 269.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-02-17",
+      "end_date": "2026-07-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        37967
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 1637,
+      "title": "נייר סופג שישייה 2 ב- 24",
+      "type": "כמות בסכום",
+      "start_date": "2026-06-25",
+      "end_date": "2026-07-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        37732
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 1690,
+      "title": "פופקורן 2 ב- 19.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-05-06",
+      "end_date": "2026-07-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35997
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 1692,
+      "title": "קרקר קראנצי 2 ב- 12",
+      "type": "כמות בסכום",
+      "start_date": "2026-05-10",
+      "end_date": "2026-07-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        38932
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 1693,
+      "title": "טופז גולד 2 ב-10.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-05-10",
+      "end_date": "2026-07-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        39298
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 1695,
+      "title": "חצי מצופה תירוש 2 ב-10",
+      "type": "כמות בסכום",
+      "start_date": "2026-05-10",
+      "end_date": "2026-07-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        39417
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 1699,
+      "title": "מגבונים ביביסיטר 2 ב- 49.90",
+      "type": "כמות בסכום",
+      "start_date": "2021-11-22",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35703
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 1719,
+      "title": "דפי לזניה ברילה רק ב- 19.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-05-17",
+      "end_date": "2026-07-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        36316
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 1764,
+      "title": "בלו כחול 4 ב-10",
+      "type": "כמות בסכום",
+      "start_date": "2026-06-01",
+      "end_date": "2026-07-19",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        36933
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 1765,
+      "title": "גרעיני חמניה 400 ב- 14.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-06-01",
+      "end_date": "2026-07-19",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35638
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 1788,
+      "title": "צוריסוס/מרגז/קבב 3 ק\"ג ב- 119.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-06-22",
+      "end_date": "2026-07-31",
+      "action": "product_promotion",
+      "mapping_mode": "separate_product_promotions",
+      "is_group_promotion": false,
+      "product_ids": [
+        38888,
+        39486
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 1791,
+      "title": "בקר טחון 2 ק\"ג ב- 89.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-06-22",
+      "end_date": "2026-07-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        39013
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 1792,
+      "title": "אמנון בלי עור ב- 19.90 לק\"ג",
+      "type": "כמות בסכום",
+      "start_date": "2026-06-22",
+      "end_date": "2026-07-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35655
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    },
+    {
+      "reward_id": 1797,
+      "title": "קמח 2 ב- 5.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-04-29",
+      "end_date": "2026-07-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        38020
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר"
+    }
+  ]
+}

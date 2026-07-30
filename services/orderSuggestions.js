@@ -679,7 +679,7 @@ async function fetchBundleRowsForOrderItems({ shop_id, order_id, productIds }) {
        pr.description
      FROM order_item oi
      JOIN product p ON p.id = oi.product_id AND p.shop_id = ?
-     JOIN promotion pr ON pr.id = oi.promo_id AND pr.shop_id = ?
+     JOIN promotion pr ON (pr.id = oi.promo_id OR (oi.promo_id IS NULL AND pr.product_id = oi.product_id)) AND pr.shop_id = ?
      WHERE oi.order_id = ?
        AND oi.product_id IN (${ids.map(() => "?").join(",")})
        AND pr.kind = 'BUNDLE'

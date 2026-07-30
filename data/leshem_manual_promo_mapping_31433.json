@@ -1,0 +1,146 @@
+{
+  "source": "leshem_excel_2026_06_14",
+  "shop_id": 2,
+  "based_on_report": "C:\\Users\\ORI\\Desktop\\gogobuy\\gogobuy\\reports\\leshem_promotions_import_report_20260714_113339.json",
+  "generated_at": "2026-07-14T08:54:41.991Z",
+  "mappings": [
+    {
+      "reward_id": 102,
+      "title": "דנונה פרו 20 גר' 2 ב-12",
+      "type": "כמות בסכום",
+      "start_date": "2021-12-04",
+      "end_date": "2026-07-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35544,
+        36021,
+        35459,
+        36220,
+        36466,
+        37683,
+        35886,
+        35517,
+        35592,
+        35799
+      ],
+      "note": ""
+    },
+    {
+      "reward_id": 123,
+      "title": "יופלה גו \"תנובה\" 2 ב-9.90",
+      "type": "כמות בסכום",
+      "start_date": "2021-12-04",
+      "end_date": "2026-07-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35597,
+        35747,
+        36236,
+        36288,
+        35663,
+        35610,
+        35484,
+        36589,
+        39201,
+        36632,
+        35834
+      ],
+      "note": ""
+    },
+    {
+      "reward_id": 1292,
+      "title": "איגלו ארוך \"כרמית\" 3 ב-12",
+      "type": "כמות בסכום",
+      "start_date": "2024-05-09",
+      "end_date": "2026-08-30",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35211
+      ],
+      "note": ""
+    },
+    {
+      "reward_id": 1577,
+      "title": "מרקיה מתכלה 2 ב- 13.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-02-04",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        38490
+      ],
+      "note": ""
+    },
+    {
+      "reward_id": 1687,
+      "title": "עוגיות של פסח 2 ב- 20",
+      "type": "כמות בסכום",
+      "start_date": "2026-05-04",
+      "end_date": "2026-07-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        37113
+      ],
+      "note": ""
+    },
+    {
+      "reward_id": 1733,
+      "title": "חרוזית רק ב- 7.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-04-29",
+      "end_date": "2026-07-31",
+      "action": "product_promotion",
+      "mapping_mode": "multi_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        37662,
+        39395
+      ],
+      "note": ""
+    },
+    {
+      "reward_id": 1785,
+      "title": "סינטה ב- 149.90 לק\"ג",
+      "type": "כמות בסכום",
+      "start_date": "2026-06-22",
+      "end_date": "2026-07-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        37504
+      ],
+      "note": ""
+    },
+    {
+      "reward_id": 1802,
+      "title": "משחת שיניים 2 ב- 14.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-07-05",
+      "end_date": "2026-07-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        36367,
+        37892,
+        38003,
+        39859,
+        37141,
+        38999,
+        39704
+      ],
+      "note": ""
+    }
+  ]
+}

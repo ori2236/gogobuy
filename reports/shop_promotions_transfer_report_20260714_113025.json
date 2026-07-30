@@ -1,0 +1,2876 @@
+{
+  "mode": "confirm",
+  "source_shop_id": 2,
+  "target_shop_id": 5,
+  "replace_target": true,
+  "clear_source": true,
+  "create_missing_products": true,
+  "backup_before_change": false,
+  "generated_at": "2026-07-14T08:30:25.384Z",
+  "source_counts": {
+    "promotion": 45,
+    "cart_promotion_rule": 3,
+    "product_group_promotion": 28,
+    "product_group_promotion_item": 249
+  },
+  "before_counts": {
+    "source": {
+      "promotion": 45,
+      "cart_promotion_rule": 3,
+      "product_group_promotion": 28,
+      "product_group_promotion_item": 249
+    },
+    "target": {
+      "promotion": 0,
+      "cart_promotion_rule": 0,
+      "product_group_promotion": 0,
+      "product_group_promotion_item": 0
+    }
+  },
+  "after_counts": {
+    "source": {
+      "promotion": 0,
+      "cart_promotion_rule": 0,
+      "product_group_promotion": 0,
+      "product_group_promotion_item": 0
+    },
+    "target": {
+      "promotion": 45,
+      "cart_promotion_rule": 3,
+      "product_group_promotion": 28,
+      "product_group_promotion_item": 249
+    }
+  },
+  "planned": {
+    "product_promotions": 45,
+    "cart_rules": 3,
+    "group_promotions": 28,
+    "group_items": 249
+  },
+  "copied": {
+    "product_promotions": 45,
+    "cart_rules": 3,
+    "group_promotions": 28,
+    "group_items": 249
+  },
+  "product_matches": [
+    {
+      "source_product_id": 35126,
+      "target_product_id": 28827,
+      "method": "name",
+      "value": "ארטיק קרח ריאו"
+    },
+    {
+      "source_product_id": 36542,
+      "target_product_id": 28496,
+      "method": "name",
+      "value": "פרגית עוף טחון ב.ש"
+    },
+    {
+      "source_product_id": 36477,
+      "target_product_id": 29090,
+      "method": "name",
+      "value": "נשנושים גלידה שוקו וניל פרווה 630 גרם \"קרמסימו\""
+    },
+    {
+      "source_product_id": 35342,
+      "target_product_id": 29795,
+      "method": "name",
+      "value": "כוס שקופה 1/100 חדפ(ילג)"
+    },
+    {
+      "source_product_id": 35151,
+      "target_product_id": 27235,
+      "method": "barcode",
+      "value": "693493223645"
+    },
+    {
+      "source_product_id": 35420,
+      "target_product_id": 28477,
+      "method": "name",
+      "value": "סטייק אנגוס מיושן ברשת מחפוד"
+    },
+    {
+      "source_product_id": 38619,
+      "target_product_id": 27511,
+      "method": "name",
+      "value": "קרטון פמפרס מידה 3 80 יח"
+    },
+    {
+      "source_product_id": 35818,
+      "target_product_id": 30455,
+      "method": "name",
+      "value": "סט צלחות וינטג' 7+9 (16 יח)"
+    },
+    {
+      "source_product_id": 35483,
+      "target_product_id": 30452,
+      "method": "name",
+      "value": "סכו\"ם וינטג' (10 יח')"
+    },
+    {
+      "source_product_id": 39298,
+      "target_product_id": 30231,
+      "method": "name",
+      "value": "קרקר טופז גולד שומשום 250 גר \"הדר\""
+    },
+    {
+      "source_product_id": 35703,
+      "target_product_id": 31306,
+      "method": "name",
+      "value": "מגבונים ביביסיטר 9 יח ללא בישום"
+    },
+    {
+      "source_product_id": 35259,
+      "target_product_id": 29499,
+      "method": "name",
+      "value": "כוס חם 8B"
+    },
+    {
+      "source_product_id": 36875,
+      "target_product_id": 30170,
+      "method": "name",
+      "value": "מנגל גדול (ביכורי שדה)"
+    },
+    {
+      "source_product_id": 38279,
+      "target_product_id": 27627,
+      "method": "name",
+      "value": "סימילאק 900 גר מס' 2 בדצ"
+    },
+    {
+      "source_product_id": 35997,
+      "target_product_id": 28436,
+      "method": "name",
+      "value": "פופקורן 500 גרם"
+    },
+    {
+      "source_product_id": 38932,
+      "target_product_id": 30237,
+      "method": "name",
+      "value": "קרקר דק קרנצ'י זיתים 140 גרם"
+    },
+    {
+      "source_product_id": 39417,
+      "target_product_id": 29772,
+      "method": "name",
+      "value": "עוגיות תירוש מצופה קרמל חצי ירח"
+    },
+    {
+      "source_product_id": 35737,
+      "target_product_id": 30576,
+      "method": "name",
+      "value": "ציפס 2 ק\"ג תומר"
+    },
+    {
+      "source_product_id": 36316,
+      "target_product_id": 32570,
+      "method": "name",
+      "value": "פסטה ברילה לזניה 500 גר(מעיין)"
+    },
+    {
+      "source_product_id": 36933,
+      "target_product_id": 27282,
+      "method": "name",
+      "value": "בלו משקה אנרגיה ללא סוכר קואופ"
+    },
+    {
+      "source_product_id": 35638,
+      "target_product_id": 30048,
+      "method": "name",
+      "value": "גרעיני חמניה 400 גרם"
+    },
+    {
+      "source_product_id": 35691,
+      "target_product_id": 32344,
+      "method": "name",
+      "value": "הודו טחון מהדרין ללא תוספות(בש)"
+    },
+    {
+      "source_product_id": 35173,
+      "target_product_id": 26949,
+      "method": "name",
+      "value": "פילה אמנון- עם עור"
+    },
+    {
+      "source_product_id": 35329,
+      "target_product_id": 32374,
+      "method": "name",
+      "value": "אסאדו עגל טרי חלק (אדום)"
+    },
+    {
+      "source_product_id": 35788,
+      "target_product_id": 27969,
+      "method": "name",
+      "value": "מגבות ניקול שישיה ילג"
+    },
+    {
+      "source_product_id": 36943,
+      "target_product_id": 28867,
+      "method": "name",
+      "value": "צלחת קטנה \"7"
+    },
+    {
+      "source_product_id": 37224,
+      "target_product_id": 28865,
+      "method": "name",
+      "value": "צלחת ענקית 10"
+    },
+    {
+      "source_product_id": 37732,
+      "target_product_id": 31075,
+      "method": "name",
+      "value": "נייר סופג סופט 4 שכבות"
+    },
+    {
+      "source_product_id": 35655,
+      "target_product_id": 28842,
+      "method": "name",
+      "value": "פילה אמנון ללא עור"
+    },
+    {
+      "source_product_id": 38020,
+      "target_product_id": 28142,
+      "method": "name",
+      "value": "קמח לבן אנג`ל"
+    },
+    {
+      "source_product_id": 37646,
+      "target_product_id": 28265,
+      "method": "name",
+      "value": "גרון הודו קפוא(איכות)"
+    },
+    {
+      "source_product_id": 37504,
+      "target_product_id": 28220,
+      "method": "name",
+      "value": "סינטה חלק (בש)"
+    },
+    {
+      "source_product_id": 37774,
+      "target_product_id": 30160,
+      "method": "name",
+      "value": "בן&גריס שוקולד פינט באטר ספליט"
+    },
+    {
+      "source_product_id": 35551,
+      "target_product_id": 27015,
+      "method": "name",
+      "value": "גלידה בן ג'ריס פיינטים וניל צרפת 500'ג"
+    },
+    {
+      "source_product_id": 36814,
+      "target_product_id": 28375,
+      "method": "name",
+      "value": "בן&ג'ריס ריבת חלב 150 מל(מעיין)"
+    },
+    {
+      "source_product_id": 37775,
+      "target_product_id": 30161,
+      "method": "name",
+      "value": "בן&ג'ריס פיינט סורבה פסיפלורה ופירות יער"
+    },
+    {
+      "source_product_id": 35411,
+      "target_product_id": 29938,
+      "method": "name",
+      "value": "טיטולים בייביסיטר מידה 6"
+    },
+    {
+      "source_product_id": 35885,
+      "target_product_id": 29936,
+      "method": "name",
+      "value": "טיטולים בייביסיטר מידה 4+"
+    },
+    {
+      "source_product_id": 35419,
+      "target_product_id": 29937,
+      "method": "name",
+      "value": "טיטולים בייביסיטר מידה 5"
+    },
+    {
+      "source_product_id": 36097,
+      "target_product_id": 29935,
+      "method": "name",
+      "value": "טיטולים בייביסיטר מידה 4"
+    },
+    {
+      "source_product_id": 36901,
+      "target_product_id": 29934,
+      "method": "name",
+      "value": "טיטולים בייביסיטר מידה 3 (אמוץ)"
+    },
+    {
+      "source_product_id": 36259,
+      "target_product_id": 27690,
+      "method": "name",
+      "value": "פילטר 6/22 (מדעי)"
+    },
+    {
+      "source_product_id": 35367,
+      "target_product_id": 28560,
+      "method": "name",
+      "value": "שמן קנולה מזוכך (תומר)"
+    },
+    {
+      "source_product_id": 36844,
+      "target_product_id": 27947,
+      "method": "name",
+      "value": "שמן קנולה עץ הזית 1 ליטר"
+    },
+    {
+      "source_product_id": 35211,
+      "target_product_id": 30018,
+      "method": "name",
+      "value": "שלוקים איגלו 8 יח (ילג)"
+    },
+    {
+      "source_product_id": 35277,
+      "target_product_id": 30609,
+      "method": "name",
+      "value": "שלוקים איגלו 70 יח' 4* ילג"
+    },
+    {
+      "source_product_id": 36520,
+      "target_product_id": 30146,
+      "method": "name",
+      "value": "שלוקים טרופית ענבים 18 יח"
+    },
+    {
+      "source_product_id": 37115,
+      "target_product_id": 31504,
+      "method": "name",
+      "value": "כפפות S אלסטיות שחורות"
+    },
+    {
+      "source_product_id": 36465,
+      "target_product_id": 30547,
+      "method": "name",
+      "value": "כביסכל 2 ליטר - פרידום"
+    },
+    {
+      "source_product_id": 36376,
+      "target_product_id": 29749,
+      "method": "name",
+      "value": "כביסכל 2 ליטר- בייבי BIO"
+    },
+    {
+      "source_product_id": 36386,
+      "target_product_id": 30548,
+      "method": "name",
+      "value": "כביסכל 2 ליטר- אלגנט BIO"
+    },
+    {
+      "source_product_id": 37412,
+      "target_product_id": 30549,
+      "method": "name",
+      "value": "כביסכל 2 ליטר- ספורט BIO"
+    },
+    {
+      "source_product_id": 36177,
+      "target_product_id": 29750,
+      "method": "name",
+      "value": "כביסכל 2 ליטר- ארומטי עם BIO"
+    },
+    {
+      "source_product_id": 36534,
+      "target_product_id": 29752,
+      "method": "name",
+      "value": "כביסכל 2 ליטר- סופט קייר BIO"
+    },
+    {
+      "source_product_id": 36874,
+      "target_product_id": 29754,
+      "method": "name",
+      "value": "כביסכל 2 ליטר- ספא עם BIO"
+    },
+    {
+      "source_product_id": 39437,
+      "target_product_id": 30551,
+      "method": "name",
+      "value": "כביסכל מנקה מבשם רצפות מרוכז - ארומטי 2 ליטר"
+    },
+    {
+      "source_product_id": 36307,
+      "target_product_id": 28318,
+      "method": "name",
+      "value": "בירה טובורג שישיה 330מ\"ק(קולה)"
+    },
+    {
+      "source_product_id": 38293,
+      "target_product_id": 29048,
+      "method": "name",
+      "value": "בירה מכבי 330 מל שישיה (טמפו )"
+    },
+    {
+      "source_product_id": 37092,
+      "target_product_id": 32386,
+      "method": "name",
+      "value": "שישיית בירה קורונה"
+    },
+    {
+      "source_product_id": 38227,
+      "target_product_id": 29049,
+      "method": "name",
+      "value": "שישיית גולדסטאר 10% 330 מל בקבוק"
+    },
+    {
+      "source_product_id": 35273,
+      "target_product_id": 28184,
+      "method": "name",
+      "value": "ביסלי גריל 55 גרם"
+    },
+    {
+      "source_product_id": 35451,
+      "target_product_id": 28183,
+      "method": "name",
+      "value": "ביסלי פיצה 55 גר'*24 (אוסם )"
+    },
+    {
+      "source_product_id": 35487,
+      "target_product_id": 28182,
+      "method": "name",
+      "value": "ביסלי ברביקיו 55 גר' (אוסם)"
+    },
+    {
+      "source_product_id": 35549,
+      "target_product_id": 28185,
+      "method": "name",
+      "value": "ביסלי בצל 55*24 יח' (אוסם )"
+    },
+    {
+      "source_product_id": 35671,
+      "target_product_id": 28283,
+      "method": "name",
+      "value": "ביסלי פלאפל"
+    },
+    {
+      "source_product_id": 35805,
+      "target_product_id": 30866,
+      "method": "name",
+      "value": "ביסלי גריל מארז55גר'*4 (אוסם )"
+    },
+    {
+      "source_product_id": 35866,
+      "target_product_id": 27835,
+      "method": "name",
+      "value": "ביסלי גריל 200 גר"
+    },
+    {
+      "source_product_id": 36033,
+      "target_product_id": 30867,
+      "method": "name",
+      "value": "ביסלי ברביקיו מארז 10 (אוסם)"
+    },
+    {
+      "source_product_id": 36174,
+      "target_product_id": 27836,
+      "method": "name",
+      "value": "ביסלי פיצה 200 גר"
+    },
+    {
+      "source_product_id": 36343,
+      "target_product_id": 31583,
+      "method": "name",
+      "value": "ביסלי בצל 200 גר"
+    },
+    {
+      "source_product_id": 36378,
+      "target_product_id": 30865,
+      "method": "name",
+      "value": "ביסלי בצל כשל\"פ 55גר'*24 (אוסם )"
+    },
+    {
+      "source_product_id": 36397,
+      "target_product_id": 31582,
+      "method": "name",
+      "value": "ביסלי ברביקיו 200 גר אוסם"
+    },
+    {
+      "source_product_id": 36843,
+      "target_product_id": 27834,
+      "method": "name",
+      "value": "ביסלי פלאפל 200 גר'*24 (אוסם )"
+    },
+    {
+      "source_product_id": 37240,
+      "target_product_id": 30864,
+      "method": "name",
+      "value": "ביסלי ברביקיו כשל\"פ 55 גר'*24 (אוסם )"
+    },
+    {
+      "source_product_id": 35466,
+      "target_product_id": 31844,
+      "method": "name",
+      "value": "במבה ביסלי גריל מיקס 70 גר"
+    },
+    {
+      "source_product_id": 35952,
+      "target_product_id": 31843,
+      "method": "name",
+      "value": "במבה ביסלי גריל מיקס 150 גרם"
+    },
+    {
+      "source_product_id": 36046,
+      "target_product_id": 31845,
+      "method": "name",
+      "value": "במבה ביסלי בצל מיקס 70 גר"
+    },
+    {
+      "source_product_id": 36090,
+      "target_product_id": 31846,
+      "method": "name",
+      "value": "במבה ביסלי ברביקיו מיקס 70 גר"
+    },
+    {
+      "source_product_id": 37827,
+      "target_product_id": 31832,
+      "method": "name",
+      "value": "במבה ביסלי ברביקיו מיקס כשל\"פ 70 גרם"
+    },
+    {
+      "source_product_id": 35188,
+      "target_product_id": 28284,
+      "method": "name",
+      "value": "במבה 60 ג אוסם"
+    },
+    {
+      "source_product_id": 35199,
+      "target_product_id": 30623,
+      "method": "name",
+      "value": "במבה במילוי קרם נוגט60 גר'*36 (אוסם )"
+    },
+    {
+      "source_product_id": 35489,
+      "target_product_id": 27838,
+      "method": "name",
+      "value": "במבה אדומה 30 גר"
+    },
+    {
+      "source_product_id": 35637,
+      "target_product_id": 28421,
+      "method": "name",
+      "value": "במבה 60g (אוסם)"
+    },
+    {
+      "source_product_id": 35764,
+      "target_product_id": 27854,
+      "method": "name",
+      "value": "במבה קטן"
+    },
+    {
+      "source_product_id": 35954,
+      "target_product_id": 27862,
+      "method": "name",
+      "value": "במבה במילוי קרם חלבה(אוס)"
+    },
+    {
+      "source_product_id": 37928,
+      "target_product_id": 31853,
+      "method": "name",
+      "value": "במבה במילוי אייס קפה 60 גרם"
+    },
+    {
+      "source_product_id": 38425,
+      "target_product_id": 31871,
+      "method": "name",
+      "value": "במבה מאנצ' ברבקיו 150 גרם"
+    },
+    {
+      "source_product_id": 38430,
+      "target_product_id": 32043,
+      "method": "name",
+      "value": "במבה מאנצ' צ'דר 150 גרם"
+    },
+    {
+      "source_product_id": 35207,
+      "target_product_id": 27964,
+      "method": "name",
+      "value": "תפוציפס טבעי 50 גר'"
+    },
+    {
+      "source_product_id": 35212,
+      "target_product_id": 29069,
+      "method": "name",
+      "value": "תפוציפס קראנצ טבעי 50 גרם"
+    },
+    {
+      "source_product_id": 35233,
+      "target_product_id": 29075,
+      "method": "name",
+      "value": "תפוציפס קראנצ גריל 50 גר"
+    },
+    {
+      "source_product_id": 35298,
+      "target_product_id": 28877,
+      "method": "name",
+      "value": "חטיף תפוציפס 50 שמנת ובצל"
+    },
+    {
+      "source_product_id": 35227,
+      "target_product_id": 29105,
+      "method": "name",
+      "value": "דוריטוס חמוץ חריף 55 גר (עלית)"
+    },
+    {
+      "source_product_id": 35292,
+      "target_product_id": 30817,
+      "method": "name",
+      "value": "ציטוס גבינה"
+    },
+    {
+      "source_product_id": 35386,
+      "target_product_id": 29078,
+      "method": "name",
+      "value": "דוריטוס טבעי 55 גר"
+    },
+    {
+      "source_product_id": 35441,
+      "target_product_id": 29077,
+      "method": "name",
+      "value": "דוריטוס גריל 55 גר'"
+    },
+    {
+      "source_product_id": 35751,
+      "target_product_id": 29104,
+      "method": "name",
+      "value": "דוריטוס חריף אש 55 גר' חטיף עלית"
+    },
+    {
+      "source_product_id": 36880,
+      "target_product_id": 31614,
+      "method": "name",
+      "value": "ציטוס פופקורן בטעם טבעי"
+    },
+    {
+      "source_product_id": 38046,
+      "target_product_id": 30636,
+      "method": "name",
+      "value": "דוריטוס חמוץ חריף 70 גר'*48 (על"
+    },
+    {
+      "source_product_id": 35181,
+      "target_product_id": 27837,
+      "method": "name",
+      "value": "דובונים חטיף תפו\"א (אוסם)"
+    },
+    {
+      "source_product_id": 35618,
+      "target_product_id": 28954,
+      "method": "name",
+      "value": "דובונים ארנבים חטיף תפו\"א 40גר'*30 אוסם"
+    },
+    {
+      "source_product_id": 36285,
+      "target_product_id": 32049,
+      "method": "name",
+      "value": "דובונים ברביקיו 40 גרם"
+    },
+    {
+      "source_product_id": 36585,
+      "target_product_id": 30795,
+      "method": "name",
+      "value": "דובונים פיצה 40 גר'*30 אוסם"
+    },
+    {
+      "source_product_id": 36755,
+      "target_product_id": 27826,
+      "method": "name",
+      "value": "דובונים שמנת בצל(אוס)"
+    },
+    {
+      "source_product_id": 35345,
+      "target_product_id": 27839,
+      "method": "name",
+      "value": "אפרופו חטיף 50*36תפו\"א (אוסם)"
+    },
+    {
+      "source_product_id": 36099,
+      "target_product_id": 30805,
+      "method": "name",
+      "value": "אפרופו שוקולד 40 גר' אוסם"
+    },
+    {
+      "source_product_id": 39152,
+      "target_product_id": 28995,
+      "method": "name",
+      "value": "יין פרימיום בלנד יין אדום יבש 750 מ\"ל"
+    },
+    {
+      "source_product_id": 39416,
+      "target_product_id": 29709,
+      "method": "name",
+      "value": "יין פרימיום קברנה סוביניון 750 מ\"ל"
+    },
+    {
+      "source_product_id": 39702,
+      "target_product_id": 29711,
+      "method": "name",
+      "value": "יין פרימיום רוזה 750 מ\"ל"
+    },
+    {
+      "source_product_id": 37723,
+      "target_product_id": 29716,
+      "method": "name",
+      "value": "יין וינטג' קברנה 2023 375 מ\"ל"
+    },
+    {
+      "source_product_id": 38238,
+      "target_product_id": 29975,
+      "method": "name",
+      "value": "יין וינטג' מלבק/שיראז 750 מ\"ל"
+    },
+    {
+      "source_product_id": 38559,
+      "target_product_id": 29710,
+      "method": "name",
+      "value": "יין וינטג' קברנה 750 מ\"ל"
+    },
+    {
+      "source_product_id": 39710,
+      "target_product_id": 29974,
+      "method": "name",
+      "value": "יין וינטג' גוורצרמינר 750 מ\"ל חצי יבש"
+    },
+    {
+      "source_product_id": 37918,
+      "target_product_id": 29713,
+      "method": "name",
+      "value": "יין קברנה סובינון יבש 750 מ\"ל יקבי ירושלים"
+    },
+    {
+      "source_product_id": 38035,
+      "target_product_id": 29714,
+      "method": "name",
+      "value": "יין מרלו יבש 750 מ\"ל יקבי ירושלים"
+    },
+    {
+      "source_product_id": 38153,
+      "target_product_id": 29717,
+      "method": "name",
+      "value": "יין אדום מתוק 187 מל יקבי ירושלים"
+    },
+    {
+      "source_product_id": 35372,
+      "target_product_id": 30448,
+      "method": "name",
+      "value": "תבניות אלומניום R31 \"משי\""
+    },
+    {
+      "source_product_id": 35429,
+      "target_product_id": 30449,
+      "method": "name",
+      "value": "תבניות אלומניום R99 \"משי\""
+    },
+    {
+      "source_product_id": 35401,
+      "target_product_id": 30446,
+      "method": "name",
+      "value": "תבניות אלומניום מלבניות \"משי\""
+    },
+    {
+      "source_product_id": 35473,
+      "target_product_id": 30447,
+      "method": "name",
+      "value": "תבניות אלומניום R64 \"משי\""
+    },
+    {
+      "source_product_id": 35560,
+      "target_product_id": 30445,
+      "method": "name",
+      "value": "תבניות אלומניום R29 \"משי\""
+    },
+    {
+      "source_product_id": 35936,
+      "target_product_id": 30450,
+      "method": "name",
+      "value": "תבניות אלומניום עגולות C10 \"משי\""
+    },
+    {
+      "source_product_id": 35369,
+      "target_product_id": 30444,
+      "method": "name",
+      "value": "תבניות אלומניום אינגליש קייק \"משי\""
+    },
+    {
+      "source_product_id": 35445,
+      "target_product_id": 27533,
+      "method": "name",
+      "value": "מארז 12 פחיות מיני קולה פרלל 250 מל"
+    },
+    {
+      "source_product_id": 36371,
+      "target_product_id": 27070,
+      "method": "name",
+      "value": "מארז 12 פחיות קולה זירו 330 מל"
+    },
+    {
+      "source_product_id": 36379,
+      "target_product_id": 26991,
+      "method": "name",
+      "value": "מארז 12 פחיות מיני פאנטה פרלל 250 מל"
+    },
+    {
+      "source_product_id": 36455,
+      "target_product_id": 26990,
+      "method": "name",
+      "value": "מארז 12 פחיות מיני ספרייט פרלל 250 מל"
+    },
+    {
+      "source_product_id": 35786,
+      "target_product_id": 27188,
+      "method": "name",
+      "value": "גביעי אחסון+מכסים 1/2 ליטר"
+    },
+    {
+      "source_product_id": 36674,
+      "target_product_id": 27190,
+      "method": "name",
+      "value": "גביעי אחסון + מכסים 750cc"
+    },
+    {
+      "source_product_id": 37095,
+      "target_product_id": 27189,
+      "method": "name",
+      "value": "גביעי אחסון+מכסים בראבו אמריקאי(1 ליטר)"
+    },
+    {
+      "source_product_id": 35903,
+      "target_product_id": 27187,
+      "method": "name",
+      "value": "גביעי אחסון+מכסים בראבו אמריקאי(250CC)"
+    },
+    {
+      "source_product_id": 35349,
+      "target_product_id": 30184,
+      "method": "name",
+      "value": "מארז טישו 5 יח"
+    },
+    {
+      "source_product_id": 37395,
+      "target_product_id": 27365,
+      "method": "name",
+      "value": "מארז ממחטות טישו"
+    },
+    {
+      "source_product_id": 35809,
+      "target_product_id": 30066,
+      "method": "name",
+      "value": "תירוש רוזה"
+    },
+    {
+      "source_product_id": 35530,
+      "target_product_id": 30064,
+      "method": "name",
+      "value": "תירוש אדום"
+    },
+    {
+      "source_product_id": 35657,
+      "target_product_id": 30065,
+      "method": "name",
+      "value": "תירוש לבן"
+    },
+    {
+      "source_product_id": 36010,
+      "target_product_id": 28482,
+      "method": "name",
+      "value": "יין תירוש ענבלים 1 ליטר"
+    },
+    {
+      "source_product_id": 35289,
+      "target_product_id": 30606,
+      "method": "name",
+      "value": "מיץ ענבים תירוש 100%"
+    },
+    {
+      "source_product_id": 37916,
+      "target_product_id": 29441,
+      "method": "name",
+      "value": "קמח מצה לעוגה יהודה"
+    },
+    {
+      "source_product_id": 39263,
+      "target_product_id": 29056,
+      "method": "name",
+      "value": "קמח מצה 500 גר' (מיה )"
+    },
+    {
+      "source_product_id": 38138,
+      "target_product_id": 28235,
+      "method": "name",
+      "value": "קמח מצה שמורה 500ג(קואופ)"
+    },
+    {
+      "source_product_id": 36368,
+      "target_product_id": 28236,
+      "method": "name",
+      "value": "קמח מצה בשקית לפסח 500 גר(שופרסל)"
+    },
+    {
+      "source_product_id": 37817,
+      "target_product_id": 30362,
+      "method": "name",
+      "value": "אפיפיות ללא גלוטן בטעם שוקולד"
+    },
+    {
+      "source_product_id": 35160,
+      "target_product_id": 30878,
+      "method": "name",
+      "value": "אפיפית 200 גרם"
+    },
+    {
+      "source_product_id": 37662,
+      "target_product_id": 28398,
+      "method": "name",
+      "value": "חרוזית שחור יבנה"
+    },
+    {
+      "source_product_id": 36657,
+      "target_product_id": 28884,
+      "method": "name",
+      "value": "קרקר טופז מלח"
+    },
+    {
+      "source_product_id": 39709,
+      "target_product_id": 29896,
+      "method": "name",
+      "value": "תה ירוק לימונית ולואיזה 1.5 גרם עדנים"
+    },
+    {
+      "source_product_id": 39708,
+      "target_product_id": 29895,
+      "method": "name",
+      "value": "תה ירוק נענע 1.5 גרם עדנים"
+    },
+    {
+      "source_product_id": 38656,
+      "target_product_id": 29894,
+      "method": "name",
+      "value": "חליטת קמומיל 1.3 גרם עדנים"
+    },
+    {
+      "source_product_id": 37499,
+      "target_product_id": 32558,
+      "method": "name",
+      "value": "פסטה ברילה 500 גר(גוילי)"
+    },
+    {
+      "source_product_id": 37094,
+      "target_product_id": 32561,
+      "method": "name",
+      "value": "פסטה ברילה 500 גר מס98"
+    },
+    {
+      "source_product_id": 37152,
+      "target_product_id": 32560,
+      "method": "name",
+      "value": "פסטה ברילה 500 גר מס 73"
+    },
+    {
+      "source_product_id": 38331,
+      "target_product_id": 32564,
+      "method": "name",
+      "value": "פסטה ברילה גירנדולה 5 קואופ"
+    },
+    {
+      "source_product_id": 38982,
+      "target_product_id": 32573,
+      "method": "name",
+      "value": "פסטה ברילה צינורות ללא גלוטן"
+    },
+    {
+      "source_product_id": 37790,
+      "target_product_id": 32569,
+      "method": "name",
+      "value": "פסטה ברילה צ.מ טליאטלה 500 גרם"
+    },
+    {
+      "source_product_id": 38071,
+      "target_product_id": 32576,
+      "method": "name",
+      "value": "ברילה פסטה טורטיליוני 500 גרם"
+    },
+    {
+      "source_product_id": 37500,
+      "target_product_id": 32559,
+      "method": "name",
+      "value": "ברילה פסטה 500 גר מס 5 (קואופ"
+    },
+    {
+      "source_product_id": 37180,
+      "target_product_id": 32575,
+      "method": "name",
+      "value": "ברילה פסטה פרפלה מספר 65 500 גרם"
+    },
+    {
+      "source_product_id": 39637,
+      "target_product_id": 27423,
+      "method": "name",
+      "value": "כפיות גמישות הנמל"
+    },
+    {
+      "source_product_id": 37706,
+      "target_product_id": 27425,
+      "method": "name",
+      "value": "מזלגות חד\"פ פשוטות 100 יח' (הנמל)"
+    }
+  ],
+  "missing_products": [
+    {
+      "source_product_id": 35556,
+      "name": "שמן זית כתית מעולה (תומר)",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35285,
+      "name": "בלון הליום פשוט",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 38269,
+      "name": "בלון הליום גדול (למסחר)",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35373,
+      "name": "פחם 2 ק\"ג",
+      "barcode": "7290018474297",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 36717,
+      "name": "צלחות קילו הנמל",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35531,
+      "name": "חסה לאליק \"חממה בהר\"",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 40047,
+      "name": "חסה מהדרין",
+      "barcode": "7290011108113",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 38490,
+      "name": "מרקיות מתכלות",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 37967,
+      "name": "יין רוזה יבש 750 מ\"ל יקבי ירושלים",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 38888,
+      "name": "נקניקיות מרגז טלה",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 39486,
+      "name": "קבב עיראקי חלק משופד",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 39013,
+      "name": "בקר טחון נקי 1 קג 8 מחפוד (עוף ירושלים )",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 36567,
+      "name": "גרון הודו עוף גלילי(איכות()",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 37406,
+      "name": "שקית רב פעמית גלסנר",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35479,
+      "name": "גלידת בן&גריס קרם עוגיות",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35902,
+      "name": "גלידת בן&גריס בצק עוגיות",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 36366,
+      "name": "גלידת בן&גר'יס צאנקי מאנקי",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 36499,
+      "name": "גלידת בן&גר'יס ניו יורק",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 36372,
+      "name": "גלידת בן &ג'ריס תות שדה 500 מ\"ל(מעיין)",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 36624,
+      "name": "גלידת בן&ג'ריס עוגת גבינה ותות",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 37429,
+      "name": "גלידת בן&ג'ריס פיינטים שוקולד 500ג'",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 38447,
+      "name": "גלידת בן&ג'ריס גלידת קרמל מלוח 500מל",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35953,
+      "name": "גלידת בן אנגרי'ס וניל טופי",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 36022,
+      "name": "בן&גריס שוקולד בראוניס",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 37214,
+      "name": "בן&גריס צאנקי מאנקי",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 36030,
+      "name": "בן&גריס ריבת חלב",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 38522,
+      "name": "בן&גריס בצק עוגיות(שגיא)",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 39179,
+      "name": "מאגדת בן&גריס בצק עוגיות סנדוויץ",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 39358,
+      "name": "בן&גריס קסטה בראוניז 80 גר(שגיא)",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 36838,
+      "name": "בן&גריס שוקולד בראוניס 150 מל(קפואים)",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 38659,
+      "name": "בן&ג'ריס מאגדת טילון בצק עוגיות",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 38744,
+      "name": "בן&ג'ריס פיינט סורבה פינה קולדה",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 38890,
+      "name": "בן&גרי גלידה צרי גרסיה 500 מל",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 38929,
+      "name": "טיטולים בייביסיטר NB מידה 2 (אמוץ)",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35801,
+      "name": "פילטר 5/22 סילבר",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 39380,
+      "name": "פילטר 120 יח` 6 מ``מ",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35964,
+      "name": "ריזלה נייר גלגול אדום",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 36257,
+      "name": "ריזלה נייר גלגול באלי כחול",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 36977,
+      "name": "ריזלה נייר גלגול באלי שאג",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35283,
+      "name": "שמן קנולה מזוכך \"ביכורים\"",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35128,
+      "name": "מלפפון (ביכורי שדה)",
+      "barcode": "814",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35133,
+      "name": "בננה (ביכורי שדה)",
+      "barcode": "917",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35136,
+      "name": "אבטיח (ביכורי שדה )",
+      "barcode": "934",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35154,
+      "name": "כוסברה (ביכורי שדה)",
+      "barcode": "7290003706044",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35224,
+      "name": "קולורבי (ביכורי שדה)",
+      "barcode": "829",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35245,
+      "name": "מלון (ביכורי שדה)",
+      "barcode": "813",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35272,
+      "name": "נענע (ביכורי שדה)",
+      "barcode": "7290003706051",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35291,
+      "name": "אגס (ביכורי שדה)",
+      "barcode": "902",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35301,
+      "name": "קלמנטינה (ביכורי שדה)",
+      "barcode": "928",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35303,
+      "name": "שומר (ביכורי שדה)",
+      "barcode": "8900",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35435,
+      "name": "סלק (ביכורי שדה)",
+      "barcode": "815",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 36015,
+      "name": "רימון (ביכורי שדה)",
+      "barcode": "925",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 36623,
+      "name": "דלעת (ביכורי שדה)",
+      "barcode": "805",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 37428,
+      "name": "קרמבולה ביכורי שדה",
+      "barcode": "949",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 37904,
+      "name": "דובדבנים(ביכורי שדה)",
+      "barcode": "7290002204213",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 38442,
+      "name": "גויאבה (ביכורי שדה)",
+      "barcode": "924",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35505,
+      "name": "דלורית (ביכורי שדה)",
+      "barcode": "804",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35916,
+      "name": "שרי אשכול (ביכורי שדה)",
+      "barcode": "7290002766056",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35992,
+      "name": "פומלית (ביכורי שדה)",
+      "barcode": "923",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 36527,
+      "name": "קישואים זוקיני (ביכורי שדה)",
+      "barcode": "1153",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 36566,
+      "name": "משמש גדול (ביכורי שדה )",
+      "barcode": "3132",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 37427,
+      "name": "שסק (ביכורי שדה )",
+      "barcode": "849977",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 38989,
+      "name": "אוכמניות ארוז (ביכורי שדה)",
+      "barcode": "693493158794",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35129,
+      "name": "עגבניות חממה (ביכורי שדה)",
+      "barcode": "817",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35131,
+      "name": "בצל יבש(ביכורי שדה)",
+      "barcode": "801",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35134,
+      "name": "פלפל אדום (ביכורי שדה)",
+      "barcode": "820",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35139,
+      "name": "גזר ארוז (ביכורי שדה)",
+      "barcode": "128005",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35180,
+      "name": "לימון צהוב(ביכורי שדה",
+      "barcode": "919",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35205,
+      "name": "בצל סגול ((ביכורי שדה)",
+      "barcode": "802",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35310,
+      "name": "שמיר בשקית (ביכורי שדה)",
+      "barcode": "7290000001586",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35312,
+      "name": "פומלה לבנה (ביכורי שדה)",
+      "barcode": "922",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35320,
+      "name": "חסה לבבות (ביכורי שדה)",
+      "barcode": "7290010690428",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35323,
+      "name": "שורש פטרוזיליה (ביכורי שדה)",
+      "barcode": "7290010192038",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35357,
+      "name": "סלרי עלים(ביכורי שדה)",
+      "barcode": "7290003706037",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35394,
+      "name": "פלפל חריף(ביכורי שדה)",
+      "barcode": "823",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35862,
+      "name": "גבעולי ברוקולי צעירים (ביכורי השדה)",
+      "barcode": "7290017918204",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35143,
+      "name": "בטטה מובחרת(ביכורי)",
+      "barcode": "800",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35153,
+      "name": "חציל חממה(/ בלדי (ביכורי שדה)",
+      "barcode": "808",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35156,
+      "name": "קישואים א'(ביכורי שדה)",
+      "barcode": "830",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35174,
+      "name": "תפוח עץ /סמיט /גרנד\"(ביכורי שדה)",
+      "barcode": "909",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35186,
+      "name": "תפוח עץ פינק ליידי (ביכורי שדה)",
+      "barcode": "945",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35246,
+      "name": "פלפל כתום (ביכורי שדה)",
+      "barcode": "825",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35255,
+      "name": "פלפל צהוב (ביכורי שדה)",
+      "barcode": "826",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35270,
+      "name": "סלק אדום בואקום (ביכורי שדה)",
+      "barcode": "3279370101106",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35315,
+      "name": "תפוח עץ \"זהוב (ביכורי שדה)",
+      "barcode": "910",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35582,
+      "name": "חסה לבבות(ביכורי)",
+      "barcode": "7290003990580",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35715,
+      "name": "אפרסמון מובחר (ביכורי שדה)",
+      "barcode": "935",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35755,
+      "name": "כרוב אדום(ביכורי שדה)",
+      "barcode": "810",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35830,
+      "name": "עלי בייבי (ביכורי שדה)",
+      "barcode": "480615",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 36042,
+      "name": "פלפל טינקרבל (ביכורי שדה)",
+      "barcode": "7290017918570",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 36189,
+      "name": "אשכולית אדומה(ביכורי שדה)",
+      "barcode": "916",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 36271,
+      "name": "שזיף אדום(ביכורי שדה )",
+      "barcode": "904",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 38191,
+      "name": "פלפל בהיר (ביכורי שדה)",
+      "barcode": "822",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 36744,
+      "name": "כפפות L אלסטיות שחורות",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 36238,
+      "name": "כביסכל 2 ליטר- רוז עם BIO",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 36654,
+      "name": "בירה קרלסברג שישיה 330 (קולה)",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 39205,
+      "name": "במבה פרו 80 גר",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35480,
+      "name": "תפוציפס פופס 60 ג",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35405,
+      "name": "ציטוס כאפה 55 ג",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35477,
+      "name": "ציטוס בטעם גבינה",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35860,
+      "name": "ציטוס קראנצ שמנת בצל 65 גרם",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35972,
+      "name": "ציטוס קראנץ צדר חלפיניו",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35725,
+      "name": "דובונים גן חיות 40 גרם",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 38562,
+      "name": "יין וינטג' רוזה מרסלן סירה 750 מ\"ל",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 38429,
+      "name": "אפיפית טורטית 200 גר'",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 39395,
+      "name": "חרוזית ירוק בני דרום 560 גר`",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 39616,
+      "name": "פסטה ברילה ספירלי ללא גלוטן",
+      "barcode": null,
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 40197,
+      "name": "סלרי מהדרין",
+      "barcode": "72114",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 40177,
+      "name": "נענע למהדרין",
+      "barcode": "7290011108021",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 40196,
+      "name": "סלרי למהדרין",
+      "barcode": "7290015719063",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 40390,
+      "name": "שמיר למהדרין",
+      "barcode": "7290011108014",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 40069,
+      "name": "כוסברה 'מהדרין'",
+      "barcode": "7290000001616",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 40076,
+      "name": "כוסברה למהדרין",
+      "barcode": "7290011108007",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 35789,
+      "name": "בצל ירוק מהדרין",
+      "barcode": "7290011108120",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 37307,
+      "name": "עלי סלק למהדרין",
+      "barcode": "7290011108106",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 38386,
+      "name": "חסה לליק מהדרין",
+      "barcode": "7290005576690",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 40095,
+      "name": "כרוב לבן מהדרין",
+      "barcode": "7290011108052",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 38335,
+      "name": "כרוב אדום מהדרין",
+      "barcode": "7290011276706",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 40057,
+      "name": "חסה ערבית מהדרין",
+      "barcode": "7290011276737",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 40198,
+      "name": "סלרי מהדרין ארוז",
+      "barcode": "7290011108045",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 40202,
+      "name": "סלרי עלים \"מהדרין\"",
+      "barcode": "7290016411645",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 40275,
+      "name": "פטרוזיליה מהדרין",
+      "barcode": "7290011480509",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 40155,
+      "name": "מנגולד עלים מהדרין",
+      "barcode": "693493224055",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 40179,
+      "name": "נענע מהדרין (ביכורי שדה)",
+      "barcode": "7290011725037",
+      "chain_product_key": null
+    },
+    {
+      "source_product_id": 40190,
+      "name": "סלרי \"מהדרין\" ביכורי שדה",
+      "barcode": "7290011108878",
+      "chain_product_key": null
+    }
+  ],
+  "created_products": [
+    {
+      "source_product_id": 35556,
+      "target_product_id": 40554,
+      "name": "שמן זית כתית מעולה (תומר)",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35285,
+      "target_product_id": 40555,
+      "name": "בלון הליום פשוט",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 38269,
+      "target_product_id": 40556,
+      "name": "בלון הליום גדול (למסחר)",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35373,
+      "target_product_id": 40557,
+      "name": "פחם 2 ק\"ג",
+      "barcode": "7290018474297",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 36717,
+      "target_product_id": 40558,
+      "name": "צלחות קילו הנמל",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35531,
+      "target_product_id": 40559,
+      "name": "חסה לאליק \"חממה בהר\"",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 40047,
+      "target_product_id": 40560,
+      "name": "חסה מהדרין",
+      "barcode": "7290011108113",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 38490,
+      "target_product_id": 40561,
+      "name": "מרקיות מתכלות",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 37967,
+      "target_product_id": 40562,
+      "name": "יין רוזה יבש 750 מ\"ל יקבי ירושלים",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 38888,
+      "target_product_id": 40563,
+      "name": "נקניקיות מרגז טלה",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 39486,
+      "target_product_id": 40564,
+      "name": "קבב עיראקי חלק משופד",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 39013,
+      "target_product_id": 40565,
+      "name": "בקר טחון נקי 1 קג 8 מחפוד (עוף ירושלים )",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 36567,
+      "target_product_id": 40566,
+      "name": "גרון הודו עוף גלילי(איכות()",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 37406,
+      "target_product_id": 40567,
+      "name": "שקית רב פעמית גלסנר",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35479,
+      "target_product_id": 40568,
+      "name": "גלידת בן&גריס קרם עוגיות",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35902,
+      "target_product_id": 40569,
+      "name": "גלידת בן&גריס בצק עוגיות",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 36366,
+      "target_product_id": 40570,
+      "name": "גלידת בן&גר'יס צאנקי מאנקי",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 36499,
+      "target_product_id": 40571,
+      "name": "גלידת בן&גר'יס ניו יורק",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 36372,
+      "target_product_id": 40572,
+      "name": "גלידת בן &ג'ריס תות שדה 500 מ\"ל(מעיין)",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 36624,
+      "target_product_id": 40573,
+      "name": "גלידת בן&ג'ריס עוגת גבינה ותות",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 37429,
+      "target_product_id": 40574,
+      "name": "גלידת בן&ג'ריס פיינטים שוקולד 500ג'",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 38447,
+      "target_product_id": 40575,
+      "name": "גלידת בן&ג'ריס גלידת קרמל מלוח 500מל",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35953,
+      "target_product_id": 40576,
+      "name": "גלידת בן אנגרי'ס וניל טופי",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 36022,
+      "target_product_id": 40577,
+      "name": "בן&גריס שוקולד בראוניס",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 37214,
+      "target_product_id": 40578,
+      "name": "בן&גריס צאנקי מאנקי",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 36030,
+      "target_product_id": 40579,
+      "name": "בן&גריס ריבת חלב",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 38522,
+      "target_product_id": 40580,
+      "name": "בן&גריס בצק עוגיות(שגיא)",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 39179,
+      "target_product_id": 40581,
+      "name": "מאגדת בן&גריס בצק עוגיות סנדוויץ",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 39358,
+      "target_product_id": 40582,
+      "name": "בן&גריס קסטה בראוניז 80 גר(שגיא)",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 36838,
+      "target_product_id": 40583,
+      "name": "בן&גריס שוקולד בראוניס 150 מל(קפואים)",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 38659,
+      "target_product_id": 40584,
+      "name": "בן&ג'ריס מאגדת טילון בצק עוגיות",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 38744,
+      "target_product_id": 40585,
+      "name": "בן&ג'ריס פיינט סורבה פינה קולדה",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 38890,
+      "target_product_id": 40586,
+      "name": "בן&גרי גלידה צרי גרסיה 500 מל",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 38929,
+      "target_product_id": 40587,
+      "name": "טיטולים בייביסיטר NB מידה 2 (אמוץ)",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35801,
+      "target_product_id": 40588,
+      "name": "פילטר 5/22 סילבר",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 39380,
+      "target_product_id": 40589,
+      "name": "פילטר 120 יח` 6 מ``מ",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35964,
+      "target_product_id": 40590,
+      "name": "ריזלה נייר גלגול אדום",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 36257,
+      "target_product_id": 40591,
+      "name": "ריזלה נייר גלגול באלי כחול",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 36977,
+      "target_product_id": 40592,
+      "name": "ריזלה נייר גלגול באלי שאג",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35283,
+      "target_product_id": 40593,
+      "name": "שמן קנולה מזוכך \"ביכורים\"",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35128,
+      "target_product_id": 40594,
+      "name": "מלפפון (ביכורי שדה)",
+      "barcode": "814",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35133,
+      "target_product_id": 40595,
+      "name": "בננה (ביכורי שדה)",
+      "barcode": "917",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35136,
+      "target_product_id": 40596,
+      "name": "אבטיח (ביכורי שדה )",
+      "barcode": "934",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35154,
+      "target_product_id": 40597,
+      "name": "כוסברה (ביכורי שדה)",
+      "barcode": "7290003706044",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35224,
+      "target_product_id": 40598,
+      "name": "קולורבי (ביכורי שדה)",
+      "barcode": "829",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35245,
+      "target_product_id": 40599,
+      "name": "מלון (ביכורי שדה)",
+      "barcode": "813",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35272,
+      "target_product_id": 40600,
+      "name": "נענע (ביכורי שדה)",
+      "barcode": "7290003706051",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35291,
+      "target_product_id": 40601,
+      "name": "אגס (ביכורי שדה)",
+      "barcode": "902",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35301,
+      "target_product_id": 40602,
+      "name": "קלמנטינה (ביכורי שדה)",
+      "barcode": "928",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35303,
+      "target_product_id": 40603,
+      "name": "שומר (ביכורי שדה)",
+      "barcode": "8900",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35435,
+      "target_product_id": 40604,
+      "name": "סלק (ביכורי שדה)",
+      "barcode": "815",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 36015,
+      "target_product_id": 40605,
+      "name": "רימון (ביכורי שדה)",
+      "barcode": "925",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 36623,
+      "target_product_id": 40606,
+      "name": "דלעת (ביכורי שדה)",
+      "barcode": "805",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 37428,
+      "target_product_id": 40607,
+      "name": "קרמבולה ביכורי שדה",
+      "barcode": "949",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 37904,
+      "target_product_id": 40608,
+      "name": "דובדבנים(ביכורי שדה)",
+      "barcode": "7290002204213",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 38442,
+      "target_product_id": 40609,
+      "name": "גויאבה (ביכורי שדה)",
+      "barcode": "924",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35505,
+      "target_product_id": 40610,
+      "name": "דלורית (ביכורי שדה)",
+      "barcode": "804",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35916,
+      "target_product_id": 40611,
+      "name": "שרי אשכול (ביכורי שדה)",
+      "barcode": "7290002766056",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35992,
+      "target_product_id": 40612,
+      "name": "פומלית (ביכורי שדה)",
+      "barcode": "923",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 36527,
+      "target_product_id": 40613,
+      "name": "קישואים זוקיני (ביכורי שדה)",
+      "barcode": "1153",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 36566,
+      "target_product_id": 40614,
+      "name": "משמש גדול (ביכורי שדה )",
+      "barcode": "3132",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 37427,
+      "target_product_id": 40615,
+      "name": "שסק (ביכורי שדה )",
+      "barcode": "849977",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 38989,
+      "target_product_id": 40616,
+      "name": "אוכמניות ארוז (ביכורי שדה)",
+      "barcode": "693493158794",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35129,
+      "target_product_id": 40617,
+      "name": "עגבניות חממה (ביכורי שדה)",
+      "barcode": "817",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35131,
+      "target_product_id": 40618,
+      "name": "בצל יבש(ביכורי שדה)",
+      "barcode": "801",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35134,
+      "target_product_id": 40619,
+      "name": "פלפל אדום (ביכורי שדה)",
+      "barcode": "820",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35139,
+      "target_product_id": 40620,
+      "name": "גזר ארוז (ביכורי שדה)",
+      "barcode": "128005",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35180,
+      "target_product_id": 40621,
+      "name": "לימון צהוב(ביכורי שדה",
+      "barcode": "919",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35205,
+      "target_product_id": 40622,
+      "name": "בצל סגול ((ביכורי שדה)",
+      "barcode": "802",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35310,
+      "target_product_id": 40623,
+      "name": "שמיר בשקית (ביכורי שדה)",
+      "barcode": "7290000001586",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35312,
+      "target_product_id": 40624,
+      "name": "פומלה לבנה (ביכורי שדה)",
+      "barcode": "922",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35320,
+      "target_product_id": 40625,
+      "name": "חסה לבבות (ביכורי שדה)",
+      "barcode": "7290010690428",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35323,
+      "target_product_id": 40626,
+      "name": "שורש פטרוזיליה (ביכורי שדה)",
+      "barcode": "7290010192038",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35357,
+      "target_product_id": 40627,
+      "name": "סלרי עלים(ביכורי שדה)",
+      "barcode": "7290003706037",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35394,
+      "target_product_id": 40628,
+      "name": "פלפל חריף(ביכורי שדה)",
+      "barcode": "823",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35862,
+      "target_product_id": 40629,
+      "name": "גבעולי ברוקולי צעירים (ביכורי השדה)",
+      "barcode": "7290017918204",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35143,
+      "target_product_id": 40630,
+      "name": "בטטה מובחרת(ביכורי)",
+      "barcode": "800",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35153,
+      "target_product_id": 40631,
+      "name": "חציל חממה(/ בלדי (ביכורי שדה)",
+      "barcode": "808",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35156,
+      "target_product_id": 40632,
+      "name": "קישואים א'(ביכורי שדה)",
+      "barcode": "830",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35174,
+      "target_product_id": 40633,
+      "name": "תפוח עץ /סמיט /גרנד\"(ביכורי שדה)",
+      "barcode": "909",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35186,
+      "target_product_id": 40634,
+      "name": "תפוח עץ פינק ליידי (ביכורי שדה)",
+      "barcode": "945",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35246,
+      "target_product_id": 40635,
+      "name": "פלפל כתום (ביכורי שדה)",
+      "barcode": "825",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35255,
+      "target_product_id": 40636,
+      "name": "פלפל צהוב (ביכורי שדה)",
+      "barcode": "826",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35270,
+      "target_product_id": 40637,
+      "name": "סלק אדום בואקום (ביכורי שדה)",
+      "barcode": "3279370101106",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35315,
+      "target_product_id": 40638,
+      "name": "תפוח עץ \"זהוב (ביכורי שדה)",
+      "barcode": "910",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35582,
+      "target_product_id": 40639,
+      "name": "חסה לבבות(ביכורי)",
+      "barcode": "7290003990580",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35715,
+      "target_product_id": 40640,
+      "name": "אפרסמון מובחר (ביכורי שדה)",
+      "barcode": "935",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35755,
+      "target_product_id": 40641,
+      "name": "כרוב אדום(ביכורי שדה)",
+      "barcode": "810",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35830,
+      "target_product_id": 40642,
+      "name": "עלי בייבי (ביכורי שדה)",
+      "barcode": "480615",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 36042,
+      "target_product_id": 40643,
+      "name": "פלפל טינקרבל (ביכורי שדה)",
+      "barcode": "7290017918570",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 36189,
+      "target_product_id": 40644,
+      "name": "אשכולית אדומה(ביכורי שדה)",
+      "barcode": "916",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 36271,
+      "target_product_id": 40645,
+      "name": "שזיף אדום(ביכורי שדה )",
+      "barcode": "904",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 38191,
+      "target_product_id": 40646,
+      "name": "פלפל בהיר (ביכורי שדה)",
+      "barcode": "822",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 36744,
+      "target_product_id": 40647,
+      "name": "כפפות L אלסטיות שחורות",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 36238,
+      "target_product_id": 40648,
+      "name": "כביסכל 2 ליטר- רוז עם BIO",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 36654,
+      "target_product_id": 40649,
+      "name": "בירה קרלסברג שישיה 330 (קולה)",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 39205,
+      "target_product_id": 40650,
+      "name": "במבה פרו 80 גר",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35480,
+      "target_product_id": 40651,
+      "name": "תפוציפס פופס 60 ג",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35405,
+      "target_product_id": 40652,
+      "name": "ציטוס כאפה 55 ג",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35477,
+      "target_product_id": 40653,
+      "name": "ציטוס בטעם גבינה",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35860,
+      "target_product_id": 40654,
+      "name": "ציטוס קראנצ שמנת בצל 65 גרם",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35972,
+      "target_product_id": 40655,
+      "name": "ציטוס קראנץ צדר חלפיניו",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35725,
+      "target_product_id": 40656,
+      "name": "דובונים גן חיות 40 גרם",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 38562,
+      "target_product_id": 40657,
+      "name": "יין וינטג' רוזה מרסלן סירה 750 מ\"ל",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 38429,
+      "target_product_id": 40658,
+      "name": "אפיפית טורטית 200 גר'",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 39395,
+      "target_product_id": 40659,
+      "name": "חרוזית ירוק בני דרום 560 גר`",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 39616,
+      "target_product_id": 40660,
+      "name": "פסטה ברילה ספירלי ללא גלוטן",
+      "barcode": null,
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 40197,
+      "target_product_id": 40661,
+      "name": "סלרי מהדרין",
+      "barcode": "72114",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 40177,
+      "target_product_id": 40662,
+      "name": "נענע למהדרין",
+      "barcode": "7290011108021",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 40196,
+      "target_product_id": 40663,
+      "name": "סלרי למהדרין",
+      "barcode": "7290015719063",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 40390,
+      "target_product_id": 40664,
+      "name": "שמיר למהדרין",
+      "barcode": "7290011108014",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 40069,
+      "target_product_id": 40665,
+      "name": "כוסברה 'מהדרין'",
+      "barcode": "7290000001616",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 40076,
+      "target_product_id": 40666,
+      "name": "כוסברה למהדרין",
+      "barcode": "7290011108007",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 35789,
+      "target_product_id": 40667,
+      "name": "בצל ירוק מהדרין",
+      "barcode": "7290011108120",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 37307,
+      "target_product_id": 40668,
+      "name": "עלי סלק למהדרין",
+      "barcode": "7290011108106",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 38386,
+      "target_product_id": 40669,
+      "name": "חסה לליק מהדרין",
+      "barcode": "7290005576690",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 40095,
+      "target_product_id": 40670,
+      "name": "כרוב לבן מהדרין",
+      "barcode": "7290011108052",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 38335,
+      "target_product_id": 40671,
+      "name": "כרוב אדום מהדרין",
+      "barcode": "7290011276706",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 40057,
+      "target_product_id": 40672,
+      "name": "חסה ערבית מהדרין",
+      "barcode": "7290011276737",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 40198,
+      "target_product_id": 40673,
+      "name": "סלרי מהדרין ארוז",
+      "barcode": "7290011108045",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 40202,
+      "target_product_id": 40674,
+      "name": "סלרי עלים \"מהדרין\"",
+      "barcode": "7290016411645",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 40275,
+      "target_product_id": 40675,
+      "name": "פטרוזיליה מהדרין",
+      "barcode": "7290011480509",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 40155,
+      "target_product_id": 40676,
+      "name": "מנגולד עלים מהדרין",
+      "barcode": "693493224055",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 40179,
+      "target_product_id": 40677,
+      "name": "נענע מהדרין (ביכורי שדה)",
+      "barcode": "7290011725037",
+      "chain_product_key": null,
+      "stock_amount": 0
+    },
+    {
+      "source_product_id": 40190,
+      "target_product_id": 40678,
+      "name": "סלרי \"מהדרין\" ביכורי שדה",
+      "barcode": "7290011108878",
+      "chain_product_key": null,
+      "stock_amount": 0
+    }
+  ],
+  "skipped": [],
+  "inserted_ids": {
+    "promotion": [
+      167,
+      168,
+      169,
+      170,
+      171,
+      172,
+      173,
+      174,
+      175,
+      176,
+      177,
+      178,
+      179,
+      180,
+      181,
+      182,
+      183,
+      184,
+      185,
+      186,
+      187,
+      188,
+      189,
+      190,
+      191,
+      192,
+      193,
+      194,
+      195,
+      196,
+      197,
+      198,
+      199,
+      200,
+      201,
+      202,
+      203,
+      204,
+      205,
+      206,
+      207,
+      208,
+      209,
+      210,
+      211
+    ],
+    "cart_promotion_rule": [
+      19,
+      20,
+      21
+    ],
+    "product_group_promotion": [
+      93,
+      94,
+      95,
+      96,
+      97,
+      98,
+      99,
+      100,
+      101,
+      102,
+      103,
+      104,
+      105,
+      106,
+      107,
+      108,
+      109,
+      110,
+      111,
+      112,
+      113,
+      114,
+      115,
+      116,
+      117,
+      118,
+      119,
+      120
+    ]
+  },
+  "deleted_target": {
+    "order_item_links": 0,
+    "order_product_group_promotion_application": 0,
+    "order_promotion_application": 0,
+    "product_group_promotion_item": 0,
+    "product_group_promotion": 0,
+    "cart_promotion_rule": 0,
+    "promotion": 0
+  },
+  "deleted_source": {
+    "order_item_links": 0,
+    "order_product_group_promotion_application": 0,
+    "order_promotion_application": 0,
+    "product_group_promotion_item": 249,
+    "product_group_promotion": 28,
+    "cart_promotion_rule": 3,
+    "promotion": 45
+  },
+  "backup_tables": []
+}

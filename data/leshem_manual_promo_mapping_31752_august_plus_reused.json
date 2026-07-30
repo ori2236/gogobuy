@@ -1,0 +1,488 @@
+{
+  "source": "leshem_excel_2026_07_28_august_plus",
+  "shop_id": 2,
+  "based_on_data": "data/shop2_promotions_31752_august_plus.json",
+  "filter": {
+    "field": "end_date",
+    "operator": ">",
+    "value": "2026-07-31"
+  },
+  "generated_at": "2026-07-29T17:47:44.180578+00:00",
+  "mappings": [
+    {
+      "reward_id": 3,
+      "title": "ארטיק ריאו 8 ב-10",
+      "type": "כמות בסכום",
+      "start_date": "2021-11-19",
+      "end_date": "2026-08-30",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35126
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026"
+    },
+    {
+      "reward_id": 9,
+      "title": "גלידת בן&ג'ריס 2 ב- 39.90 ₪",
+      "type": "כמות בסכום",
+      "start_date": "2026-07-20",
+      "end_date": "2026-08-30",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35479,
+        35551,
+        35902,
+        35953,
+        36022,
+        36030,
+        36366,
+        36372,
+        36499,
+        36624,
+        36814,
+        36838,
+        37214,
+        37429,
+        37774,
+        37775,
+        38447,
+        38522,
+        38659,
+        38744,
+        38890,
+        39179,
+        39358
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026"
+    },
+    {
+      "reward_id": 31,
+      "title": "גלידה קרמסימו 2 ב- 39.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-05-24",
+      "end_date": "2026-08-30",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        36477
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026"
+    },
+    {
+      "reward_id": 70,
+      "title": "טיטולים ביביסיטר 3 ב- 84.90",
+      "type": "כמות בסכום",
+      "start_date": "2021-11-22",
+      "end_date": "2026-12-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35411,
+        35419,
+        35885,
+        36097,
+        36901,
+        38929
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026"
+    },
+    {
+      "reward_id": 224,
+      "title": "פילטרים 3 ב10",
+      "type": "כמות בסכום",
+      "start_date": "2022-02-23",
+      "end_date": "2026-12-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35801,
+        36259,
+        39380
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026"
+    },
+    {
+      "reward_id": 225,
+      "title": "נייר גלגול ריזלה 5 ב10",
+      "type": "כמות בסכום",
+      "start_date": "2022-02-23",
+      "end_date": "2026-12-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35964,
+        36257,
+        36977
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026"
+    },
+    {
+      "reward_id": 345,
+      "title": "ירק מהדרין ביכורי שדה 3 ב-12.90",
+      "type": "כמות בסכום",
+      "start_date": "2022-06-29",
+      "end_date": "2026-12-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35789,
+        37307,
+        38335,
+        38386,
+        40047,
+        40057,
+        40069,
+        40076,
+        40095,
+        40155,
+        40177,
+        40179,
+        40190,
+        40196,
+        40197,
+        40198,
+        40202,
+        40275,
+        40390
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026"
+    },
+    {
+      "reward_id": 347,
+      "title": "חסה מהדרין ביכורי שדה 2 ב- 11.90",
+      "type": "כמות בסכום",
+      "start_date": "2022-06-29",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        40047
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026"
+    },
+    {
+      "reward_id": 433,
+      "title": "ירק ביכורי שדה 3 ב- 8.90",
+      "type": "כמות בסכום",
+      "start_date": "2022-10-04",
+      "end_date": "2026-12-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35128,
+        35129,
+        35131,
+        35133,
+        35134,
+        35136,
+        35139,
+        35143,
+        35153,
+        35154,
+        35156,
+        35174,
+        35180,
+        35186,
+        35205,
+        35224,
+        35245,
+        35246,
+        35255,
+        35270,
+        35272,
+        35291,
+        35301,
+        35303,
+        35310,
+        35312,
+        35315,
+        35320,
+        35323,
+        35357,
+        35394,
+        35435,
+        35505,
+        35582,
+        35715,
+        35755,
+        35830,
+        35862,
+        35916,
+        35992,
+        36015,
+        36042,
+        36189,
+        36271,
+        36527,
+        36566,
+        36623,
+        36875,
+        37427,
+        37428,
+        37904,
+        38191,
+        38442,
+        38989
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026"
+    },
+    {
+      "reward_id": 534,
+      "title": "בלוני הליום פשוטים 3 ב15",
+      "type": "כמות בסכום",
+      "start_date": "2023-01-04",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35285
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026"
+    },
+    {
+      "reward_id": 535,
+      "title": "בלוני הליום גדולים 2 ב- 15",
+      "type": "כמות בסכום",
+      "start_date": "2023-01-04",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        38269
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026"
+    },
+    {
+      "reward_id": 634,
+      "title": "כוס שקופה 4 ב-11.90",
+      "type": "כמות בסכום",
+      "start_date": "2023-02-19",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35342
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026"
+    },
+    {
+      "reward_id": 708,
+      "title": "כוס חם 3 ב- 11.90",
+      "type": "כמות בסכום",
+      "start_date": "2023-02-05",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35259
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026"
+    },
+    {
+      "reward_id": 715,
+      "title": "שלוקים 2 ב-18",
+      "type": "כמות בסכום",
+      "start_date": "2024-05-09",
+      "end_date": "2026-08-30",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35211,
+        35277,
+        36520
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026"
+    },
+    {
+      "reward_id": 998,
+      "title": "כפפות אלסטיות שחורות 3 ב-9.90",
+      "type": "כמות בסכום",
+      "start_date": "2024-06-27",
+      "end_date": "2026-12-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        36744,
+        37115
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026"
+    },
+    {
+      "reward_id": 1110,
+      "title": "חלת בוטיק 2 ב-22",
+      "type": "כמות בסכום",
+      "start_date": "2024-12-12",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35151
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026"
+    },
+    {
+      "reward_id": 1238,
+      "title": "תבניות אלומניום \"משי\" 4 ב- 18",
+      "type": "כמות בסכום",
+      "start_date": "2026-05-17",
+      "end_date": "2026-08-30",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35369,
+        35372,
+        35401,
+        35429,
+        35473,
+        35560,
+        35936
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026"
+    },
+    {
+      "reward_id": 1239,
+      "title": "מנגל גדול ב-69.90",
+      "type": "כמות בסכום",
+      "start_date": "2024-06-09",
+      "end_date": "2026-08-30",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        36875
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026"
+    },
+    {
+      "reward_id": 1292,
+      "title": "איגלו ארוך \"כרמית\" 3 ב-12",
+      "type": "כמות בסכום",
+      "start_date": "2024-05-09",
+      "end_date": "2026-08-30",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35211
+      ],
+      "note": "מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026"
+    },
+    {
+      "reward_id": 1300,
+      "title": "צלחות מתכלות ר.שמאי 2 ב-19.90",
+      "type": "כמות בסכום",
+      "start_date": "2025-07-22",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35818
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026"
+    },
+    {
+      "reward_id": 1325,
+      "title": "ירק \"חממה בהר\" 2 ב-15",
+      "type": "כמות בסכום",
+      "start_date": "2025-07-30",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35531
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026"
+    },
+    {
+      "reward_id": 1577,
+      "title": "מרקיה מתכלה 2 ב- 13.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-02-04",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        38490
+      ],
+      "note": "מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026"
+    },
+    {
+      "reward_id": 1578,
+      "title": "צלחת \"7 2 ב- 19.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-02-04",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        36943
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026"
+    },
+    {
+      "reward_id": 1580,
+      "title": "צלחת \"10 2 ב- 32.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-02-04",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        37224
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026"
+    },
+    {
+      "reward_id": 1699,
+      "title": "מגבונים ביביסיטר 2 ב- 49.90",
+      "type": "כמות בסכום",
+      "start_date": "2021-11-22",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35703
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026"
+    },
+    {
+      "reward_id": 1774,
+      "title": "בקנייה מעל 300 שקית רב פעמית גלסנר מתנה",
+      "type": "קנה בסכום הוסף קבל",
+      "start_date": "2026-06-12",
+      "end_date": "2026-12-31",
+      "action": "cart_reward_product",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        37406
+      ],
+      "note": "שוחזר ממבצע סל קיים בסניף 2 | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026"
+    }
+  ]
+}
