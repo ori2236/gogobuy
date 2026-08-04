@@ -62,6 +62,16 @@ function reasonLabel(reason) {
     conflicting_promotion_for_same_product_and_overlapping_dates: "יש כמה מבצעים חופפים לאותו מוצר",
     unsupported_promotion_type: "סוג מבצע לא נתמך כרגע",
     inactive_in_excel: "לא פעיל באקסל",
+    seed_mapping_requires_approval: "מיפוי קודם שמחייב אישור מחדש",
+    draft_mapping_requires_approval: "המיפוי נשמר כטיוטה ועדיין לא אושר",
+    manual_mapping_required: "לא נמצא מיפוי מוצר מאושר",
+    cart_reward_product_mapping_required: "צריך לבחור את מוצר ההטבה",
+    product_mapping_resolution_failed: "המוצר מהמיפוי הקודם לא זוהה בוודאות",
+    multiple_source_promotions_resolve_to_same_target_and_overlap: "שני מבצעים מהקובץ מתנגשים על אותו יעד",
+    source_mapping_collision: "התנגשות בין מיפויי מקור",
+    overlapping_different_promotion_for_same_target: "קיים מבצע אחר שחופף על אותו מוצר",
+    same_identity_but_max_usage_differs: "אותו מבצע עם מגבלת מימוש שונה",
+    source_link_terms_changed: "תנאי המבצע השתנו לעומת הקישור הקודם",
   };
   return labels[reason] || reason || "לא ידוע";
 }
@@ -158,10 +168,13 @@ function promoCardHtml(promo) {
     ? `<div class="group-control"><label><input type="checkbox" class="group-checkbox" onchange="promoToolGroupChanged(this)" /> מבצע קבוצה / מיקס</label><div class="hint">אם בחרת יותר ממוצר אחד, הכלי יסמן את זה אוטומטית. אם תוריד את הוי ידנית, ההעלאה תיצור מבצע מוצר נפרד לכל מוצר שנבחר, עם אותם תאריכים ואותו מבצע.</div></div>`
     : "";
   const deal = promo.deal_text ? `<span class="badge ok">${escapeHtml(promo.deal_text)}</span>` : "";
-  const search = normalizeText([promo.reward_id, promo.title, reasonLabel(reason), promo.search_phrase, excelProductName, promo.type].join(" "));
+  const marketDayBadge = promo.is_market_day
+    ? `<span class="badge ok">יום השוק - התאריכים באקסל לא ישמשו</span>`
+    : "";
+  const search = normalizeText([promo.reward_id, promo.title, promo.original_title, reasonLabel(reason), promo.search_phrase, excelProductName, promo.type].join(" "));
 
   return `
-    <section class="card ${reason === "expired_in_excel" ? "expired" : ""}" data-card="${escapeAttr(promo.reward_id)}" data-reward-id="${escapeAttr(promo.reward_id)}" data-title="${escapeAttr(promo.title || "")}" data-type="${escapeAttr(promo.type || "")}" data-action="${escapeAttr(action)}" data-reason="${escapeAttr(reason)}" data-start-date="${escapeAttr(promo.start_date || "")}" data-end-date="${escapeAttr(promo.end_date || "")}" data-search="${escapeAttr(search)}">
+    <section class="card ${reason === "expired_in_excel" ? "expired" : ""}" data-card="${escapeAttr(promo.reward_id)}" data-reward-id="${escapeAttr(promo.reward_id)}" data-title="${escapeAttr(promo.title || "")}" data-type="${escapeAttr(promo.type || "")}" data-action="${escapeAttr(action)}" data-reason="${escapeAttr(reason)}" data-start-date="${escapeAttr(promo.start_date || "")}" data-end-date="${escapeAttr(promo.end_date || "")}" data-is-market-day="${promo.is_market_day ? "1" : "0"}" data-search="${escapeAttr(search)}">
       <div class="card-head">
         <div>
           <div class="title">${escapeHtml(promo.title || "")}</div>
@@ -170,14 +183,15 @@ function promoCardHtml(promo) {
             <span class="badge warn">${escapeHtml(reasonLabel(reason))}</span>
             <span class="badge">${escapeHtml(promo.type || "")}</span>
             ${deal}
-            ${promo.start_date || promo.end_date ? `<span>תוקף: ${escapeHtml(promo.start_date || "?")} - ${escapeHtml(promo.end_date || "ללא")}</span>` : ""}
+            ${marketDayBadge}
+            ${!promo.is_market_day && (promo.start_date || promo.end_date) ? `<span>תוקף: ${escapeHtml(promo.start_date || "?")} - ${escapeHtml(promo.end_date || "ללא")}</span>` : ""}
           </div>
         </div>
         <div class="badge state">לא מופה</div>
       </div>
 
       <div class="excel-grid">
-        <div class="excel-panel"><strong>המבצע באקסל</strong><div class="value">${escapeHtml(promo.title || "")}</div><div class="hint">זה הטקסט המקורי של המבצע.</div></div>
+        <div class="excel-panel"><strong>המבצע באקסל</strong><div class="value">${escapeHtml(promo.original_title || promo.title || "")}</div><div class="hint">${promo.is_market_day ? "המילה שוק הוסרה מהכותרת והמבצע יסומן אוטומטית כמבצע יום השוק." : "זה הטקסט המקורי של המבצע."}</div></div>
         <div class="excel-panel"><strong>שם המוצר שמשויך למבצע באקסל</strong><div class="value">${escapeHtml(excelProductName)}</div><div class="hint">לפי שדה החיפוש/השם שחולץ מהמבצע.</div></div>
         <div class="excel-panel"><strong>פרטי מבצע</strong><div class="value">${escapeHtml([promo.type, promo.deal_text].filter(Boolean).join(" · ") || "מבצע סל / ללא כמות")}</div><div class="hint">פעולה: ${isCartReward(promo) ? "מוצר הטבה במבצע סל" : "מבצע מוצר"}</div></div>
       </div>
@@ -202,6 +216,10 @@ function promoCardHtml(promo) {
           <div class="box-title">מוצרים שנבחרו למבצע</div>
           <div class="selected-list"><div class="empty">עדיין לא נבחר מוצר.</div></div>
           ${groupControl}
+          <div class="approval-control" style="margin-top:10px">
+            <label><input type="checkbox" class="approval-checkbox" onchange="promoToolApprovalChanged(this)" /> בדקתי ואישרתי את המוצרים למבצע הזה</label>
+            <div class="hint">מיפוי שלא אושר יישמר כטיוטה, אבל לא יורשה להיכתב ל־DB.</div>
+          </div>
           <textarea class="note" placeholder="הערה לעצמך, לא חובה" style="margin-top:10px"></textarea>
           <div class="card-actions">
             <button type="button" class="danger small" onclick="promoToolClearCard(this)">נקה בחירה</button>
@@ -395,7 +413,11 @@ function makeHtml({ shopId, reportPath, report, products, skipped, originalSkipp
       if(count>1 && box.getAttribute('data-user-overrode-group')!=='1') box.checked=true;
       if(count<=1 && box.getAttribute('data-user-overrode-group')!=='1') box.checked=false;
     }
-    function promoToolGroupChanged(box) { if(box) box.setAttribute('data-user-overrode-group','1'); var card=promoToolCard(box); promoToolUpdateCard(card); promoToolRefreshStats(); }
+    function promoToolSetApproved(card, approved) { var box=card && card.querySelector('.approval-checkbox'); if(box) box.checked=!!approved; }
+    function promoToolApproveAllMapped() { var count=0; document.querySelectorAll('.card').forEach(function(card){ if(card.querySelectorAll('.selected-row').length>0){ promoToolSetApproved(card,true); promoToolUpdateCard(card); count++; } }); promoToolRefreshStats(); alert(count+' מיפויים סומנו כמאושרים'); }
+    function promoToolInvalidateApproval(card) { promoToolSetApproved(card, false); }
+    function promoToolApprovalChanged(box) { var card=promoToolCard(box); promoToolUpdateCard(card); promoToolRefreshStats(); }
+    function promoToolGroupChanged(box) { if(box) box.setAttribute('data-user-overrode-group','1'); var card=promoToolCard(box); promoToolInvalidateApproval(card); promoToolUpdateCard(card); promoToolRefreshStats(); }
     function promoToolAddToCard(card, id, name) {
       if(!card || !id) return;
       var product=PROMO_TOOL_PRODUCTS_BY_ID[Number(id)];
@@ -412,6 +434,7 @@ function makeHtml({ shopId, reportPath, report, products, skipped, originalSkipp
       row.setAttribute('data-selected-product-name', String(finalName));
       row.innerHTML='<div><div class="product-name">'+promoToolEscape(finalName)+'</div><div class="product-meta">ID '+promoToolEscape(id)+'</div></div><button type="button" class="small danger" onclick="promoToolRemoveSelected(this)">הסר</button>';
       list.appendChild(row);
+      promoToolInvalidateApproval(card);
       promoToolMaybeAutoGroup(card);
       promoToolUpdateCard(card);
       promoToolRefreshCandidateVisibility(card);
@@ -422,18 +445,18 @@ function makeHtml({ shopId, reportPath, report, products, skipped, originalSkipp
     function promoToolAddSearchResult(btn) { var row=btn && btn.closest ? btn.closest('.search-result-row') : null; var card=promoToolCard(btn); if(!row||!card) return; promoToolAddToCard(card, Number(row.getAttribute('data-search-product-id')), row.getAttribute('data-search-product-name')||''); var input=card.querySelector('.product-input'); if(input) { input.focus(); promoToolRenderSearchResults(input); } }
     function promoToolAddFromInput(btn) { var card=promoToolCard(btn); var input=card && card.querySelector('.product-input'); var parsed=promoToolParseInputValue(input && input.value); if(!parsed) { alert('לא הצלחתי למצוא מוצר מתאים. בחר מוצר מהרשימה שמתחת לשדה החיפוש, או הקלד ID של מוצר.'); return; } if(parsed.error==='multiple') { promoToolRenderSearchResults(input); alert('נמצאו '+parsed.count+' מוצרים מתאימים. בחר אחד מהרשימה שמתחת לשדה החיפוש, או הקלד ID מדויק.'); return; } promoToolAddToCard(card, parsed.id, parsed.name); if(input) { input.focus(); promoToolRenderSearchResults(input); } }
     function promoToolInputKeydown(ev) { if(ev && ev.key==='Enter') { ev.preventDefault(); var card=promoToolCard(ev.target); var btn=card && card.querySelector('.autocomplete-row button'); promoToolAddFromInput(btn); } }
-    function promoToolRemoveSelected(btn) { var card=promoToolCard(btn); var row=btn && btn.closest ? btn.closest('.selected-row') : null; if(row) row.remove(); var list=card && card.querySelector('.selected-list'); if(list && !list.querySelector('.selected-row')) list.innerHTML='<div class="empty">עדיין לא נבחר מוצר.</div>'; promoToolMaybeAutoGroup(card); promoToolUpdateCard(card); promoToolRefreshCandidateVisibility(card); promoToolRefreshStats(); }
-    function promoToolClearCard(btn) { var card=promoToolCard(btn); var list=card && card.querySelector('.selected-list'); if(!list) return; list.innerHTML='<div class="empty">עדיין לא נבחר מוצר.</div>'; var box=card.querySelector('.group-checkbox'); if(box && box.getAttribute('data-user-overrode-group')!=='1') box.checked=false; promoToolUpdateCard(card); promoToolRefreshCandidateVisibility(card); promoToolRefreshStats(); }
+    function promoToolRemoveSelected(btn) { var card=promoToolCard(btn); var row=btn && btn.closest ? btn.closest('.selected-row') : null; if(row) row.remove(); promoToolInvalidateApproval(card); var list=card && card.querySelector('.selected-list'); if(list && !list.querySelector('.selected-row')) list.innerHTML='<div class="empty">עדיין לא נבחר מוצר.</div>'; promoToolMaybeAutoGroup(card); promoToolUpdateCard(card); promoToolRefreshCandidateVisibility(card); promoToolRefreshStats(); }
+    function promoToolClearCard(btn) { var card=promoToolCard(btn); var list=card && card.querySelector('.selected-list'); if(!list) return; promoToolInvalidateApproval(card); list.innerHTML='<div class="empty">עדיין לא נבחר מוצר.</div>'; var box=card.querySelector('.group-checkbox'); if(box && box.getAttribute('data-user-overrode-group')!=='1') box.checked=false; promoToolUpdateCard(card); promoToolRefreshCandidateVisibility(card); promoToolRefreshStats(); }
     function promoToolAddAllCandidates(btn) { var card=promoToolCard(btn); if(!card) return; var buttons=card.querySelectorAll('.candidate:not(.is-selected) button[data-product-id]'); buttons.forEach(function(b){ promoToolAddToCard(card, Number(b.getAttribute('data-product-id')), b.getAttribute('data-product-name')||''); }); }
-    function promoToolUpdateCard(card) { if(!card) return; var count=card.querySelectorAll('.selected-row').length; var group=!!(card.querySelector('.group-checkbox') && card.querySelector('.group-checkbox').checked); card.classList.toggle('mapped', count>0); card.classList.toggle('group', group && count>0); var state=card.querySelector('.state'); if(state) state.textContent=count>0 ? ((group?'קבוצה: ':'מופה: ')+count+' מוצר'+(count>1?'ים':'')) : 'לא מופה'; }
-    function promoToolRefreshStats() { var cards=document.querySelectorAll('.card'); var mapped=0,total=0,groups=0; cards.forEach(function(card){ var c=card.querySelectorAll('.selected-row').length; var group=!!(card.querySelector('.group-checkbox') && card.querySelector('.group-checkbox').checked); if(c>0) mapped++; if(c>0 && group) groups++; total+=c; }); var mappedEl=document.getElementById('mappedCount'); var totalEl=document.getElementById('selectedProductsCount'); var groupEl=document.getElementById('groupCount'); if(mappedEl) mappedEl.textContent=String(mapped); if(totalEl) totalEl.textContent=String(total); if(groupEl) groupEl.textContent=String(groups); promoToolApplyFilters(); }
-    function promoToolBuildMapping() { var mappings=[]; document.querySelectorAll('.card').forEach(function(card){ var ids=[]; card.querySelectorAll('.selected-row').forEach(function(row){ ids.push(Number(row.getAttribute('data-selected-product-id'))); }); if(!ids.length) return; var noteEl=card.querySelector('.note'); var group=!!(card.querySelector('.group-checkbox') && card.querySelector('.group-checkbox').checked); var action=card.getAttribute('data-action')||'product_promotion'; var startDate=card.getAttribute('data-start-date')||''; var endDate=card.getAttribute('data-end-date')||''; mappings.push({ reward_id:Number(card.getAttribute('data-reward-id')), title:card.getAttribute('data-title')||'', type:card.getAttribute('data-type')||'', start_date:startDate, end_date:endDate, action: group ? 'promotion_group' : action, mapping_mode: group ? 'group' : (ids.length>1 ? 'separate_product_promotions' : 'single_product'), is_group_promotion: group, product_ids:ids, note:(noteEl && noteEl.value)||'' }); }); return { source:'${SOURCE}', shop_id:${Number(shopId)}, based_on_report:${JSON.stringify(reportPath)}, generated_at:new Date().toISOString(), mappings:mappings }; }
+    function promoToolUpdateCard(card) { if(!card) return; var count=card.querySelectorAll('.selected-row').length; var group=!!(card.querySelector('.group-checkbox') && card.querySelector('.group-checkbox').checked); var approved=!!(card.querySelector('.approval-checkbox') && card.querySelector('.approval-checkbox').checked); card.classList.toggle('mapped', count>0); card.classList.toggle('group', group && count>0); card.classList.toggle('approved', approved && count>0); var state=card.querySelector('.state'); if(state) state.textContent=count>0 ? ((approved?'אושר - ':'טיוטה - ')+(group?'קבוצה: ':'מיפוי: ')+count+' מוצר'+(count>1?'ים':'')) : 'לא מופה'; }
+    function promoToolRefreshStats() { var cards=document.querySelectorAll('.card'); var mapped=0,approved=0,total=0,groups=0; cards.forEach(function(card){ var c=card.querySelectorAll('.selected-row').length; var group=!!(card.querySelector('.group-checkbox') && card.querySelector('.group-checkbox').checked); var isApproved=!!(card.querySelector('.approval-checkbox') && card.querySelector('.approval-checkbox').checked); if(c>0) mapped++; if(c>0 && isApproved) approved++; if(c>0 && group) groups++; total+=c; }); var mappedEl=document.getElementById('mappedCount'); var approvedEl=document.getElementById('approvedCount'); var totalEl=document.getElementById('selectedProductsCount'); var groupEl=document.getElementById('groupCount'); if(mappedEl) mappedEl.textContent=String(mapped); if(approvedEl) approvedEl.textContent=String(approved); if(totalEl) totalEl.textContent=String(total); if(groupEl) groupEl.textContent=String(groups); promoToolApplyFilters(); }
+    function promoToolBuildMapping() { var mappings=[]; document.querySelectorAll('.card').forEach(function(card){ var ids=[]; card.querySelectorAll('.selected-row').forEach(function(row){ ids.push(Number(row.getAttribute('data-selected-product-id'))); }); if(!ids.length) return; var lookups=ids.map(function(id){ var p=PROMO_TOOL_PRODUCTS_BY_ID[id]||{}; return { chain_product_key:p.chain_product_key||null, barcode:p.barcode||null, name:p.name||null, expected_product_id:id }; }); var noteEl=card.querySelector('.note'); var group=!!(card.querySelector('.group-checkbox') && card.querySelector('.group-checkbox').checked); var approved=!!(card.querySelector('.approval-checkbox') && card.querySelector('.approval-checkbox').checked); var action=card.getAttribute('data-action')||'product_promotion'; var isMarketDay=card.getAttribute('data-is-market-day')==='1'; var startDate=isMarketDay ? '' : (card.getAttribute('data-start-date')||''); var endDate=isMarketDay ? '' : (card.getAttribute('data-end-date')||''); mappings.push({ reward_id:Number(card.getAttribute('data-reward-id')), title:card.getAttribute('data-title')||'', type:card.getAttribute('data-type')||'', is_market_day:isMarketDay, start_date:startDate, end_date:endDate, action: group ? 'promotion_group' : action, mapping_mode: group ? 'group' : (ids.length>1 ? 'separate_product_promotions' : 'single_product'), is_group_promotion: group, approved:approved, product_ids:ids, product_lookups:lookups, note:(noteEl && noteEl.value)||'' }); }); return { source:'${SOURCE}', shop_id:${Number(shopId)}, based_on_report:${JSON.stringify(reportPath)}, generated_at:new Date().toISOString(), mappings:mappings }; }
     function promoToolDownloadJson() { var json=JSON.stringify(promoToolBuildMapping(),null,2); var blob=new Blob([json],{type:'application/json;charset=utf-8'}); var url=URL.createObjectURL(blob); var a=document.createElement('a'); a.href=url; a.download='leshem_manual_promo_mapping.json'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); }
     function promoToolCopyJson() { var json=JSON.stringify(promoToolBuildMapping(),null,2); if(navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(json).then(function(){alert('ה־JSON הועתק');}); else alert(json); }
     function promoToolToggleJson() { var el=document.getElementById('jsonPreview'); if(!el) return; el.textContent=JSON.stringify(promoToolBuildMapping(),null,2); el.classList.toggle('hidden'); }
     function promoToolNorm(s) { return String(s||'').toLowerCase().replace(/\s+/g,' ').trim(); }
     function promoToolApplyFilters() { var q=promoToolNorm((document.getElementById('globalSearch')||{}).value); var reason=(document.getElementById('reasonFilter')||{}).value||'all'; var mapped=(document.getElementById('mappedFilter')||{}).value||'all'; document.querySelectorAll('.card').forEach(function(card){ var text=card.getAttribute('data-search')||''; var isMapped=card.querySelectorAll('.selected-row').length>0; var okText=!q || text.indexOf(q)>=0; var okReason=reason==='all' || card.getAttribute('data-reason')===reason; var okMapped=mapped==='all' || (mapped==='mapped'&&isMapped) || (mapped==='unmapped'&&!isMapped); card.classList.toggle('hidden', !(okText&&okReason&&okMapped)); }); }
-    function promoToolLoadMappingFile(file) { var reader=new FileReader(); reader.onload=function(){ try { var parsed=JSON.parse(String(reader.result||'{}')); if(Array.isArray(parsed.skipped) && !Array.isArray(parsed.mappings)) { alert('זה נראה כמו דוח import ולא קובץ mapping. אין צורך לטעון אותו כאן.'); return; } document.querySelectorAll('.card').forEach(function(card){ var list=card.querySelector('.selected-list'); if(list) list.innerHTML='<div class="empty">עדיין לא נבחר מוצר.</div>'; var note=card.querySelector('.note'); if(note) note.value=''; var box=card.querySelector('.group-checkbox'); if(box){ box.checked=false; box.removeAttribute('data-user-overrode-group'); } promoToolRefreshCandidateVisibility(card); }); (parsed.mappings||[]).forEach(function(m){ var card=document.querySelector('.card[data-reward-id="'+m.reward_id+'"]'); if(!card) return; (m.product_ids||[]).forEach(function(id){ var product=PROMO_TOOL_PRODUCTS_BY_ID[Number(id)]; promoToolAddToCard(card, Number(id), product ? product.name : ('ID '+id)); }); var groupBox=card.querySelector('.group-checkbox'); if(groupBox) { groupBox.checked=!!(m.is_group_promotion || m.mapping_mode==='group' || m.action==='promotion_group'); groupBox.setAttribute('data-user-overrode-group','1'); } var note=card.querySelector('.note'); if(note) note.value=m.note||''; promoToolUpdateCard(card); promoToolRefreshCandidateVisibility(card); }); promoToolRefreshStats(); alert('ה־mapping נטען בהצלחה'); } catch(e) { alert('לא הצלחתי לקרוא את הקובץ: '+e.message); } }; reader.readAsText(file,'utf-8'); }
+    function promoToolLoadMappingFile(file) { var reader=new FileReader(); reader.onload=function(){ try { var parsed=JSON.parse(String(reader.result||'{}')); if(Array.isArray(parsed.skipped) && !Array.isArray(parsed.mappings)) { alert('זה נראה כמו דוח import ולא קובץ mapping. אין צורך לטעון אותו כאן.'); return; } document.querySelectorAll('.card').forEach(function(card){ var list=card.querySelector('.selected-list'); if(list) list.innerHTML='<div class="empty">עדיין לא נבחר מוצר.</div>'; var note=card.querySelector('.note'); if(note) note.value=''; promoToolSetApproved(card, false); var box=card.querySelector('.group-checkbox'); if(box){ box.checked=false; box.removeAttribute('data-user-overrode-group'); } promoToolRefreshCandidateVisibility(card); }); (parsed.mappings||[]).forEach(function(m){ var card=document.querySelector('.card[data-reward-id="'+m.reward_id+'"]'); if(!card) return; var loadIds=(m.product_ids||[]).slice(); if(!loadIds.length && Array.isArray(m.product_lookups)){ m.product_lookups.forEach(function(ref){ if(ref.expected_product_id) loadIds.push(Number(ref.expected_product_id)); }); } loadIds.forEach(function(id){ var product=PROMO_TOOL_PRODUCTS_BY_ID[Number(id)]; promoToolAddToCard(card, Number(id), product ? product.name : ('ID '+id)); }); var groupBox=card.querySelector('.group-checkbox'); if(groupBox) { groupBox.checked=!!(m.is_group_promotion || m.mapping_mode==='group' || m.action==='promotion_group'); groupBox.setAttribute('data-user-overrode-group','1'); } var note=card.querySelector('.note'); if(note) note.value=m.note||''; var inferredApproved=(typeof m.approved==='boolean') ? m.approved : !/הצעה בלבד|דורש אישור מחדש/.test(String(m.note||'')); promoToolSetApproved(card, inferredApproved); promoToolUpdateCard(card); promoToolRefreshCandidateVisibility(card); }); promoToolRefreshStats(); alert('ה־mapping נטען בהצלחה'); } catch(e) { alert('לא הצלחתי לקרוא את הקובץ: '+e.message); } }; reader.readAsText(file,'utf-8'); }
     window.addEventListener('DOMContentLoaded', function(){ promoToolRefreshStats(); ['globalSearch','reasonFilter','mappedFilter'].forEach(function(id){ var el=document.getElementById(id); if(el) { el.addEventListener('input', promoToolApplyFilters); el.addEventListener('change', promoToolApplyFilters); } }); var importFile=document.getElementById('importFile'); if(importFile) importFile.addEventListener('change', function(ev){ var f=ev.target.files && ev.target.files[0]; if(f) promoToolLoadMappingFile(f); }); });
   </script>
 </head>
@@ -446,6 +469,7 @@ function makeHtml({ shopId, reportPath, report, products, skipped, originalSkipp
       </div>
       <div class="actions">
         <label class="file-label">טען mapping קיים<input id="importFile" type="file" accept="application/json" style="display:none" /></label>
+        <button type="button" class="secondary" onclick="promoToolApproveAllMapped()">אשר את כל המיפויים</button>
         <button type="button" class="secondary" onclick="promoToolCopyJson()">העתק JSON</button>
         <button type="button" onclick="promoToolDownloadJson()">הורד mapping JSON</button>
       </div>
@@ -563,7 +587,7 @@ async function loadExistingPromotionRewardIds(shopId) {
 async function loadProducts(shopId) {
   const [rows] = await db.query(
     `
-    SELECT id, name, display_name_en, price, stock_amount, category, sub_category
+    SELECT id, name, display_name_en, price, stock_amount, category, sub_category, barcode, chain_product_key
     FROM product
     WHERE shop_id = ?
     ORDER BY name ASC, id ASC
@@ -579,6 +603,8 @@ async function loadProducts(shopId) {
     stock_amount: row.stock_amount == null ? null : Number(row.stock_amount),
     category: row.category || null,
     sub_category: row.sub_category || null,
+    barcode: row.barcode || null,
+    chain_product_key: row.chain_product_key || null,
   }));
 }
 

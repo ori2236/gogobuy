@@ -1,0 +1,958 @@
+{
+  "mode": "applied",
+  "batch_id": 5,
+  "shop_id": 2,
+  "source": "leshem_erp",
+  "plan_file": "C:\\Users\\ORI\\Desktop\\gogobuy\\gogobuy\\reports\\promotion_import_plan_shop2_32065_approved.json",
+  "plan_sha256": "76a0709427188d6ed5277ad2f7059c30779cab1d53c73324943e61ca8784cc9e",
+  "applied_at": "2026-08-04T15:25:35.769Z",
+  "applied_actions": 105,
+  "unresolved_rows_not_applied": 29,
+  "actions": [
+    {
+      "reward_id": 3,
+      "title": "ארטיק ריאו 8 ב-10",
+      "planned_action": "EXTEND_EXISTING_DATES",
+      "executed_action": "EXTEND_EXISTING_DATES",
+      "target_type": "promotion",
+      "target_id": 348,
+      "identity_hash": "8d3a21f5886059dfc593df131b15e6f38a099f92ef9e8cf3d3a7ceeefbbe3c64"
+    },
+    {
+      "reward_id": 9,
+      "title": "גלידת בן&ג'ריס 2 ב- 39.90 ₪",
+      "planned_action": "EXTEND_EXISTING_DATES",
+      "executed_action": "EXTEND_EXISTING_DATES",
+      "target_type": "product_group_promotion",
+      "target_id": 211,
+      "identity_hash": "493b3073b47163aae1ad11b35f4975cc160b4169be94be61a5ba9d6b8583261d"
+    },
+    {
+      "reward_id": 21,
+      "title": "עוף טחון ב.ש. רק ב- 29.90 לק\"ג",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 400,
+      "identity_hash": "31f49d986353310ee4d43f2faeebbedb75caa53c5f00b6e02bbd39a51fe918d9"
+    },
+    {
+      "reward_id": 23,
+      "title": "הודו טחון בשר השומרון ב- 29.90 לק\"ג",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 401,
+      "identity_hash": "e931828f4ef2f719e306efd353679cb14ca093672ed15430dce5d4fea7346600"
+    },
+    {
+      "reward_id": 31,
+      "title": "גלידה קרמסימו 2 ב- 39.90",
+      "planned_action": "EXTEND_EXISTING_DATES",
+      "executed_action": "EXTEND_EXISTING_DATES",
+      "target_type": "promotion",
+      "target_id": 349,
+      "identity_hash": "07bc59b7816da450e82366ce5fc39519851711170e352276a550955cfb81f5af"
+    },
+    {
+      "reward_id": 54,
+      "title": "דובונים/אפרופו/במבה מיוחדים 3 ב-12",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "product_group_promotion",
+      "target_id": 231,
+      "identity_hash": "20449eb13e4a3868c01f55dd34c590b36a8b577659e5761c2e30b39ab07307db"
+    },
+    {
+      "reward_id": 76,
+      "title": "גזר 3.90 לק\"ג",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 402,
+      "identity_hash": "560af23c1eb8ded1b60ec0e8322705cabd94af42ada74c427e6cfa3bc9f08ff7"
+    },
+    {
+      "reward_id": 78,
+      "title": "מלפפון 6.90 לק\"ג",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 403,
+      "identity_hash": "bd52f263309fce39a5c0f2f7b82b38f37da68269c0dedaf913f7cd346f2201d4"
+    },
+    {
+      "reward_id": 79,
+      "title": "עגבניה 4.90 לק\"ג",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 404,
+      "identity_hash": "2ebf751fecfca8cbb013870f97f5f4c3402ef01c12ae25686193414babab7ac0"
+    },
+    {
+      "reward_id": 86,
+      "title": "שום יבש ארוז 3 ב- 12 ₪",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "product_group_promotion",
+      "target_id": 232,
+      "identity_hash": "efe9d0112f80918d22d6c62b7787c604de12fd2671dfa619d8222c3f06d234fb"
+    },
+    {
+      "reward_id": 91,
+      "title": "תפו\"א לבן 3.90 לק\"ג",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 405,
+      "identity_hash": "fa8cebf2039d9155702e2547466540c8b7d7a6036d2885f18fbfd2beff90ae8f"
+    },
+    {
+      "reward_id": 94,
+      "title": "סלק בואקום 2 ב- 12",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 406,
+      "identity_hash": "26ada51d2d9caca75aecd362c03ac216a05d4c9e95b9938d2dc5737e2d269365"
+    },
+    {
+      "reward_id": 102,
+      "title": "דנונה פרו 20 גר' 3 ב-18",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "product_group_promotion",
+      "target_id": 233,
+      "identity_hash": "84de3456298364651a5338af4f492e025b1e82c22c5123d89d8f4f70bb68f6d1"
+    },
+    {
+      "reward_id": 110,
+      "title": "חומוס שטראוס 750 גר' רק ב-9.90",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 407,
+      "identity_hash": "28efa84692588a249f32129d6b39df6697aeb77678d25c89b0a5854d372cb95b"
+    },
+    {
+      "reward_id": 123,
+      "title": "יופלה גו \"תנובה\" 3 ב-16",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "product_group_promotion",
+      "target_id": 234,
+      "identity_hash": "17248a89f8e186240b55fec0a63d3aa0536f4f7c27cb66697ff3b740a368384e"
+    },
+    {
+      "reward_id": 132,
+      "title": "קישוא 7.90 לק\"ג",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 408,
+      "identity_hash": "c68085f1d30b3bb172a06fd8603518e4ce29f7bff19aa9dfdb141b9dbff58136"
+    },
+    {
+      "reward_id": 138,
+      "title": "בטטה 7.90 לק\"ג",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 409,
+      "identity_hash": "6972ea5a4adf9a566ccee682c86fe7dd4d435dc55a8fa0f1104613717f76b2cc"
+    },
+    {
+      "reward_id": 149,
+      "title": "עגבנית שרי 10.90 לק\"ג",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 410,
+      "identity_hash": "4dd9fecda2492bfb0b636a62fb2492a197d1a09f92ceedf3c69cae418bd3c59d"
+    },
+    {
+      "reward_id": 186,
+      "title": "בצל יבש 2.90 לק\"ג",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 411,
+      "identity_hash": "f65152bf748b74ec270d67a3080d6f023b7058f8805f4c251681f3f297f687ec"
+    },
+    {
+      "reward_id": 224,
+      "title": "פילטרים 3 ב10",
+      "planned_action": "EXTEND_EXISTING_DATES",
+      "executed_action": "EXTEND_EXISTING_DATES",
+      "target_type": "product_group_promotion",
+      "target_id": 213,
+      "identity_hash": "8d054174713614937289e0800974af33b74d0b45b193a298d011368e4db4c67d"
+    },
+    {
+      "reward_id": 225,
+      "title": "נייר גלגול ריזלה 5 ב10",
+      "planned_action": "EXTEND_EXISTING_DATES",
+      "executed_action": "EXTEND_EXISTING_DATES",
+      "target_type": "product_group_promotion",
+      "target_id": 214,
+      "identity_hash": "c46a341daeb0837d1285b343075d5d9052cc812f015e1bc030b9718ab00ed1fa"
+    },
+    {
+      "reward_id": 271,
+      "title": "שמן קנולה 2 ב- 14.90",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "product_group_promotion",
+      "target_id": 235,
+      "identity_hash": "a7716df80c4abdca49421d19c50abe705407403c0b0c16f3a52e0b908ac5af98"
+    },
+    {
+      "reward_id": 306,
+      "title": "אפרסק 11.90 לק\"ג",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 412,
+      "identity_hash": "d2de17651fb49a3860f57c5d6d5221a87d73bf991d414d8d21cedd6d2a291946"
+    },
+    {
+      "reward_id": 337,
+      "title": "דובדבן ארוז ב- 14.90 ₪ ליח'",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 413,
+      "identity_hash": "9fd0257bf31fe7846afb4fc7138c357f5344aa68211a91d36bec2250331479b7"
+    },
+    {
+      "reward_id": 342,
+      "title": "חזה עוף שלם 3 קג רק ב- 99.90 ₪",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 414,
+      "identity_hash": "37d51a01c8c6a1b758e0588358799488d6856b5b72f4af7886813cea69c6e969"
+    },
+    {
+      "reward_id": 345,
+      "title": "ירק מהדרין ביכורי שדה 3 ב-12.90",
+      "planned_action": "EXTEND_EXISTING_DATES",
+      "executed_action": "EXTEND_EXISTING_DATES",
+      "target_type": "product_group_promotion",
+      "target_id": 215,
+      "identity_hash": "da84a1f3cb8294a68efff4e286f23df992a11018e4c3557517b1de6dc8bf1151"
+    },
+    {
+      "reward_id": 347,
+      "title": "חסה מהדרין ביכורי שדה 2 ב- 11.90",
+      "planned_action": "EXTEND_EXISTING_DATES",
+      "executed_action": "EXTEND_EXISTING_DATES",
+      "target_type": "promotion",
+      "target_id": 353,
+      "identity_hash": "f639012c3258842e226d52fa5c1a0337ead19368475426dac3e2bdedcc4902f1"
+    },
+    {
+      "reward_id": 385,
+      "title": "קליק שקית 2 ב- 12",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "product_group_promotion",
+      "target_id": 236,
+      "identity_hash": "7160d5dd2077ccc50daac9ecb295c5d99473ef1f8c95d94581fc954444a94862"
+    },
+    {
+      "reward_id": 386,
+      "title": "כנפיים עוף 2 ק\"ג ב- 19.90",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 415,
+      "identity_hash": "461df441b2c150c6a1d9b0b4ea09dbf0cb9fd96d45e9bc1eacfda87f9cd70ce5"
+    },
+    {
+      "reward_id": 387,
+      "title": "כבד עוף ב- 12.90 לק\"ג",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 416,
+      "identity_hash": "392a6f2f0bfe0cfb2cf314ed01396a24a6f8f6c0fc211963b084bc5866f8ea0d"
+    },
+    {
+      "reward_id": 388,
+      "title": "אבטיח 1.50 לק\"ג",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 417,
+      "identity_hash": "21196d652dd4b6b17dbecd58fe4f2b61588b02e82d8183d5061a8fffebdf0fce"
+    },
+    {
+      "reward_id": 416,
+      "title": "שניצל פרוס 2 ק\"ג ב- 89.90 ₪",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 418,
+      "identity_hash": "d0d36938d2aa2f6d27c52b390e216db6ab20fdbe312d66e2ca4061d45d6086b0"
+    },
+    {
+      "reward_id": 419,
+      "title": "ענבים לבן/אדום 15.90 לק\"ג",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 419,
+      "identity_hash": "17a5083706f8b08b4f5657957b96083e47b7a7206447676d8d1f5f45b46dbf08"
+    },
+    {
+      "reward_id": 419,
+      "title": "ענבים לבן/אדום 15.90 לק\"ג",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 420,
+      "identity_hash": "737c554e81b4aff0ba8adc7798545bd6fa958496c6509ddc6fcd53231886d28f"
+    },
+    {
+      "reward_id": 439,
+      "title": "בלו כחול 3 ב12",
+      "planned_action": "EXTEND_EXISTING_DATES",
+      "executed_action": "EXTEND_EXISTING_DATES",
+      "target_type": "promotion",
+      "target_id": 364,
+      "identity_hash": "5f1e19cdf5c4388864c770e4b2ab9877ebfbb1fa608cacbf6245933367fc32dc"
+    },
+    {
+      "reward_id": 497,
+      "title": "פלפל אדום/צהוב/כתום 7.90 לק\"ג",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 421,
+      "identity_hash": "4f65d180805d78edb603860bf0cf041f519dbcf6a2bc7fcce036b507b73301e4"
+    },
+    {
+      "reward_id": 497,
+      "title": "פלפל אדום/צהוב/כתום 7.90 לק\"ג",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 422,
+      "identity_hash": "4ca2fb441fd7f0194f7b9df728feb495d797c8b5ee4bc02ee0d4230d933eb232"
+    },
+    {
+      "reward_id": 497,
+      "title": "פלפל אדום/צהוב/כתום 7.90 לק\"ג",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 423,
+      "identity_hash": "7436f81dbe9612d187aa0a0c914e5b1355ba190ad0c9cce89a95a29c685a742a"
+    },
+    {
+      "reward_id": 534,
+      "title": "בלוני הליום פשוטים 3 ב15",
+      "planned_action": "EXTEND_EXISTING_DATES",
+      "executed_action": "EXTEND_EXISTING_DATES",
+      "target_type": "promotion",
+      "target_id": 354,
+      "identity_hash": "942a574cd9d523ee47a503c84c0a0f2f36b757487c9af881b3e76589e2211963"
+    },
+    {
+      "reward_id": 535,
+      "title": "בלוני הליום גדולים 2 ב- 15",
+      "planned_action": "EXTEND_EXISTING_DATES",
+      "executed_action": "EXTEND_EXISTING_DATES",
+      "target_type": "promotion",
+      "target_id": 355,
+      "identity_hash": "a2067f93f956c24183f5ca33b5f73916d1fe6635d7be294fd702828a65c38bc1"
+    },
+    {
+      "reward_id": 543,
+      "title": "פיתות אנג'ל ב- 9.90",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 424,
+      "identity_hash": "a7129b922eec11721df496a71ed207bcff5826c0a61805e92f8f921cacb08450"
+    },
+    {
+      "reward_id": 584,
+      "title": "אוכמניות 2 ב- 25",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 425,
+      "identity_hash": "28df710593a1f95f0a776b000c4a563e14a5c1dc694db972ea8cfe7331f25db3"
+    },
+    {
+      "reward_id": 634,
+      "title": "כוס שקופה 4 ב-11.90",
+      "planned_action": "EXTEND_EXISTING_DATES",
+      "executed_action": "EXTEND_EXISTING_DATES",
+      "target_type": "promotion",
+      "target_id": 350,
+      "identity_hash": "bf588123f26c15279f7ece1b72b163ed65c399ec1eace29c259f881cbc694d17"
+    },
+    {
+      "reward_id": 708,
+      "title": "כוס חם 3 ב- 11.90",
+      "planned_action": "EXTEND_EXISTING_DATES",
+      "executed_action": "EXTEND_EXISTING_DATES",
+      "target_type": "promotion",
+      "target_id": 356,
+      "identity_hash": "5b38e70916bc1df9c5052f8b9ee5a453ff9df8028402a56e54a01e399bdf14af"
+    },
+    {
+      "reward_id": 715,
+      "title": "שלוקים 2 ב-18",
+      "planned_action": "EXTEND_EXISTING_DATES",
+      "executed_action": "EXTEND_EXISTING_DATES",
+      "target_type": "product_group_promotion",
+      "target_id": 217,
+      "identity_hash": "7c2ef92e6fc89ff83c5e5b7c06f48276af54b2bb4ca9928a416c8169d5f0bf0d"
+    },
+    {
+      "reward_id": 718,
+      "title": "שום קלוף \"ביכורי שדה\" 2 ב- 15",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 426,
+      "identity_hash": "670d279586b246b7d9da69957552090d7708f1c17110a4b23f1a8c03d950db85"
+    },
+    {
+      "reward_id": 772,
+      "title": "שזיף אדום 13.90 לק\"ג",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 427,
+      "identity_hash": "fb62a9f078f386203fc0c3d902f3d3c64f778be052d6877cd1f71c51739624a7"
+    },
+    {
+      "reward_id": 825,
+      "title": "צלחות 1 ק\"ג 2 ב- 30",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 428,
+      "identity_hash": "1d0ae36201fa13405573135d3f9d159149ea1dd6c30cc8929f4b0f2592792784"
+    },
+    {
+      "reward_id": 828,
+      "title": "בקנייה מעל 300 עלות משלוח 10 שח",
+      "planned_action": "EXTEND_EXISTING_DATES",
+      "executed_action": "EXTEND_EXISTING_DATES",
+      "target_type": "cart_promotion_rule",
+      "target_id": 31,
+      "identity_hash": "8426cb6a7d10559fdefe13960c808933aee737f50bd50c09a5a2dc63e1b7f737"
+    },
+    {
+      "reward_id": 829,
+      "title": "בקנייה מעל 500 משלוח חינם ללא עלות",
+      "planned_action": "EXTEND_EXISTING_DATES",
+      "executed_action": "EXTEND_EXISTING_DATES",
+      "target_type": "cart_promotion_rule",
+      "target_id": 32,
+      "identity_hash": "c01528774ed1e656c79ade6f87d17fb249b626c1477eed167590626987f29cde"
+    },
+    {
+      "reward_id": 875,
+      "title": "תפו\"ע פינק ליידי 14.90 לק\"ג",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 429,
+      "identity_hash": "0f18b9936c526881857e9d69ade03d59fb79487d84e04d54e298ed860a22ded1"
+    },
+    {
+      "reward_id": 899,
+      "title": "תפוא למיקרו 2 ב- 12",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 430,
+      "identity_hash": "a0ea4cea32081cad564ed87be13194d581da06769d3ec1667c862030d1dd4e0c"
+    },
+    {
+      "reward_id": 998,
+      "title": "כפפות אלסטיות שחורות 3 ב-9.90",
+      "planned_action": "EXTEND_EXISTING_DATES",
+      "executed_action": "EXTEND_EXISTING_DATES",
+      "target_type": "product_group_promotion",
+      "target_id": 218,
+      "identity_hash": "e51e2cd65514500fcf6a6ef522da43303fd4847b2ccfdc4d709f427bbb1ec695"
+    },
+    {
+      "reward_id": 1014,
+      "title": "כביסכל 2 ליטר 3 ב-99.90",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "product_group_promotion",
+      "target_id": 237,
+      "identity_hash": "f717965b1bc903f4976e6ccd588c64b084d896fd53eb9edbf93f9dc552af4554"
+    },
+    {
+      "reward_id": 1047,
+      "title": "חטיפים 10 ב- 30",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "product_group_promotion",
+      "target_id": 238,
+      "identity_hash": "1ababc9a677d04d74715f3f207340bf9e100750a928b8128656a56f842fddbb9"
+    },
+    {
+      "reward_id": 1104,
+      "title": "צנונית ארוזה 2 ב- 12",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 431,
+      "identity_hash": "3c4bc287ffd8048436749c74bf6b07ebc532bf56f10b99ad46aa609df7218728"
+    },
+    {
+      "reward_id": 1110,
+      "title": "חלת בוטיק 2 ב-22",
+      "planned_action": "EXTEND_EXISTING_DATES",
+      "executed_action": "EXTEND_EXISTING_DATES",
+      "target_type": "promotion",
+      "target_id": 351,
+      "identity_hash": "6cfcfae979a2b9e63bb3b2f93fe5b62033e576822e006baccc153a35664b6a17"
+    },
+    {
+      "reward_id": 1152,
+      "title": "מלפפון/פלפל בייבי 2 ב- 15",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 432,
+      "identity_hash": "f5addd0a99890f7edd68ed902ec2459716a9bcc914aca8de29f01080ed4fafeb"
+    },
+    {
+      "reward_id": 1176,
+      "title": "יינות פרימיום 2 ב-119.90",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "product_group_promotion",
+      "target_id": 239,
+      "identity_hash": "203ac990714b1116cd4e24ab5415b06863efd2df34345f3f60d4386ab94249e3"
+    },
+    {
+      "reward_id": 1180,
+      "title": "יינות ירושלים 187 מל 3 ב-18",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "product_group_promotion",
+      "target_id": 240,
+      "identity_hash": "dfb64292c661b74d5da55a7f1983d0c344532ed3445b072d8fdc468441ddbec3"
+    },
+    {
+      "reward_id": 1192,
+      "title": "אסאדו 2 ק\"ג ב- 99.90",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 433,
+      "identity_hash": "a81f223249c81ebd1d32a4caf083077484fe44691a375de2d08e8f2501ae4be1"
+    },
+    {
+      "reward_id": 1225,
+      "title": "מארז טישו 2 ב-18",
+      "planned_action": "EXTEND_EXISTING_DATES",
+      "executed_action": "EXTEND_EXISTING_DATES",
+      "target_type": "promotion",
+      "target_id": 365,
+      "identity_hash": "3f0775cf613f6008345a44bd3e043a76ca1163c07ca293c4e0f6598bddb82201"
+    },
+    {
+      "reward_id": 1238,
+      "title": "תבניות אלומניום \"משי\" 4 ב- 18",
+      "planned_action": "EXTEND_EXISTING_DATES",
+      "executed_action": "EXTEND_EXISTING_DATES",
+      "target_type": "product_group_promotion",
+      "target_id": 219,
+      "identity_hash": "a583542cef52b65840388dc9dcf5cd42a0ca52c7101f2e1846422ce36a548b93"
+    },
+    {
+      "reward_id": 1239,
+      "title": "מנגל גדול ב-69.90",
+      "planned_action": "EXTEND_EXISTING_DATES",
+      "executed_action": "EXTEND_EXISTING_DATES",
+      "target_type": "promotion",
+      "target_id": 357,
+      "identity_hash": "4d090b029af217aceaee0acbbcc3dc2104d395ae3a083a439a547f9eb6512436"
+    },
+    {
+      "reward_id": 1261,
+      "title": "כרעיים/ירכיים/שוקיים רק ב- 19.90 לק\"ג",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 434,
+      "identity_hash": "ed2e216682a9db444f322b9a86ae0c288537cb4b156d23329e4c1839323ae49f"
+    },
+    {
+      "reward_id": 1261,
+      "title": "כרעיים/ירכיים/שוקיים רק ב- 19.90 לק\"ג",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 435,
+      "identity_hash": "92d851b9af01216410ca70571e480188fe3e63b2b273922158fccad9d4a933e0"
+    },
+    {
+      "reward_id": 1261,
+      "title": "כרעיים/ירכיים/שוקיים רק ב- 19.90 לק\"ג",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 436,
+      "identity_hash": "06e2294c630763f9e2e1d2d703414f7c957a2f8160a22be5d361d0aa87795432"
+    },
+    {
+      "reward_id": 1275,
+      "title": "ליצי ארוז 2 ב- 20",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 437,
+      "identity_hash": "12070000f2452d2b6d7dfb8436eeead2a57403378e0ccd569135a004845a54d7"
+    },
+    {
+      "reward_id": 1292,
+      "title": "איגלו ארוך \"כרמית\" 3 ב-12",
+      "planned_action": "EXTEND_EXISTING_DATES",
+      "executed_action": "EXTEND_EXISTING_DATES",
+      "target_type": "promotion",
+      "target_id": 358,
+      "identity_hash": "a30f773070e088c568f58ffa2d927b83626ecfa8b552a5f2951e45abf8e9f73f"
+    },
+    {
+      "reward_id": 1325,
+      "title": "ירק \"חממה בהר\" 2 ב-15",
+      "planned_action": "EXTEND_EXISTING_DATES",
+      "executed_action": "EXTEND_EXISTING_DATES",
+      "target_type": "promotion",
+      "target_id": 360,
+      "identity_hash": "b1e941d1fd837c6391c2a0d561f310f73cd45181aaa018db352a4edd88124221"
+    },
+    {
+      "reward_id": 1339,
+      "title": "סלק אדום 4.90 לק\"ג",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 438,
+      "identity_hash": "186ae49a7fea18db444bc6920ef91ee5c4be0e19c71fdb31b999b84791de7c72"
+    },
+    {
+      "reward_id": 1348,
+      "title": "מלון 2.90 לק\"ג",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 439,
+      "identity_hash": "1721c6c8961173693505a7496d59705ed27ad9fba2bc48b0b302a43e43dc57ec"
+    },
+    {
+      "reward_id": 1413,
+      "title": "מארז פחיות 12 יח 2 ב- 49.90",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "product_group_promotion",
+      "target_id": 241,
+      "identity_hash": "e016e14b57125f7bae1d9f373a62db9bc4b2d9b93bc7225f2968dcef4451e96b"
+    },
+    {
+      "reward_id": 1463,
+      "title": "סטייק אנגוס מיושן ברשת רק ב99.90 לקג",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 440,
+      "identity_hash": "b036d8b8eaf12280a16c13f5f52908c4452cf901a26b71c98b6efa04a3f201d6"
+    },
+    {
+      "reward_id": 1466,
+      "title": "שישיית מי עדן קטנה 2 ב-25",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 441,
+      "identity_hash": "57b60f38d4f7df7e0623f2b259e0f55c8a9879cd95242e7374e8de438ddc0c9b"
+    },
+    {
+      "reward_id": 1545,
+      "title": "קרטון פמפרס מידה 3 80 יח 2 ב- 99.90",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 442,
+      "identity_hash": "53922659acbf3fb027e26044dc5474d92e5d2f1b78af5d204b5b1c519b53eb38"
+    },
+    {
+      "reward_id": 1573,
+      "title": "סימילאק 900 גרם רק ב- 69.90",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 443,
+      "identity_hash": "2af640c456ba140ca548265e180a971c1afb32b68196b66f76ea2d542e659cca"
+    },
+    {
+      "reward_id": 1576,
+      "title": "סכו\"ם וינטג' 4 ב-10",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 444,
+      "identity_hash": "38ff474245fa8ae4e807a5ccd82e87707a234e5ed376bb1c582d2f7b3f7a79c5"
+    },
+    {
+      "reward_id": 1577,
+      "title": "מרקיה מתכלה 2 ב- 13.90",
+      "planned_action": "EXTEND_EXISTING_DATES",
+      "executed_action": "EXTEND_EXISTING_DATES",
+      "target_type": "promotion",
+      "target_id": 361,
+      "identity_hash": "20f3bfc3695ab25b0a998b58658da5b4db113162553bc968815b97753aad8fcd"
+    },
+    {
+      "reward_id": 1578,
+      "title": "צלחת \"7 2 ב- 19.90",
+      "planned_action": "EXTEND_EXISTING_DATES",
+      "executed_action": "EXTEND_EXISTING_DATES",
+      "target_type": "promotion",
+      "target_id": 362,
+      "identity_hash": "2843d2ed8bbba6ff65d2bf48ab284cd3cf4875b62d01f8dc5750195bc8b4bd86"
+    },
+    {
+      "reward_id": 1580,
+      "title": "צלחת \"10 2 ב- 32.90",
+      "planned_action": "EXTEND_EXISTING_DATES",
+      "executed_action": "EXTEND_EXISTING_DATES",
+      "target_type": "promotion",
+      "target_id": 363,
+      "identity_hash": "cb6174813970d3b985f50f7a52a6bb1d2e022669a3833a3b3389dc78f8f0789f"
+    },
+    {
+      "reward_id": 1590,
+      "title": "גביעי אחסון 3 ב- 15",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "product_group_promotion",
+      "target_id": 242,
+      "identity_hash": "34d7c958f081604febba5586a7a6b435217556f2e681358d90cadb2c755cb854"
+    },
+    {
+      "reward_id": 1592,
+      "title": "יין רזרב יקבי ירושלים 3 ב- 269.90",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 445,
+      "identity_hash": "c8125953669c7916964d92e7da5e0af59d43a870c97a9218c2d4361ea891e986"
+    },
+    {
+      "reward_id": 1637,
+      "title": "נייר סופג שישייה 2 ב- 24",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 446,
+      "identity_hash": "135d52b22568a576abafade60f73f8b6835ebe55ce6207db993087923600e274"
+    },
+    {
+      "reward_id": 1645,
+      "title": "תירוש 2 ב- 25",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "product_group_promotion",
+      "target_id": 243,
+      "identity_hash": "199c8e33daa5bf3dd0ef3ff871bb9fbe7213aa749bc1be18a66c9eaf4d55aa99"
+    },
+    {
+      "reward_id": 1668,
+      "title": "חרוזית 3 ב-24",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "product_group_promotion",
+      "target_id": 244,
+      "identity_hash": "6581defa6f400d95512df523f8bc3b5a759c5078c253ef572b99dd42e16253c5"
+    },
+    {
+      "reward_id": 1699,
+      "title": "מגבונים ביביסיטר 2 ב- 49.90",
+      "planned_action": "EXTEND_EXISTING_DATES",
+      "executed_action": "EXTEND_EXISTING_DATES",
+      "target_type": "promotion",
+      "target_id": 352,
+      "identity_hash": "268a2f68dd3ac11b3cae585c233246211515f3f602f1497744a2404ed98fbba6"
+    },
+    {
+      "reward_id": 1714,
+      "title": "פסטה ברילה 3 ב- 18",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "product_group_promotion",
+      "target_id": 245,
+      "identity_hash": "db3e4059a0674a6033f5e3e8c49dd722a45fa5acbc1c9a3f76299606ea285854"
+    },
+    {
+      "reward_id": 1733,
+      "title": "חרוזית רק ב- 7.90",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 447,
+      "identity_hash": "a3db177285044f7a6fc3470fb94351e6842b01dc47121ba2b2ca4d8b3659c49e"
+    },
+    {
+      "reward_id": 1733,
+      "title": "חרוזית רק ב- 7.90",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 448,
+      "identity_hash": "1837eca23f103cf7c856c79054c5339750668377fe107ae2e7ad932644bdfae8"
+    },
+    {
+      "reward_id": 1774,
+      "title": "בקנייה מעל 300 שקית רב פעמית גלסנר מתנה",
+      "planned_action": "EXTEND_EXISTING_DATES",
+      "executed_action": "EXTEND_EXISTING_DATES",
+      "target_type": "cart_promotion_rule",
+      "target_id": 33,
+      "identity_hash": "f57de10ce1e0aaf3e478540d5d6bd29b79efe8bb5efbfa22a6363d157913ce35"
+    },
+    {
+      "reward_id": 1783,
+      "title": "אנטריקוט טרי ב- 199.90 לק\"ג",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 449,
+      "identity_hash": "93a69ef363cceb4682f36fbfaf8c03183d24302424ec4b4c77b448276988b02e"
+    },
+    {
+      "reward_id": 1785,
+      "title": "סינטה ב- 149.90 לק\"ג",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 450,
+      "identity_hash": "be31bfa2cf0e9592a86350bdb49e7d7f529b433bfad97a16562e395ef8a8c874"
+    },
+    {
+      "reward_id": 1788,
+      "title": "צוריסוס/מרגז/קבב 3 ק\"ג ב- 119.90",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 451,
+      "identity_hash": "6d04c7ec30123d1dd620045911744f4a15d943a080ff4a041be4a0898d8c9907"
+    },
+    {
+      "reward_id": 1788,
+      "title": "צוריסוס/מרגז/קבב 3 ק\"ג ב- 119.90",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 452,
+      "identity_hash": "7b357d3ace54af0128925dc22a31fcd1bc6e3f3d3c96f5b31a7df08afbcf0324"
+    },
+    {
+      "reward_id": 1791,
+      "title": "בקר טחון 2 ק\"ג ב- 89.90",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 453,
+      "identity_hash": "fbd28e5c37e1e97e2f9126183efb6c642f71eedbf458c4a3f304edb01ef83953"
+    },
+    {
+      "reward_id": 1797,
+      "title": "קמח 2 ב- 5.90",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 454,
+      "identity_hash": "b3edf65ca136cfc9c746524bf447a1deefccc725c87cc4e8f84aabe2b167fb6c"
+    },
+    {
+      "reward_id": 1802,
+      "title": "משחת שיניים 2 ב- 14.90",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "product_group_promotion",
+      "target_id": 246,
+      "identity_hash": "204400d2aa9c3847ef22ef446580a258a0777359ad00ea1f857cdaedf43725d3"
+    },
+    {
+      "reward_id": 1816,
+      "title": "אפיפיות בטעם שוקולד 2 ב-16",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 455,
+      "identity_hash": "21b02e8fe36da96625bb2a7b0217b3c6fc644ed8de48b59a95e91a6d870984a7"
+    },
+    {
+      "reward_id": 1831,
+      "title": "פילה סלמון ב- 59.90 לק\"ג",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 456,
+      "identity_hash": "d81f215be24608ccf6ab1b9c1c95bb74f31f25316cb5482ad1dadc5a113fd450"
+    },
+    {
+      "reward_id": 1850,
+      "title": "ציריוס/סיני מיניס 2 ב-25",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 457,
+      "identity_hash": "7b1065e6d7559da913c78c8c2f81086075f9cbb8df94bbf28b4f873a3d735711"
+    },
+    {
+      "reward_id": 1851,
+      "title": "רביעיית טונה 2 ב-29.90",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 458,
+      "identity_hash": "6cf3a1a9c41c3d19080fece57c2aa46c0a49230f07613347cf307cb9a38904e7"
+    },
+    {
+      "reward_id": 1852,
+      "title": "פחם מובחר 2 ב-25",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 459,
+      "identity_hash": "e5d94e7546803ccfc1fc5cfbf5678001a0b0888b44676b0be0f4a0486d4da0f6"
+    },
+    {
+      "reward_id": 1853,
+      "title": "מנה חמה \"אסם\" 2 ב- 12.90",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 460,
+      "identity_hash": "197e0ff600b471da0a69b1d7cb7600d6564f1bec80d7422cef2d66b62177ade1"
+    },
+    {
+      "reward_id": 1855,
+      "title": "פטריות שמפיניון 2 ב- 16.90",
+      "planned_action": "INSERT",
+      "executed_action": "INSERT",
+      "target_type": "promotion",
+      "target_id": 461,
+      "identity_hash": "92e414fc74444ed95c438d61d1c5d4b355573642b9cb9b4cf430dd8a51991ca0"
+    }
+  ]
+}

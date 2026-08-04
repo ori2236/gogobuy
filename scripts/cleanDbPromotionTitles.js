@@ -1,45 +1,87 @@
-require("dotenv").config();
+require("dotenv").config({ quiet: true });
+
 const db = require("../config/db");
+const { cleanProductPromotionTitle } = require("../services/promotionImportIdentity");
 
-function cleanPromotionTitle(title) {
-  if (!title) return "";
-  return String(title)
-    .replace(/\s*\d+\s*ב-?\s*\d+(\.\d+)?\s*$/gi, "")
-    .trim();
+function argValue(name, fallback = null) {
+  const prefix = `${name}=`;
+  const hit = process.argv.find((arg) => arg === name || arg.startsWith(prefix));
+  if (!hit) return fallback;
+  if (hit === name) return true;
+  return hit.slice(prefix.length);
 }
 
-async function run() {
-  console.log("=== Cleaning Existing Promotion Titles in Database ===");
+const SHOP_ID = Number(argValue("--shopId", 2));
+const CONFIRM = Boolean(argValue("--confirm", false));
 
-  const [groupRows] = await db.query(`SELECT id, title FROM product_group_promotion`);
-  let updatedGroups = 0;
+async function loadChanges(conn) {
+  const [rows] = await conn.query(
+    `
+    SELECT id, title, bundle_buy_qty, bundle_pay_price
+    FROM product_group_promotion
+    WHERE shop_id = ?
+    ORDER BY id
+    `,
+    [SHOP_ID],
+  );
 
-  for (const row of groupRows) {
-    const cleaned = cleanPromotionTitle(row.title);
-    if (cleaned !== row.title) {
-      await db.query(`UPDATE product_group_promotion SET title = ? WHERE id = ?`, [cleaned, row.id]);
-      console.log(`Group #${row.id}: "${row.title}" => "${cleaned}"`);
-      updatedGroups++;
-    }
-  }
-
-  const [cartRows] = await db.query(`SELECT id, title FROM cart_promotion_rule`);
-  let updatedCartRules = 0;
-
-  for (const row of cartRows) {
-    const cleaned = cleanPromotionTitle(row.title);
-    if (cleaned !== row.title) {
-      await db.query(`UPDATE cart_promotion_rule SET title = ? WHERE id = ?`, [cleaned, row.id]);
-      console.log(`Cart Rule #${row.id}: "${row.title}" => "${cleaned}"`);
-      updatedCartRules++;
-    }
-  }
-
-  console.log(`\nDone! Cleaned ${updatedGroups} group promotion titles and ${updatedCartRules} cart promotion titles.`);
-  process.exit(0);
+  return rows
+    .map((row) => ({
+      id: Number(row.id),
+      before: String(row.title || ""),
+      after: cleanProductPromotionTitle(row.title, row.bundle_buy_qty, row.bundle_pay_price),
+      bundle_buy_qty: Number(row.bundle_buy_qty),
+      bundle_pay_price: Number(row.bundle_pay_price),
+    }))
+    .filter((row) => row.after && row.after !== row.before);
 }
 
-run().catch((err) => {
-  console.error("Error:", err);
+async function main() {
+  if (!Number.isInteger(SHOP_ID) || SHOP_ID <= 0) throw new Error("shopId must be a positive integer");
+
+  const conn = await db.getConnection();
+  try {
+    const changes = await loadChanges(conn);
+
+    if (!CONFIRM) {
+      console.log(JSON.stringify({
+        mode: "dry_run",
+        shop_id: SHOP_ID,
+        titles_to_update: changes.length,
+        changes,
+        note: "No DB changes were made. Add --confirm to update these titles.",
+      }, null, 2));
+      return;
+    }
+
+    await conn.beginTransaction();
+    for (const change of changes) {
+      const [result] = await conn.query(
+        `UPDATE product_group_promotion SET title = ?, updated_at = NOW() WHERE id = ? AND shop_id = ? AND title = ?`,
+        [change.after, change.id, SHOP_ID, change.before],
+      );
+      if (Number(result.affectedRows) !== 1) {
+        throw new Error(`Promotion group #${change.id} changed while cleaning titles`);
+      }
+    }
+    await conn.commit();
+
+    console.log(JSON.stringify({
+      mode: "applied",
+      shop_id: SHOP_ID,
+      updated_titles: changes.length,
+      changes,
+    }, null, 2));
+  } catch (error) {
+    try { await conn.rollback(); } catch (_) {}
+    throw error;
+  } finally {
+    conn.release();
+    await db.end();
+  }
+}
+
+main().catch((error) => {
+  console.error("[clean-db-promotion-titles] Error:", error.message || error);
   process.exit(1);
 });

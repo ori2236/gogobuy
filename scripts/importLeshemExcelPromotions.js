@@ -22,6 +22,7 @@ const SHOP_ID = Number(argValue("--shopId", process.env.PROMO_IMPORT_SHOP_ID || 
 const CONFIRM = Boolean(argValue("--confirm", false));
 const DRY_RUN = !CONFIRM || Boolean(argValue("--dryRun", false));
 const INCLUDE_EXPIRED = Boolean(argValue("--includeExpired", false));
+const ALLOW_DESTRUCTIVE_REPLACE = process.argv.includes("--allowDestructiveReplace");
 const DATA_FILE = path.resolve(argValue("--data", process.env.PROMO_IMPORT_DATA_FILE || DEFAULT_DATA_FILE));
 const SOURCE = String(argValue("--source", process.env.PROMO_IMPORT_SOURCE || DEFAULT_SOURCE)).trim() || DEFAULT_SOURCE;
 
@@ -673,6 +674,13 @@ async function main() {
   }
   if (!fs.existsSync(DATA_FILE)) {
     throw new Error(`Data file was not found: ${DATA_FILE}`);
+  }
+  if (!DRY_RUN && !ALLOW_DESTRUCTIVE_REPLACE) {
+    throw new Error(
+      "Blocked destructive promotion replacement. This legacy script deletes all promotions in the shop. " +
+      "Use planLeshemPromotionsSafe.js and applyLeshemPromotionsSafe.js instead. " +
+      "For an intentional maintenance-only replacement, add --allowDestructiveReplace explicitly.",
+    );
   }
 
   const rows = JSON.parse(fs.readFileSync(DATA_FILE, "utf8"));

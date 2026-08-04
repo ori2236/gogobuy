@@ -1,0 +1,61 @@
+{
+  "mapping_file": "leshem_mapping_32065_in_progress.json",
+  "total_source_promotions": 127,
+  "market_day_promotions_detected": 16,
+  "mapped_promotions_in_progress": 60,
+  "approved_mappings": 3,
+  "draft_mappings": 57,
+  "new_manual_mappings_since_seed": [
+    21,
+    23,
+    54
+  ],
+  "product_references_checked": 282,
+  "product_references_found_in_local_sql": 282,
+  "structural_checks": {
+    "duplicate_reward_ids": false,
+    "missing_reward_ids_from_source": [],
+    "missing_product_ids_from_local_sql": [],
+    "product_lookup_name_mismatches": 0
+  },
+  "blocking_mapping_collisions": [
+    {
+      "reward_ids": [
+        1177,
+        1189
+      ],
+      "reason": "same_group_of_products_with_overlapping_dates_and_different_terms",
+      "titles": [
+        "יינות וינטג' 3 ב-99.90",
+        "יינות וינטג' 2 ב-36.90"
+      ]
+    },
+    {
+      "reward_ids": [
+        1300,
+        1575
+      ],
+      "reason": "same_product_with_overlapping_dates_and_same_terms",
+      "titles": [
+        "צלחות מתכלות ר.שמאי 2 ב-19.90",
+        "סט צלחות וינטג' 2 ב-19.90"
+      ]
+    }
+  ],
+  "manual_mapping_review": [
+    {
+      "reward_id": 21,
+      "status": "structurally_valid",
+      "note": "verify that פרגית עוף טחון ב.ש is the intended product for עוף טחון"
+    },
+    {
+      "reward_id": 23,
+      "status": "looks_consistent"
+    },
+    {
+      "reward_id": 54,
+      "status": "structurally_valid_group",
+      "note": "verify every selected snack SKU is included in the supplier promotion"
+    }
+  ]
+}

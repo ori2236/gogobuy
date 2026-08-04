@@ -1,0 +1,3149 @@
+{
+  "source": "leshem_erp",
+  "shop_id": 2,
+  "based_on_report": "reports/promotion_import_review_shop2_32065.json",
+  "generated_at": "2026-08-04T12:15:00.000Z",
+  "mappings": [
+    {
+      "reward_id": 3,
+      "title": "ארטיק ריאו 8 ב-10",
+      "type": "כמות בסכום",
+      "start_date": "2021-11-19",
+      "end_date": "2026-08-30",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35126
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "ארטיק קרח ריאו",
+          "expected_product_id": 35126
+        }
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 9,
+      "title": "גלידת בן&ג'ריס 2 ב- 39.90 ₪",
+      "type": "כמות בסכום",
+      "start_date": "2026-07-20",
+      "end_date": "2026-08-30",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35479,
+        35551,
+        35902,
+        35953,
+        36022,
+        36030,
+        36366,
+        36372,
+        36499,
+        36624,
+        36814,
+        36838,
+        37214,
+        37429,
+        37774,
+        37775,
+        38447,
+        38522,
+        38659,
+        38744,
+        38890,
+        39179,
+        39358
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "גלידת בן&גריס קרם עוגיות",
+          "expected_product_id": 35479
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "גלידה בן ג'ריס פיינטים וניל צרפת 500'ג",
+          "expected_product_id": 35551
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "גלידת בן&גריס בצק עוגיות",
+          "expected_product_id": 35902
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "גלידת בן אנגרי'ס וניל טופי",
+          "expected_product_id": 35953
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "בן&גריס שוקולד בראוניס",
+          "expected_product_id": 36022
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "בן&גריס ריבת חלב",
+          "expected_product_id": 36030
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "גלידת בן&גר'יס צאנקי מאנקי",
+          "expected_product_id": 36366
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "גלידת בן &ג'ריס תות שדה 500 מ\"ל(מעיין)",
+          "expected_product_id": 36372
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "גלידת בן&גר'יס ניו יורק",
+          "expected_product_id": 36499
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "גלידת בן&ג'ריס עוגת גבינה ותות",
+          "expected_product_id": 36624
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "בן&ג'ריס ריבת חלב 150 מל(מעיין)",
+          "expected_product_id": 36814
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "בן&גריס שוקולד בראוניס 150 מל(קפואים)",
+          "expected_product_id": 36838
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "בן&גריס צאנקי מאנקי",
+          "expected_product_id": 37214
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "גלידת בן&ג'ריס פיינטים שוקולד 500ג'",
+          "expected_product_id": 37429
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "בן&גריס שוקולד פינט באטר ספליט",
+          "expected_product_id": 37774
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "בן&ג'ריס פיינט סורבה פסיפלורה ופירות יער",
+          "expected_product_id": 37775
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "גלידת בן&ג'ריס גלידת קרמל מלוח 500מל",
+          "expected_product_id": 38447
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "בן&גריס בצק עוגיות(שגיא)",
+          "expected_product_id": 38522
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "בן&ג'ריס מאגדת טילון בצק עוגיות",
+          "expected_product_id": 38659
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "בן&ג'ריס פיינט סורבה פינה קולדה",
+          "expected_product_id": 38744
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "בן&גרי גלידה צרי גרסיה 500 מל",
+          "expected_product_id": 38890
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "מאגדת בן&גריס בצק עוגיות סנדוויץ",
+          "expected_product_id": 39179
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "בן&גריס קסטה בראוניז 80 גר(שגיא)",
+          "expected_product_id": 39358
+        }
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 21,
+      "title": "עוף טחון ב.ש. רק ב- 29.90 לק\"ג",
+      "type": "כמות בסכום",
+      "start_date": "2026-06-16",
+      "end_date": "2026-08-07",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        36542
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "פרגית עוף טחון ב.ש",
+          "expected_product_id": 36542
+        }
+      ],
+      "note": "",
+      "is_market_day": false,
+      "approved": true
+    },
+    {
+      "reward_id": 23,
+      "title": "הודו טחון בשר השומרון ב- 29.90 לק\"ג",
+      "type": "כמות בסכום",
+      "start_date": "2026-02-24",
+      "end_date": "2026-08-07",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35691
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "הודו טחון מהדרין ללא תוספות(בש)",
+          "expected_product_id": 35691
+        }
+      ],
+      "note": "",
+      "is_market_day": false,
+      "approved": true
+    },
+    {
+      "reward_id": 31,
+      "title": "גלידה קרמסימו 2 ב- 39.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-05-24",
+      "end_date": "2026-08-30",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        36477
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "נשנושים גלידה שוקו וניל פרווה 630 גרם \"קרמסימו\"",
+          "expected_product_id": 36477
+        }
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 54,
+      "title": "דובונים/אפרופו/במבה מיוחדים 3 ב-12",
+      "type": "כמות בסכום",
+      "start_date": "2021-11-21",
+      "end_date": "2026-08-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35764,
+        35637,
+        35188,
+        35489,
+        36755,
+        35725,
+        36285,
+        35181,
+        36099,
+        35777
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "במבה קטן",
+          "expected_product_id": 35764
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "במבה 60g (אוסם)",
+          "expected_product_id": 35637
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "במבה 60 ג אוסם",
+          "expected_product_id": 35188
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "במבה אדומה 30 גר",
+          "expected_product_id": 35489
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "דובונים שמנת בצל(אוס)",
+          "expected_product_id": 36755
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "דובונים גן חיות 40 גרם",
+          "expected_product_id": 35725
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "דובונים ברביקיו 40 גרם",
+          "expected_product_id": 36285
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "דובונים חטיף תפו\"א (אוסם)",
+          "expected_product_id": 35181
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "אפרופו שוקולד 40 גר' אוסם",
+          "expected_product_id": 36099
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "חטיף אפרופו איטליאנו 50 גר' (אוסם )",
+          "expected_product_id": 35777
+        }
+      ],
+      "note": "",
+      "is_market_day": false,
+      "approved": true
+    },
+    {
+      "reward_id": 70,
+      "title": "טיטולים ביביסיטר 3 ב- 84.90",
+      "type": "כמות בסכום",
+      "start_date": "2021-11-22",
+      "end_date": "2026-12-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35411,
+        35419,
+        35885,
+        36097,
+        36901,
+        38929
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "טיטולים בייביסיטר מידה 6",
+          "expected_product_id": 35411
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "טיטולים בייביסיטר מידה 5",
+          "expected_product_id": 35419
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "טיטולים בייביסיטר מידה 4+",
+          "expected_product_id": 35885
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "טיטולים בייביסיטר מידה 4",
+          "expected_product_id": 36097
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "טיטולים בייביסיטר מידה 3 (אמוץ)",
+          "expected_product_id": 36901
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "טיטולים בייביסיטר NB מידה 2 (אמוץ)",
+          "expected_product_id": 38929
+        }
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 102,
+      "title": "דנונה פרו 20 גר' 3 ב-18",
+      "type": "כמות בסכום",
+      "start_date": "2021-12-04",
+      "end_date": "2026-12-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35544,
+        36021,
+        35459,
+        36220,
+        36466,
+        37683,
+        35886,
+        35517,
+        35592,
+        35799
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "דנונה פרו 20 גרם חלבון 200 גר'",
+          "expected_product_id": 35544
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "דנונה פרו 20 גרם חלבון קרם לימון ללס 200 גר'",
+          "expected_product_id": 36021
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "דנונה פרו 20 גרם בטעם רול קינמון",
+          "expected_product_id": 35459
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "דנונה פרו 20 גרם ללא סוכר וניל עוגיות",
+          "expected_product_id": 36220
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "דנונה פרו 20 גרם ללא סוכר פיסטוק 200מל",
+          "expected_product_id": 36466
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "דנונה פרו 20 גרם ללס אפרסק מנגו 200מל",
+          "expected_product_id": 37683
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "דנונה פרו 20 גרם ללא סוכר בננה טופי 200מל",
+          "expected_product_id": 35886
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "דנונה פרו 20 וניל",
+          "expected_product_id": 35517
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "דנונה פרו תות 20 גרם חלבון",
+          "expected_product_id": 35592
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "דנונה פרו פירות יער 20 גרם חלבון",
+          "expected_product_id": 35799
+        }
+      ],
+      "note": "מיפוי ממחזור המבצעים הקודם, עודכן לפי קובץ 31752 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 123,
+      "title": "יופלה גו \"תנובה\" 3 ב-16",
+      "type": "כמות בסכום",
+      "start_date": "2021-12-04",
+      "end_date": "2026-12-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35597,
+        35747,
+        36236,
+        36288,
+        35663,
+        35610,
+        35484,
+        36589,
+        39201,
+        36632,
+        35834
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "יופלה תות % 3 150 גר' (תנובה )",
+          "expected_product_id": 35597
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "יופלה און טופ(תנובה)",
+          "expected_product_id": 35747
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "יופלה אננס % 3 150 גר' (תנובה )",
+          "expected_product_id": 36236
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "יופלה ע.גבינה ותות(תנובה)",
+          "expected_product_id": 36288
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "יופלה און טופ כוכבים(תנובה)",
+          "expected_product_id": 35663
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "יופלה גו במרקם אוורירי עם קפה",
+          "expected_product_id": 35610
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "יופלה גו במרקם אוורירי עם מנגו",
+          "expected_product_id": 35484
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "יוגורט יופלה גו תות בננה",
+          "expected_product_id": 36589
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "יופלה גו יוגורט לייט אפרסק 200 גר",
+          "expected_product_id": 39201
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "משקה יוגורט יופלה GO מנגו אננס(תנובה)",
+          "expected_product_id": 36632
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "יופלה גו בטעם אננס מקורמל",
+          "expected_product_id": 35834
+        }
+      ],
+      "note": "מיפוי ממחזור המבצעים הקודם, עודכן לפי קובץ 31752 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 224,
+      "title": "פילטרים 3 ב10",
+      "type": "כמות בסכום",
+      "start_date": "2022-02-23",
+      "end_date": "2026-12-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35801,
+        36259,
+        39380
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "פילטר 5/22 סילבר",
+          "expected_product_id": 35801
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "פילטר 6/22 (מדעי)",
+          "expected_product_id": 36259
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "פילטר 120 יח` 6 מ``מ",
+          "expected_product_id": 39380
+        }
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 225,
+      "title": "נייר גלגול ריזלה 5 ב10",
+      "type": "כמות בסכום",
+      "start_date": "2022-02-23",
+      "end_date": "2026-12-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35964,
+        36257,
+        36977
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "ריזלה נייר גלגול אדום",
+          "expected_product_id": 35964
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "ריזלה נייר גלגול באלי כחול",
+          "expected_product_id": 36257
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "ריזלה נייר גלגול באלי שאג",
+          "expected_product_id": 36977
+        }
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 271,
+      "title": "שמן קנולה 2 ב- 14.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-02-02",
+      "end_date": "2026-08-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35283,
+        35367,
+        36844
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "שמן קנולה מזוכך \"ביכורים\"",
+          "expected_product_id": 35283
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "שמן קנולה מזוכך (תומר)",
+          "expected_product_id": 35367
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "שמן קנולה עץ הזית 1 ליטר",
+          "expected_product_id": 36844
+        }
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה | מיפוי ממחזור המבצעים הקודם, עודכן לפי קובץ 31752 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 345,
+      "title": "ירק מהדרין ביכורי שדה 3 ב-12.90",
+      "type": "כמות בסכום",
+      "start_date": "2022-06-29",
+      "end_date": "2026-12-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35789,
+        37307,
+        38335,
+        38386,
+        40047,
+        40057,
+        40069,
+        40076,
+        40095,
+        40155,
+        40177,
+        40179,
+        40190,
+        40196,
+        40197,
+        40198,
+        40202,
+        40275,
+        40390
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "בצל ירוק מהדרין",
+          "expected_product_id": 35789
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "עלי סלק למהדרין",
+          "expected_product_id": 37307
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "כרוב אדום מהדרין",
+          "expected_product_id": 38335
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "חסה לליק מהדרין",
+          "expected_product_id": 38386
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "חסה מהדרין",
+          "expected_product_id": 40047
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "חסה ערבית מהדרין",
+          "expected_product_id": 40057
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "כוסברה 'מהדרין'",
+          "expected_product_id": 40069
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "כוסברה למהדרין",
+          "expected_product_id": 40076
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "כרוב לבן מהדרין",
+          "expected_product_id": 40095
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "מנגולד עלים מהדרין",
+          "expected_product_id": 40155
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "נענע למהדרין",
+          "expected_product_id": 40177
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "נענע מהדרין (ביכורי שדה)",
+          "expected_product_id": 40179
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "סלרי \"מהדרין\" ביכורי שדה",
+          "expected_product_id": 40190
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "סלרי למהדרין",
+          "expected_product_id": 40196
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "סלרי מהדרין",
+          "expected_product_id": 40197
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "סלרי מהדרין ארוז",
+          "expected_product_id": 40198
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "סלרי עלים \"מהדרין\"",
+          "expected_product_id": 40202
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "פטרוזיליה מהדרין",
+          "expected_product_id": 40275
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "שמיר למהדרין",
+          "expected_product_id": 40390
+        }
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 347,
+      "title": "חסה מהדרין ביכורי שדה 2 ב- 11.90",
+      "type": "כמות בסכום",
+      "start_date": "2022-06-29",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        40047
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "חסה מהדרין",
+          "expected_product_id": 40047
+        }
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 433,
+      "title": "ירק ביכורי שדה 3 ב- 8.90",
+      "type": "כמות בסכום",
+      "start_date": "2022-10-04",
+      "end_date": "2026-12-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35128,
+        35129,
+        35131,
+        35133,
+        35134,
+        35136,
+        35139,
+        35143,
+        35153,
+        35154,
+        35156,
+        35174,
+        35180,
+        35186,
+        35205,
+        35224,
+        35245,
+        35246,
+        35255,
+        35270,
+        35272,
+        35291,
+        35301,
+        35303,
+        35310,
+        35312,
+        35315,
+        35320,
+        35323,
+        35357,
+        35394,
+        35435,
+        35505,
+        35582,
+        35715,
+        35755,
+        35830,
+        35862,
+        35916,
+        35992,
+        36015,
+        36042,
+        36189,
+        36271,
+        36527,
+        36566,
+        36623,
+        36875,
+        37427,
+        37428,
+        37904,
+        38191,
+        38442,
+        38989
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "מלפפון (ביכורי שדה)",
+          "expected_product_id": 35128
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "עגבניות חממה (ביכורי שדה)",
+          "expected_product_id": 35129
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "בצל יבש(ביכורי שדה)",
+          "expected_product_id": 35131
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "בננה (ביכורי שדה)",
+          "expected_product_id": 35133
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "פלפל אדום (ביכורי שדה)",
+          "expected_product_id": 35134
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "אבטיח (ביכורי שדה )",
+          "expected_product_id": 35136
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "גזר ארוז (ביכורי שדה)",
+          "expected_product_id": 35139
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "בטטה מובחרת(ביכורי)",
+          "expected_product_id": 35143
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "חציל חממה(/ בלדי (ביכורי שדה)",
+          "expected_product_id": 35153
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "כוסברה (ביכורי שדה)",
+          "expected_product_id": 35154
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "קישואים א'(ביכורי שדה)",
+          "expected_product_id": 35156
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "תפוח עץ /סמיט /גרנד\"(ביכורי שדה)",
+          "expected_product_id": 35174
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "לימון צהוב(ביכורי שדה",
+          "expected_product_id": 35180
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "תפוח עץ פינק ליידי (ביכורי שדה)",
+          "expected_product_id": 35186
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "בצל סגול ((ביכורי שדה)",
+          "expected_product_id": 35205
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "קולורבי (ביכורי שדה)",
+          "expected_product_id": 35224
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "מלון (ביכורי שדה)",
+          "expected_product_id": 35245
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "פלפל כתום (ביכורי שדה)",
+          "expected_product_id": 35246
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "פלפל צהוב (ביכורי שדה)",
+          "expected_product_id": 35255
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "סלק אדום בואקום (ביכורי שדה)",
+          "expected_product_id": 35270
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "נענע (ביכורי שדה)",
+          "expected_product_id": 35272
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "אגס (ביכורי שדה)",
+          "expected_product_id": 35291
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "קלמנטינה (ביכורי שדה)",
+          "expected_product_id": 35301
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "שומר (ביכורי שדה)",
+          "expected_product_id": 35303
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "שמיר בשקית (ביכורי שדה)",
+          "expected_product_id": 35310
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "פומלה לבנה (ביכורי שדה)",
+          "expected_product_id": 35312
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "תפוח עץ \"זהוב (ביכורי שדה)",
+          "expected_product_id": 35315
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "חסה לבבות (ביכורי שדה)",
+          "expected_product_id": 35320
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "שורש פטרוזיליה (ביכורי שדה)",
+          "expected_product_id": 35323
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "סלרי עלים(ביכורי שדה)",
+          "expected_product_id": 35357
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "פלפל חריף(ביכורי שדה)",
+          "expected_product_id": 35394
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "סלק (ביכורי שדה)",
+          "expected_product_id": 35435
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "דלורית (ביכורי שדה)",
+          "expected_product_id": 35505
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "חסה לבבות(ביכורי)",
+          "expected_product_id": 35582
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "אפרסמון מובחר (ביכורי שדה)",
+          "expected_product_id": 35715
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "כרוב אדום(ביכורי שדה)",
+          "expected_product_id": 35755
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "עלי בייבי (ביכורי שדה)",
+          "expected_product_id": 35830
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "גבעולי ברוקולי צעירים (ביכורי השדה)",
+          "expected_product_id": 35862
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "שרי אשכול (ביכורי שדה)",
+          "expected_product_id": 35916
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "פומלית (ביכורי שדה)",
+          "expected_product_id": 35992
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "רימון (ביכורי שדה)",
+          "expected_product_id": 36015
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "פלפל טינקרבל (ביכורי שדה)",
+          "expected_product_id": 36042
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "אשכולית אדומה(ביכורי שדה)",
+          "expected_product_id": 36189
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "שזיף אדום(ביכורי שדה )",
+          "expected_product_id": 36271
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "קישואים זוקיני (ביכורי שדה)",
+          "expected_product_id": 36527
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "משמש גדול (ביכורי שדה )",
+          "expected_product_id": 36566
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "דלעת (ביכורי שדה)",
+          "expected_product_id": 36623
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "מנגל גדול (ביכורי שדה)",
+          "expected_product_id": 36875
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "שסק (ביכורי שדה )",
+          "expected_product_id": 37427
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "קרמבולה ביכורי שדה",
+          "expected_product_id": 37428
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "דובדבנים(ביכורי שדה)",
+          "expected_product_id": 37904
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "פלפל בהיר (ביכורי שדה)",
+          "expected_product_id": 38191
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "גויאבה (ביכורי שדה)",
+          "expected_product_id": 38442
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "אוכמניות ארוז (ביכורי שדה)",
+          "expected_product_id": 38989
+        }
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 439,
+      "title": "בלו כחול 3 ב12",
+      "type": "כמות בסכום",
+      "start_date": "2026-07-20",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35197
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "משקה בלו",
+          "expected_product_id": 35197
+        }
+      ],
+      "note": "הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 534,
+      "title": "בלוני הליום פשוטים 3 ב15",
+      "type": "כמות בסכום",
+      "start_date": "2023-01-04",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35285
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "בלון הליום פשוט",
+          "expected_product_id": 35285
+        }
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 535,
+      "title": "בלוני הליום גדולים 2 ב- 15",
+      "type": "כמות בסכום",
+      "start_date": "2023-01-04",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        38269
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "בלון הליום גדול (למסחר)",
+          "expected_product_id": 38269
+        }
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 634,
+      "title": "כוס שקופה 4 ב-11.90",
+      "type": "כמות בסכום",
+      "start_date": "2023-02-19",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35342
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "כוס שקופה 1/100 חדפ(ילג)",
+          "expected_product_id": 35342
+        }
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 708,
+      "title": "כוס חם 3 ב- 11.90",
+      "type": "כמות בסכום",
+      "start_date": "2023-02-05",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35259
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "כוס חם 8B",
+          "expected_product_id": 35259
+        }
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 715,
+      "title": "שלוקים 2 ב-18",
+      "type": "כמות בסכום",
+      "start_date": "2024-05-09",
+      "end_date": "2026-08-30",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35211,
+        35277,
+        36520
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "שלוקים איגלו 8 יח (ילג)",
+          "expected_product_id": 35211
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "שלוקים איגלו 70 יח' 4* ילג",
+          "expected_product_id": 35277
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "שלוקים טרופית ענבים 18 יח",
+          "expected_product_id": 36520
+        }
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 825,
+      "title": "צלחות 1 ק\"ג 2 ב- 30",
+      "type": "כמות בסכום",
+      "start_date": "2023-09-21",
+      "end_date": "2026-08-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        36717
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "צלחות קילו הנמל",
+          "expected_product_id": 36717
+        }
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור המבצעים הקודם, עודכן לפי קובץ 31752 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 998,
+      "title": "כפפות אלסטיות שחורות 3 ב-9.90",
+      "type": "כמות בסכום",
+      "start_date": "2024-06-27",
+      "end_date": "2026-12-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        36744,
+        37115
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "כפפות L אלסטיות שחורות",
+          "expected_product_id": 36744
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "כפפות S אלסטיות שחורות",
+          "expected_product_id": 37115
+        }
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1014,
+      "title": "כביסכל 2 ליטר 3 ב-99.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-03-10",
+      "end_date": "2026-08-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        36177,
+        36238,
+        36376,
+        36386,
+        36465,
+        36534,
+        36874,
+        37412,
+        39437
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "כביסכל 2 ליטר- ארומטי עם BIO",
+          "expected_product_id": 36177
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "כביסכל 2 ליטר- רוז עם BIO",
+          "expected_product_id": 36238
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "כביסכל 2 ליטר- בייבי BIO",
+          "expected_product_id": 36376
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "כביסכל 2 ליטר- אלגנט BIO",
+          "expected_product_id": 36386
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "כביסכל 2 ליטר - פרידום",
+          "expected_product_id": 36465
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "כביסכל 2 ליטר- סופט קייר BIO",
+          "expected_product_id": 36534
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "כביסכל 2 ליטר- ספא עם BIO",
+          "expected_product_id": 36874
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "כביסכל 2 ליטר- ספורט BIO",
+          "expected_product_id": 37412
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "כביסכל מנקה מבשם רצפות מרוכז - ארומטי 2 ליטר",
+          "expected_product_id": 39437
+        }
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה | מיפוי ממחזור המבצעים הקודם, עודכן לפי קובץ 31752 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1047,
+      "title": "חטיפים 10 ב- 30",
+      "type": "כמות בסכום",
+      "start_date": "2026-06-01",
+      "end_date": "2026-08-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35181,
+        35188,
+        35199,
+        35207,
+        35212,
+        35227,
+        35233,
+        35273,
+        35292,
+        35298,
+        35345,
+        35386,
+        35405,
+        35441,
+        35451,
+        35466,
+        35477,
+        35480,
+        35487,
+        35489,
+        35549,
+        35618,
+        35637,
+        35671,
+        35725,
+        35751,
+        35764,
+        35805,
+        35860,
+        35866,
+        35952,
+        35954,
+        35972,
+        36033,
+        36046,
+        36090,
+        36099,
+        36174,
+        36285,
+        36343,
+        36378,
+        36397,
+        36585,
+        36755,
+        36843,
+        36880,
+        37240,
+        37827,
+        37928,
+        38046,
+        38425,
+        38430,
+        39205
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "דובונים חטיף תפו\"א (אוסם)",
+          "expected_product_id": 35181
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "במבה 60 ג אוסם",
+          "expected_product_id": 35188
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "במבה במילוי קרם נוגט60 גר'*36 (אוסם )",
+          "expected_product_id": 35199
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "תפוציפס טבעי 50 גר'",
+          "expected_product_id": 35207
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "תפוציפס קראנצ טבעי 50 גרם",
+          "expected_product_id": 35212
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "דוריטוס חמוץ חריף 55 גר (עלית)",
+          "expected_product_id": 35227
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "תפוציפס קראנצ גריל 50 גר",
+          "expected_product_id": 35233
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "ביסלי גריל 55 גרם",
+          "expected_product_id": 35273
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "ציטוס גבינה",
+          "expected_product_id": 35292
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "חטיף תפוציפס 50 שמנת ובצל",
+          "expected_product_id": 35298
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "אפרופו חטיף 50*36תפו\"א (אוסם)",
+          "expected_product_id": 35345
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "דוריטוס טבעי 55 גר",
+          "expected_product_id": 35386
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "ציטוס כאפה 55 ג",
+          "expected_product_id": 35405
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "דוריטוס גריל 55 גר'",
+          "expected_product_id": 35441
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "ביסלי פיצה 55 גר'*24 (אוסם )",
+          "expected_product_id": 35451
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "במבה ביסלי גריל מיקס 70 גר",
+          "expected_product_id": 35466
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "ציטוס בטעם גבינה",
+          "expected_product_id": 35477
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "תפוציפס פופס 60 ג",
+          "expected_product_id": 35480
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "ביסלי ברביקיו 55 גר' (אוסם)",
+          "expected_product_id": 35487
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "במבה אדומה 30 גר",
+          "expected_product_id": 35489
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "ביסלי בצל 55*24 יח' (אוסם )",
+          "expected_product_id": 35549
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "דובונים ארנבים חטיף תפו\"א 40גר'*30 אוסם",
+          "expected_product_id": 35618
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "במבה 60g (אוסם)",
+          "expected_product_id": 35637
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "ביסלי פלאפל",
+          "expected_product_id": 35671
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "דובונים גן חיות 40 גרם",
+          "expected_product_id": 35725
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "דוריטוס חריף אש 55 גר' חטיף עלית",
+          "expected_product_id": 35751
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "במבה קטן",
+          "expected_product_id": 35764
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "ביסלי גריל מארז55גר'*4 (אוסם )",
+          "expected_product_id": 35805
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "ציטוס קראנצ שמנת בצל 65 גרם",
+          "expected_product_id": 35860
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "ביסלי גריל 200 גר",
+          "expected_product_id": 35866
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "במבה ביסלי גריל מיקס 150 גרם",
+          "expected_product_id": 35952
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "במבה במילוי קרם חלבה(אוס)",
+          "expected_product_id": 35954
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "ציטוס קראנץ צדר חלפיניו",
+          "expected_product_id": 35972
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "ביסלי ברביקיו מארז 10 (אוסם)",
+          "expected_product_id": 36033
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "במבה ביסלי בצל מיקס 70 גר",
+          "expected_product_id": 36046
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "במבה ביסלי ברביקיו מיקס 70 גר",
+          "expected_product_id": 36090
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "אפרופו שוקולד 40 גר' אוסם",
+          "expected_product_id": 36099
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "ביסלי פיצה 200 גר",
+          "expected_product_id": 36174
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "דובונים ברביקיו 40 גרם",
+          "expected_product_id": 36285
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "ביסלי בצל 200 גר",
+          "expected_product_id": 36343
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "ביסלי בצל כשל\"פ 55גר'*24 (אוסם )",
+          "expected_product_id": 36378
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "ביסלי ברביקיו 200 גר אוסם",
+          "expected_product_id": 36397
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "דובונים פיצה 40 גר'*30 אוסם",
+          "expected_product_id": 36585
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "דובונים שמנת בצל(אוס)",
+          "expected_product_id": 36755
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "ביסלי פלאפל 200 גר'*24 (אוסם )",
+          "expected_product_id": 36843
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "ציטוס פופקורן בטעם טבעי",
+          "expected_product_id": 36880
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "ביסלי ברביקיו כשל\"פ 55 גר'*24 (אוסם )",
+          "expected_product_id": 37240
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "במבה ביסלי ברביקיו מיקס כשל\"פ 70 גרם",
+          "expected_product_id": 37827
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "במבה במילוי אייס קפה 60 גרם",
+          "expected_product_id": 37928
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "דוריטוס חמוץ חריף 70 גר'*48 (על",
+          "expected_product_id": 38046
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "במבה מאנצ' ברבקיו 150 גרם",
+          "expected_product_id": 38425
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "במבה מאנצ' צ'דר 150 גרם",
+          "expected_product_id": 38430
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "במבה פרו 80 גר",
+          "expected_product_id": 39205
+        }
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה | מיפוי ממחזור המבצעים הקודם, עודכן לפי קובץ 31752 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1110,
+      "title": "חלת בוטיק 2 ב-22",
+      "type": "כמות בסכום",
+      "start_date": "2024-12-12",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35151
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "חלת בוטיק",
+          "expected_product_id": 35151
+        }
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1176,
+      "title": "יינות פרימיום 2 ב-119.90",
+      "type": "כמות בסכום",
+      "start_date": "2025-02-16",
+      "end_date": "2026-08-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        39152,
+        39416,
+        39702
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "יין פרימיום בלנד יין אדום יבש 750 מ\"ל",
+          "expected_product_id": 39152
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "יין פרימיום קברנה סוביניון 750 מ\"ל",
+          "expected_product_id": 39416
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "יין פרימיום רוזה 750 מ\"ל",
+          "expected_product_id": 39702
+        }
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה | מיפוי ממחזור המבצעים הקודם, עודכן לפי קובץ 31752 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1177,
+      "title": "יינות וינטג' 3 ב-99.90",
+      "type": "כמות בסכום",
+      "start_date": "2025-02-16",
+      "end_date": "2026-08-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        37723,
+        38238,
+        38559,
+        38562,
+        39710
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "יין וינטג' קברנה 2023 375 מ\"ל",
+          "expected_product_id": 37723
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "יין וינטג' מלבק/שיראז 750 מ\"ל",
+          "expected_product_id": 38238
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "יין וינטג' קברנה 750 מ\"ל",
+          "expected_product_id": 38559
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "יין וינטג' רוזה מרסלן סירה 750 מ\"ל",
+          "expected_product_id": 38562
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "יין וינטג' גוורצרמינר 750 מ\"ל חצי יבש",
+          "expected_product_id": 39710
+        }
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה | מיפוי ממחזור המבצעים הקודם, עודכן לפי קובץ 31752 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1180,
+      "title": "יינות ירושלים 187 מל 3 ב-18",
+      "type": "כמות בסכום",
+      "start_date": "2025-02-16",
+      "end_date": "2026-08-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        37918,
+        37967,
+        38035,
+        38153
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "יין קברנה סובינון יבש 750 מ\"ל יקבי ירושלים",
+          "expected_product_id": 37918
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "יין רוזה יבש 750 מ\"ל יקבי ירושלים",
+          "expected_product_id": 37967
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "יין מרלו יבש 750 מ\"ל יקבי ירושלים",
+          "expected_product_id": 38035
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "יין אדום מתוק 187 מל יקבי ירושלים",
+          "expected_product_id": 38153
+        }
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה | מיפוי ממחזור המבצעים הקודם, עודכן לפי קובץ 31752 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1189,
+      "title": "יינות וינטג' 2 ב-36.90",
+      "type": "כמות בסכום",
+      "start_date": "2025-02-16",
+      "end_date": "2026-08-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        37723,
+        38238,
+        38559,
+        38562,
+        39710
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "יין וינטג' קברנה 2023 375 מ\"ל",
+          "expected_product_id": 37723
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "יין וינטג' מלבק/שיראז 750 מ\"ל",
+          "expected_product_id": 38238
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "יין וינטג' קברנה 750 מ\"ל",
+          "expected_product_id": 38559
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "יין וינטג' רוזה מרסלן סירה 750 מ\"ל",
+          "expected_product_id": 38562
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "יין וינטג' גוורצרמינר 750 מ\"ל חצי יבש",
+          "expected_product_id": 39710
+        }
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה | מיפוי ממחזור המבצעים הקודם, עודכן לפי קובץ 31752 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1225,
+      "title": "מארז טישו 2 ב-18",
+      "type": "כמות בסכום",
+      "start_date": "2023-01-31",
+      "end_date": "2026-08-30",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35349
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "מארז טישו 5 יח",
+          "expected_product_id": 35349
+        }
+      ],
+      "note": "הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1238,
+      "title": "תבניות אלומניום \"משי\" 4 ב- 18",
+      "type": "כמות בסכום",
+      "start_date": "2026-05-17",
+      "end_date": "2026-08-30",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35369,
+        35372,
+        35401,
+        35429,
+        35473,
+        35560,
+        35936
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "תבניות אלומניום אינגליש קייק \"משי\"",
+          "expected_product_id": 35369
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "תבניות אלומניום R31 \"משי\"",
+          "expected_product_id": 35372
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "תבניות אלומניום מלבניות \"משי\"",
+          "expected_product_id": 35401
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "תבניות אלומניום R99 \"משי\"",
+          "expected_product_id": 35429
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "תבניות אלומניום R64 \"משי\"",
+          "expected_product_id": 35473
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "תבניות אלומניום R29 \"משי\"",
+          "expected_product_id": 35560
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "תבניות אלומניום עגולות C10 \"משי\"",
+          "expected_product_id": 35936
+        }
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1239,
+      "title": "מנגל גדול ב-69.90",
+      "type": "כמות בסכום",
+      "start_date": "2024-06-09",
+      "end_date": "2026-08-30",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        36875
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "מנגל גדול (ביכורי שדה)",
+          "expected_product_id": 36875
+        }
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1292,
+      "title": "איגלו ארוך \"כרמית\" 3 ב-12",
+      "type": "כמות בסכום",
+      "start_date": "2024-05-09",
+      "end_date": "2026-08-30",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35211
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "שלוקים איגלו 8 יח (ילג)",
+          "expected_product_id": 35211
+        }
+      ],
+      "note": "מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1300,
+      "title": "צלחות מתכלות ר.שמאי 2 ב-19.90",
+      "type": "כמות בסכום",
+      "start_date": "2025-07-22",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35818
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "סט צלחות וינטג' 7+9 (16 יח)",
+          "expected_product_id": 35818
+        }
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1325,
+      "title": "ירק \"חממה בהר\" 2 ב-15",
+      "type": "כמות בסכום",
+      "start_date": "2025-07-30",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35531
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "חסה לאליק \"חממה בהר\"",
+          "expected_product_id": 35531
+        }
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1413,
+      "title": "מארז פחיות 12 יח 2 ב- 49.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-02-05",
+      "end_date": "2026-08-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35445,
+        36371,
+        36379,
+        36455
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "מארז 12 פחיות מיני קולה פרלל 250 מל",
+          "expected_product_id": 35445
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "מארז 12 פחיות קולה זירו 330 מל",
+          "expected_product_id": 36371
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "מארז 12 פחיות מיני פאנטה פרלל 250 מל",
+          "expected_product_id": 36379
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "מארז 12 פחיות מיני ספרייט פרלל 250 מל",
+          "expected_product_id": 36455
+        }
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה | מיפוי ממחזור המבצעים הקודם, עודכן לפי קובץ 31752 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1463,
+      "title": "סטייק אנגוס מיושן ברשת רק ב99.90 לקג",
+      "type": "כמות בסכום",
+      "start_date": "2025-10-05",
+      "end_date": "2026-08-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35420
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "סטייק אנגוס מיושן ברשת מחפוד",
+          "expected_product_id": 35420
+        }
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור המבצעים הקודם, עודכן לפי קובץ 31752 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1545,
+      "title": "קרטון פמפרס מידה 3 80 יח 2 ב- 99.90",
+      "type": "כמות בסכום",
+      "start_date": "2025-12-24",
+      "end_date": "2026-08-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        38619
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "קרטון פמפרס מידה 3 80 יח",
+          "expected_product_id": 38619
+        }
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור המבצעים הקודם, עודכן לפי קובץ 31752 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1573,
+      "title": "סימילאק 900 גרם רק ב- 69.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-02-02",
+      "end_date": "2026-08-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        38279
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "סימילאק 900 גר מס' 2 בדצ",
+          "expected_product_id": 38279
+        }
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור המבצעים הקודם, עודכן לפי קובץ 31752 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1575,
+      "title": "סט צלחות וינטג' 2 ב- 19.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-02-03",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35818
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "סט צלחות וינטג' 7+9 (16 יח)",
+          "expected_product_id": 35818
+        }
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור המבצעים הקודם, עודכן לפי קובץ 31752 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1576,
+      "title": "סכו\"ם וינטג' 4 ב-10",
+      "type": "כמות בסכום",
+      "start_date": "2026-02-03",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35483
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "סכו\"ם וינטג' (10 יח')",
+          "expected_product_id": 35483
+        }
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור המבצעים הקודם, עודכן לפי קובץ 31752 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1577,
+      "title": "מרקיה מתכלה 2 ב- 13.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-02-04",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        38490
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "מרקיות מתכלות",
+          "expected_product_id": 38490
+        }
+      ],
+      "note": "מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1578,
+      "title": "צלחת \"7 2 ב- 19.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-02-04",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        36943
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "צלחת קטנה \"7",
+          "expected_product_id": 36943
+        }
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1580,
+      "title": "צלחת \"10 2 ב- 32.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-02-04",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        37224
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "צלחת ענקית 10",
+          "expected_product_id": 37224
+        }
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1590,
+      "title": "גביעי אחסון 3 ב- 15",
+      "type": "כמות בסכום",
+      "start_date": "2025-07-22",
+      "end_date": "2026-12-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35786,
+        35903,
+        36674,
+        37095
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "גביעי אחסון+מכסים 1/2 ליטר",
+          "expected_product_id": 35786
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "גביעי אחסון+מכסים בראבו אמריקאי(250CC)",
+          "expected_product_id": 35903
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "גביעי אחסון + מכסים 750cc",
+          "expected_product_id": 36674
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "גביעי אחסון+מכסים בראבו אמריקאי(1 ליטר)",
+          "expected_product_id": 37095
+        }
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה | מיפוי ממחזור המבצעים הקודם, עודכן לפי קובץ 31752 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1592,
+      "title": "יין רזרב יקבי ירושלים 3 ב- 269.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-02-17",
+      "end_date": "2026-08-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        37967
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "יין רוזה יבש 750 מ\"ל יקבי ירושלים",
+          "expected_product_id": 37967
+        }
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור המבצעים הקודם, עודכן לפי קובץ 31752 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1637,
+      "title": "נייר סופג שישייה 2 ב- 24",
+      "type": "כמות בסכום",
+      "start_date": "2026-08-01",
+      "end_date": "2026-08-30",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        37732
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "נייר סופג סופט 4 שכבות",
+          "expected_product_id": 37732
+        }
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1645,
+      "title": "תירוש 2 ב- 25",
+      "type": "כמות בסכום",
+      "start_date": "2026-03-15",
+      "end_date": "2026-12-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        35289,
+        35530,
+        35657,
+        35809,
+        36010
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "מיץ ענבים תירוש 100%",
+          "expected_product_id": 35289
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "תירוש אדום",
+          "expected_product_id": 35530
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "תירוש לבן",
+          "expected_product_id": 35657
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "תירוש רוזה",
+          "expected_product_id": 35809
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "יין תירוש ענבלים 1 ליטר",
+          "expected_product_id": 36010
+        }
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה | מיפוי ממחזור המבצעים הקודם, עודכן לפי קובץ 31752 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1668,
+      "title": "חרוזית 3 ב-24",
+      "type": "כמות בסכום",
+      "start_date": "2026-04-29",
+      "end_date": "2026-08-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        37662,
+        39395
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "חרוזית שחור יבנה",
+          "expected_product_id": 37662
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "חרוזית ירוק בני דרום 560 גר`",
+          "expected_product_id": 39395
+        }
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה | מיפוי ממחזור המבצעים הקודם, עודכן לפי קובץ 31752 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1699,
+      "title": "מגבונים ביביסיטר 2 ב- 49.90",
+      "type": "כמות בסכום",
+      "start_date": "2021-11-22",
+      "end_date": "2026-12-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35703
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "מגבונים ביביסיטר 9 יח ללא בישום",
+          "expected_product_id": 35703
+        }
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1714,
+      "title": "פסטה ברילה 3 ב- 18",
+      "type": "כמות בסכום",
+      "start_date": "2026-05-17",
+      "end_date": "2026-08-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        36316,
+        37094,
+        37152,
+        37180,
+        37499,
+        37500,
+        37790,
+        38071,
+        38331,
+        38982,
+        39616
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "פסטה ברילה לזניה 500 גר(מעיין)",
+          "expected_product_id": 36316
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "פסטה ברילה 500 גר מס98",
+          "expected_product_id": 37094
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "פסטה ברילה 500 גר מס 73",
+          "expected_product_id": 37152
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "ברילה פסטה פרפלה מספר 65 500 גרם",
+          "expected_product_id": 37180
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "פסטה ברילה 500 גר(גוילי)",
+          "expected_product_id": 37499
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "ברילה פסטה 500 גר מס 5 (קואופ",
+          "expected_product_id": 37500
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "פסטה ברילה צ.מ טליאטלה 500 גרם",
+          "expected_product_id": 37790
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "ברילה פסטה טורטיליוני 500 גרם",
+          "expected_product_id": 38071
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "פסטה ברילה גירנדולה 5 קואופ",
+          "expected_product_id": 38331
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "פסטה ברילה צינורות ללא גלוטן",
+          "expected_product_id": 38982
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "פסטה ברילה ספירלי ללא גלוטן",
+          "expected_product_id": 39616
+        }
+      ],
+      "note": "שוחזר ממבצע קבוצה קיים בסניף 2 לפי כותרת זהה | מיפוי ממחזור המבצעים הקודם, עודכן לפי קובץ 31752 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1733,
+      "title": "חרוזית רק ב- 7.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-04-29",
+      "end_date": "2026-08-31",
+      "action": "product_promotion",
+      "mapping_mode": "separate_product_promotions",
+      "is_group_promotion": false,
+      "product_ids": [
+        37662,
+        39395
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "חרוזית שחור יבנה",
+          "expected_product_id": 37662
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "חרוזית ירוק בני דרום 560 גר`",
+          "expected_product_id": 39395
+        }
+      ],
+      "note": "מיפוי ממחזור המבצעים הקודם, עודכן לפי קובץ 31752 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1774,
+      "title": "בקנייה מעל 300 שקית רב פעמית גלסנר מתנה",
+      "type": "קנה בסכום הוסף קבל",
+      "start_date": "2026-06-12",
+      "end_date": "2026-12-31",
+      "action": "cart_reward_product",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        37406
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "שקית רב פעמית גלסנר",
+          "expected_product_id": 37406
+        }
+      ],
+      "note": "שוחזר ממבצע סל קיים בסניף 2 | מיפוי ממחזור קודם, עודכן לקובץ 31752 וסונן לתוקף אחרי 31.7.2026 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1785,
+      "title": "סינטה ב- 149.90 לק\"ג",
+      "type": "כמות בסכום",
+      "start_date": "2026-06-22",
+      "end_date": "2026-08-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        37504
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "סינטה חלק (בש)",
+          "expected_product_id": 37504
+        }
+      ],
+      "note": "מיפוי ממחזור המבצעים הקודם, עודכן לפי קובץ 31752 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1788,
+      "title": "צוריסוס/מרגז/קבב 3 ק\"ג ב- 119.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-06-22",
+      "end_date": "2026-08-31",
+      "action": "product_promotion",
+      "mapping_mode": "separate_product_promotions",
+      "is_group_promotion": false,
+      "product_ids": [
+        38888,
+        39486
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "נקניקיות מרגז טלה",
+          "expected_product_id": 38888
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "קבב עיראקי חלק משופד",
+          "expected_product_id": 39486
+        }
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור המבצעים הקודם, עודכן לפי קובץ 31752 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1791,
+      "title": "בקר טחון 2 ק\"ג ב- 89.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-06-22",
+      "end_date": "2026-08-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        39013
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "בקר טחון נקי 1 קג 8 מחפוד (עוף ירושלים )",
+          "expected_product_id": 39013
+        }
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור המבצעים הקודם, עודכן לפי קובץ 31752 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1792,
+      "title": "אמנון בלי עור רק ב- 19.9",
+      "type": "כמות בסכום",
+      "start_date": "2026-06-22",
+      "end_date": "2026-08-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        35655
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "פילה אמנון ללא עור",
+          "expected_product_id": 35655
+        }
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1797,
+      "title": "קמח 2 ב- 5.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-04-29",
+      "end_date": "2026-08-31",
+      "action": "product_promotion",
+      "mapping_mode": "single_product",
+      "is_group_promotion": false,
+      "product_ids": [
+        38020
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "קמח לבן אנג`ל",
+          "expected_product_id": 38020
+        }
+      ],
+      "note": "שוחזר ממבצע מוצר קיים בסניף 2 לפי מחיר/כמות ושם מוצר | מיפוי ממחזור המבצעים הקודם, עודכן לפי קובץ 31752 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    },
+    {
+      "reward_id": 1802,
+      "title": "משחת שיניים 2 ב- 14.90",
+      "type": "כמות בסכום",
+      "start_date": "2026-07-05",
+      "end_date": "2026-08-31",
+      "action": "promotion_group",
+      "mapping_mode": "group",
+      "is_group_promotion": true,
+      "product_ids": [
+        36367,
+        37892,
+        38003,
+        39859,
+        37141,
+        38999,
+        39704
+      ],
+      "product_lookups": [
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "משחת שיניים מסטיק תום וג'רי _(ילג)",
+          "expected_product_id": 36367
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "משחת שיניים קולגייט 100 מל",
+          "expected_product_id": 37892
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "משחת שיניים אדומה קולגייט",
+          "expected_product_id": 38003
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "משחת שיניים מתוקה אורביטול",
+          "expected_product_id": 39859
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "קולגייט משחת שיניים ילדים 6+",
+          "expected_product_id": 37141
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "אקווה פרש משחת שיניים אקטיב וויט 125 מ\"ל",
+          "expected_product_id": 38999
+        },
+        {
+          "chain_product_key": null,
+          "barcode": null,
+          "name": "משחת שיניים מנטה מרענן, 100 מ\"ל \"אקווה פרש\"",
+          "expected_product_id": 39704
+        }
+      ],
+      "note": "מיפוי ממחזור המבצעים הקודם, עודכן לפי קובץ 31752 | הצעה בלבד - דורש אישור מחדש לפני כתיבה",
+      "is_market_day": false,
+      "approved": false
+    }
+  ]
+}

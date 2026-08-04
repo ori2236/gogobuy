@@ -34,7 +34,17 @@
     "preview:sync-promos-prod": "node scripts/applyProdPromotionsSync.js --shopId=2 --payload=data/promotions_prod_payload_shop2.json --dryRun",
     "publish:sync-promos-prod": "node scripts/applyProdPromotionsSync.js --shopId=2 --payload=data/promotions_prod_payload_shop2.json --confirm",
     "preview:clean-duplicate-promos": "node scripts/cleanupDuplicatePromotions.js --shopId=2 --dryRun",
-    "publish:clean-duplicate-promos": "node scripts/cleanupDuplicatePromotions.js --shopId=2 --confirm"
+    "publish:clean-duplicate-promos": "node scripts/cleanupDuplicatePromotions.js --shopId=2 --confirm",
+    "convert:shop2-promos-32065": "node scripts/convertLeshemExcelPromotions.js --excel=data/4995_32065.xls --out=data/shop2_promotions_32065.json",
+    "plan:shop2-promos-32065": "node scripts/planLeshemPromotionsSafe.js --shopId=2 --data=data/shop2_promotions_32065.json --source=leshem_erp --seedMapping=data/leshem_seed_mapping_32065.json --out=reports/promotion_import_plan_shop2_32065.json --reviewOut=reports/promotion_import_review_shop2_32065.json",
+    "mapping:shop2-promos-32065": "node scripts/generateLeshemPromotionMappingTool.js --shopId=2 --report=reports/promotion_import_review_shop2_32065.json --out=reports/promotion_mapping_tool_shop2_32065.html",
+    "plan:shop2-promos-32065-approved": "node scripts/planLeshemPromotionsSafe.js --shopId=2 --data=data/shop2_promotions_32065.json --source=leshem_erp --seedMapping=data/leshem_seed_mapping_32065.json --mapping=data/leshem_approved_mapping_32065.json --out=reports/promotion_import_plan_shop2_32065_approved.json --reviewOut=reports/promotion_import_review_shop2_32065_approved.json",
+    "preview:shop2-promos-32065-safe": "node scripts/applyLeshemPromotionsSafe.js --plan=reports/promotion_import_plan_shop2_32065_approved.json",
+    "publish:shop2-promos-32065-safe": "node scripts/applyLeshemPromotionsSafe.js --plan=reports/promotion_import_plan_shop2_32065_approved.json --confirm",
+    "preview:shop2-promos-32065-safe-partial": "node scripts/applyLeshemPromotionsSafe.js --plan=reports/promotion_import_plan_shop2_32065_approved.json --allowUnresolved",
+    "publish:shop2-promos-32065-safe-partial": "node scripts/applyLeshemPromotionsSafe.js --plan=reports/promotion_import_plan_shop2_32065_approved.json --allowUnresolved --confirm",
+    "preview:clean-shop2-promo-titles": "node scripts/cleanDbPromotionTitles.js --shopId=2",
+    "publish:clean-shop2-promo-titles": "node scripts/cleanDbPromotionTitles.js --shopId=2 --confirm"
   },
   "repository": {
     "type": "git",

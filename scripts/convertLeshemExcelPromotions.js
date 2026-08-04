@@ -3,6 +3,7 @@ require("dotenv").config({ quiet: true });
 const fs = require("fs");
 const path = require("path");
 const XLSX = require("xlsx");
+const { stripMarketDayPrefix } = require("../services/promotionImportIdentity");
 
 function argValue(name, fallback = null) {
   const prefix = `${name}=`;
@@ -78,13 +79,18 @@ function normalizePromotions(rows) {
   for (let i = headerIndex + 1; i < rows.length; i += 1) {
     const row = rows[i] || [];
     const rewardId = numberOrNull(row[index.get("תגמול")]);
-    const title = textOrNull(row[index.get("שם")]);
-    if (!rewardId || !title) continue;
+    const originalTitle = textOrNull(row[index.get("שם")]);
+    if (!rewardId || !originalTitle) continue;
+
+    const titleInfo = stripMarketDayPrefix(originalTitle);
+    if (!titleInfo.title) continue;
 
     result.push({
       excel_row: i + 1,
       reward_id: rewardId,
-      title,
+      title: titleInfo.title,
+      original_title: titleInfo.is_market_day ? originalTitle : null,
+      is_market_day: titleInfo.is_market_day,
       type: textOrNull(row[index.get("סוג")]),
       start_date: excelSerialToIsoDate(row[index.get("מתאריך")]),
       end_date: excelSerialToIsoDate(row[index.get("עד תאריך")]),
