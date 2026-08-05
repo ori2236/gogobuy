@@ -44,7 +44,8 @@
     "preview:shop2-promos-32065-safe-partial": "node scripts/applyLeshemPromotionsSafe.js --plan=reports/promotion_import_plan_shop2_32065_approved.json --allowUnresolved",
     "publish:shop2-promos-32065-safe-partial": "node scripts/applyLeshemPromotionsSafe.js --plan=reports/promotion_import_plan_shop2_32065_approved.json --allowUnresolved --confirm",
     "preview:clean-shop2-promo-titles": "node scripts/cleanDbPromotionTitles.js --shopId=2",
-    "publish:clean-shop2-promo-titles": "node scripts/cleanDbPromotionTitles.js --shopId=2 --confirm"
+    "publish:clean-shop2-promo-titles": "node scripts/cleanDbPromotionTitles.js --shopId=2 --confirm",
+    "test:product-matching": "node tests/productMatching.regression.js"
   },
   "repository": {
     "type": "git",

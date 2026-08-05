@@ -797,7 +797,7 @@ async function applyActions({ shopId, actions }) {
     await conn.commit();
     return result;
   } catch (err) {
-    try { await conn.rollback(); } catch {}
+    try { await conn.rollback(); } catch { }
     throw err;
   } finally {
     conn.release();
@@ -941,5 +941,5 @@ main()
     process.exitCode = 1;
   })
   .finally(async () => {
-    try { await db.end(); } catch {}
+    try { await db.end(); } catch { }
   });

@@ -13,6 +13,7 @@ const { botText } = require("../../utilities/i18n");
 const {
   pickAltTemplate,
   findBestProductForRequest,
+  fetchCustomerDefaultProductIds,
   fetchAlternatives,
 } = require("../../services/products");
 const {
@@ -47,7 +48,7 @@ const {
 const PROMPT_CAT = "ORD";
 const PROMPT_SUB = "MODIFY";
 
-const MATCH_DEBUG = 1;
+const MATCH_DEBUG = true;
 
 function matchLog(label, payload = null) {
   if (!MATCH_DEBUG) return;
@@ -152,6 +153,7 @@ async function repriceOrderItemsWithPromos(
 
 async function applyOrderPatch({
   shop_id,
+  customer_id,
   order_id,
   ops,
   isEnglish,
@@ -162,6 +164,10 @@ async function applyOrderPatch({
   const stockQuestions = [];
   const stockNotices = [];
   const suggestAlternatives = areProductAlternativesEnabled();
+  const customerDefaultProductIds = await fetchCustomerDefaultProductIds({
+    shop_id,
+    customer_id,
+  });
   let altTemplateIdx = 0;
 
   const threshold = 3;
@@ -509,7 +515,9 @@ async function applyOrderPatch({
         desiredAdd = sbw ? roundTo(maxPerProduct, 3) : Math.trunc(maxPerProduct);
       }
 
-      const row = await findBestProductForRequest(shop_id, p);
+      const row = await findBestProductForRequest(shop_id, p, {
+        customerDefaultProductIds,
+      });
 
       matchLog("applyOrderPatch.ops.add.matchedRow", {
         order_id,
@@ -1142,6 +1150,7 @@ module.exports = {
     try {
       const txRes = await applyOrderPatch({
         shop_id,
+        customer_id,
         order_id: order.id,
         ops: patchOps,
         isEnglish,

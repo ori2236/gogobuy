@@ -25,6 +25,14 @@ Rules for search_terms:
 - If unsure, return a short conservative list rather than broad guesses.
 - Use [] when no useful extra terms exist.
 
+Rules for negative wording and exclude_tokens:
+- Distinguish between a desired catalog attribute and a rejected variant.
+- When the customer asks for a product whose desired name commonly includes the negative wording, keep the complete phrase in original_user_text and search_terms. Examples of the general pattern are "ללא X", "בלי X", "נטול X", "without X", and "X free".
+- Do not remove the negative wording from all search phrases. The backend uses the complete phrase to prefer a product that explicitly has the requested attribute.
+- exclude_tokens may still contain X when the customer rejects products containing X. The backend understands that a product explicitly named "ללא X" does not positively contain X.
+- For a rejected brand, flavor, or variant that is not itself the desired product name, keep the generic product type in name/search_terms and put only the rejected words in exclude_tokens.
+- Never invent negative attributes that the customer did not request.
+
 Backend compatibility:
 - These fields help matching only. They must not change amount, units, sold_by_weight, category, sub-category, exclude_tokens, price_intent, or any existing field semantics.
 `;

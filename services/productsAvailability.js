@@ -16,12 +16,14 @@ async function searchProductsAvailability(shop_id, products, opts = {}) {
 
   const found = [];
   const notFound = [];
+  const categoryRowsCache = new Map();
 
   for (let i = 0; i < products.length; i++) {
     const req = products[i];
 
     const row = await findBestProductForAvailability(shop_id, req, {
       customerDefaultProductIds,
+      categoryRowsCache,
     });
 
     if (row) {

@@ -1,32 +1,50 @@
 const db = require("../config/db");
 const {
   tokenImportance,
-  tokenizeName,
+  tokenizeForMatching,
+  tokenSimilarity,
+  isNumericToken,
+  isUnitToken,
+  extractPolarityTargets,
+  candidateHasTargetWithPolarity,
   getExcludeTokensFromReq,
   filterRowsByExcludeTokens,
 } = require("../utilities/tokens");
 const { getSubCategoryCandidates } = require("../repositories/categories");
 const { ensureProductDefaultSchema } = require("../utilities/productDefaultSchema");
 
-const MATCH_DEBUG = process.env.DEBUG_PRODUCT_MATCH === "1";
+const MATCH_DEBUG = true;
 const DEFAULT_PRODUCT_SCORE_BONUS = Number.isFinite(Number(process.env.DEFAULT_PRODUCT_SCORE_BONUS))
   ? Number(process.env.DEFAULT_PRODUCT_SCORE_BONUS)
   : 2.5;
-
-// Customer defaults are intentionally binary: if the customer ordered a product
-// in one of their recent completed/confirmed orders, it receives this one-time
-// preference boost. Ordering the same product many times does not increase it.
 const CUSTOMER_PRODUCT_SCORE_BONUS = Number.isFinite(Number(process.env.CUSTOMER_PRODUCT_SCORE_BONUS))
   ? Number(process.env.CUSTOMER_PRODUCT_SCORE_BONUS)
   : 5;
-
 const PROMOTION_PRODUCT_SCORE_BONUS = Number.isFinite(Number(process.env.PROMOTION_PRODUCT_SCORE_BONUS))
   ? Number(process.env.PROMOTION_PRODUCT_SCORE_BONUS)
   : 1;
-
 const CUSTOMER_DEFAULT_RECENT_ORDERS_LIMIT = Number.isFinite(Number(process.env.CUSTOMER_DEFAULT_RECENT_ORDERS_LIMIT))
   ? Math.max(1, Math.trunc(Number(process.env.CUSTOMER_DEFAULT_RECENT_ORDERS_LIMIT)))
   : 10;
+
+function boundedEnvNumber(name, fallback, min, max) {
+  const value = Number(process.env[name]);
+  if (!Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, value));
+}
+
+const TOKEN_FUZZY_MATCH_THRESHOLD = boundedEnvNumber(
+  "TOKEN_FUZZY_MATCH_THRESHOLD",
+  0.86,
+  0.82,
+  0.95,
+);
+const MIN_SEARCH_TERM_SPECIFICITY_RATIO = boundedEnvNumber(
+  "MIN_SEARCH_TERM_SPECIFICITY_RATIO",
+  0.48,
+  0.35,
+  0.8,
+);
 
 function matchLog(label, payload = null) {
   if (!MATCH_DEBUG) return;
@@ -42,24 +60,23 @@ function matchLog(label, payload = null) {
 }
 
 function compactRows(rows = []) {
-  return rows.map((r) => ({
-    id: Number(r.id),
-    name: r.name,
-    display_name_en: r.display_name_en,
-    category: r.category,
-    sub_category: r.sub_category,
-    price: Number(r.price),
+  return rows.map((row) => ({
+    id: Number(row.id),
+    name: row.name,
+    display_name_en: row.display_name_en,
+    category: row.category,
+    sub_category: row.sub_category,
+    price: Number(row.price),
     stock_amount:
-      r.stock_amount === null || r.stock_amount === undefined
+      row.stock_amount === null || row.stock_amount === undefined
         ? null
-        : Number(r.stock_amount),
-    is_default: Number(r.is_default || 0) === 1,
-    is_consignment: Number(r.is_consignment || 0) === 1,
-    customer_default: Number(r.customer_default || 0) === 1,
-    has_active_promotion: Number(r.has_active_promotion || 0) === 1,
+        : Number(row.stock_amount),
+    is_default: Number(row.is_default || 0) === 1,
+    is_consignment: Number(row.is_consignment || 0) === 1,
+    customer_default: Number(row.customer_default || 0) === 1,
+    has_active_promotion: Number(row.has_active_promotion || 0) === 1,
   }));
 }
-
 
 function normalizeSearchPhrase(value) {
   if (value === null || value === undefined) return "";
@@ -72,9 +89,13 @@ function normalizeSearchPhrase(value) {
     .trim();
 }
 
+function normalizeRequestTokens(tokens = []) {
+  return Array.from(new Set((tokens || []).filter(Boolean)));
+}
+
 function termKey(value) {
   const normalized = normalizeSearchPhrase(value).toLowerCase();
-  const tokens = tokenizeName(normalized);
+  const tokens = normalizeRequestTokens(tokenizeForMatching(normalized));
   return tokens.length ? tokens.join(" ") : normalized;
 }
 
@@ -85,7 +106,7 @@ function pushSearchTerm(out, seen, value, source) {
   const key = termKey(term);
   if (!key || seen.has(key)) return;
 
-  const tokens = tokenizeName(term);
+  const tokens = normalizeRequestTokens(tokenizeForMatching(term));
   if (!tokens.length) return;
 
   seen.add(key);
@@ -96,22 +117,12 @@ function buildProductSearchTerms(req = {}) {
   const out = [];
   const seen = new Set();
 
-  const original = req?.original_user_text;
-  const name = req?.name;
-  const outputName = req?.outputName;
-  const searchTerm = req?.searchTerm;
-  const outputSearchTerm = req?.outputSearchTerm;
-
-  pushSearchTerm(out, seen, original, "original_user_text");
-
-  const nameText = normalizeSearchPhrase(name);
-  const searchText = normalizeSearchPhrase(searchTerm);
-  if (nameText && searchText && termKey(nameText) !== termKey(searchText)) {
-    pushSearchTerm(out, seen, `${nameText} ${searchText}`, "name+searchTerm");
-  }
-
-  pushSearchTerm(out, seen, name, "name");
-  pushSearchTerm(out, seen, outputName, "outputName");
+  pushSearchTerm(
+    out,
+    seen,
+    req?.original_user_text,
+    "original_user_text",
+  );
 
   if (Array.isArray(req?.search_terms)) {
     for (const term of req.search_terms) {
@@ -119,20 +130,27 @@ function buildProductSearchTerms(req = {}) {
     }
   }
 
-  pushSearchTerm(out, seen, searchTerm, "searchTerm");
-  pushSearchTerm(out, seen, outputSearchTerm, "outputSearchTerm");
+  const nameText = normalizeSearchPhrase(req?.name);
+  const searchText = normalizeSearchPhrase(req?.searchTerm);
+  if (nameText && searchText && termKey(nameText) !== termKey(searchText)) {
+    pushSearchTerm(out, seen, `${nameText} ${searchText}`, "name+searchTerm");
+  }
+
+  pushSearchTerm(out, seen, req?.name, "name");
+  pushSearchTerm(out, seen, req?.searchTerm, "searchTerm");
+  pushSearchTerm(out, seen, req?.outputName, "outputName");
+  pushSearchTerm(out, seen, req?.outputSearchTerm, "outputSearchTerm");
 
   return out;
 }
 
 function compactSearchTerms(terms = []) {
-  return terms.map((t) => ({
-    source: t.source,
-    term: t.term,
-    tokens: t.tokens,
+  return terms.map((term) => ({
+    source: term.source,
+    term: term.term,
+    tokens: term.tokens,
   }));
 }
-
 
 function normalizeCustomerDefaultProductIds(ids = []) {
   const list =
@@ -153,22 +171,10 @@ function normalizeCustomerDefaultProductIds(ids = []) {
 
 function annotateCustomerDefaults(rows = [], customerDefaultProductIds = new Set()) {
   if (!rows || !rows.length || !customerDefaultProductIds?.size) return rows || [];
-  return rows.map((r) => ({
-    ...r,
-    customer_default: customerDefaultProductIds.has(Number(r.id)) ? 1 : 0,
+  return rows.map((row) => ({
+    ...row,
+    customer_default: customerDefaultProductIds.has(Number(row.id)) ? 1 : 0,
   }));
-}
-
-function sortByCustomerThenShopDefault(rows = []) {
-  return (rows || [])
-    .slice()
-    .sort(
-      (a, b) =>
-        Number(b.customer_default || 0) - Number(a.customer_default || 0) ||
-        Number(b.is_default || 0) - Number(a.is_default || 0) ||
-        new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime() ||
-        Number(b.id || 0) - Number(a.id || 0),
-    );
 }
 
 async function fetchCustomerDefaultProductIds({ shop_id, customer_id }) {
@@ -178,9 +184,6 @@ async function fetchCustomerDefaultProductIds({ shop_id, customer_id }) {
   if (!Number.isFinite(customerId) || customerId <= 0) return new Set();
   if (!Number.isFinite(shopId) || shopId <= 0) return new Set();
 
-  // Important: choose the recent orders *after* verifying they actually have
-  // product rows. During tests and normal conversations a customer can have
-  // fresh empty/temporary orders; those must not hide older real purchases.
   const [rows] = await db.query(
     `
       SELECT DISTINCT oi.product_id
@@ -205,335 +208,640 @@ async function fetchCustomerDefaultProductIds({ shop_id, customer_id }) {
     [shopId, customerId, CUSTOMER_DEFAULT_RECENT_ORDERS_LIMIT],
   );
 
-  const ids = normalizeCustomerDefaultProductIds((rows || []).map((r) => r.product_id));
+  const productIds = normalizeCustomerDefaultProductIds(
+    (rows || []).map((row) => row.product_id),
+  );
 
   matchLog("fetchCustomerDefaultProductIds.result", {
     shop_id: shopId,
     customer_id: customerId,
     recentOrdersLimit: CUSTOMER_DEFAULT_RECENT_ORDERS_LIMIT,
-    rows: rows || [],
-    productIds: Array.from(ids),
+    productIds: Array.from(productIds),
   });
 
-  return ids;
+  return productIds;
 }
 
-async function queryRowsByTokens({
-  shop_id,
-  category = null,
-  subCategories = null,
-  tokenGroup,
-  includeStockFilter = true,
-  customerDefaultProductIds = new Set(),
-}) {
-  let sql = `
-    SELECT
-      p.id,
-      p.name,
-      p.display_name_en,
-      p.price,
-      p.stock_amount,
-      p.is_default,
-      p.is_consignment,
-      p.category,
-      p.sub_category,
-      p.updated_at,
-      CASE
-        WHEN EXISTS (
-          SELECT 1
-          FROM promotion pr
-          WHERE pr.shop_id = p.shop_id
-            AND pr.product_id = p.id
-            AND (pr.start_at IS NULL OR pr.start_at <= NOW())
-            AND (pr.end_at IS NULL OR pr.end_at >= NOW())
-        )
-        OR EXISTS (
-          SELECT 1
-          FROM product_group_promotion_item gpi
-          JOIN product_group_promotion pgp
-            ON pgp.id = gpi.group_promotion_id
-           AND pgp.shop_id = gpi.shop_id
-          WHERE gpi.shop_id = p.shop_id
-            AND gpi.product_id = p.id
-            AND pgp.is_active = 1
-            AND (pgp.start_at IS NULL OR pgp.start_at <= NOW())
-            AND (pgp.end_at IS NULL OR pgp.end_at >= NOW())
-        )
-        THEN 1 ELSE 0
-      END AS has_active_promotion
-    FROM product p
-    WHERE p.shop_id = ?
-  `;
-  const params = [shop_id];
-
-  if (includeStockFilter) {
-    sql += ` AND (COALESCE(p.is_consignment,0) = 1 OR p.stock_amount IS NULL OR p.stock_amount > 0)`;
-  }
-
-  if (category) {
-    sql += ` AND p.category = ?`;
-    params.push(category);
-  }
-
-  if (Array.isArray(subCategories) && subCategories.length) {
-    sql += ` AND p.sub_category IN (${subCategories.map(() => "?").join(",")})`;
-    params.push(...subCategories);
-  } else if (typeof subCategories === "string" && subCategories.trim()) {
-    sql += ` AND p.sub_category = ?`;
-    params.push(subCategories.trim());
-  }
-
-  for (const t of tokenGroup.tokens) {
-    sql += `
-      AND (
-        p.name COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
-        OR p.display_name_en COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
-      )
-    `;
-    params.push(t, t);
-  }
-
-  matchLog("queryRowsByTokens.query", {
-    source: tokenGroup.source,
-    term: tokenGroup.term,
-    tokens: tokenGroup.tokens,
-    category,
-    subCategories,
-    includeStockFilter,
-    sql,
-    params,
-  });
-
-  const [rows] = await db.query(sql, params);
-
-  matchLog("queryRowsByTokens.rows", {
-    source: tokenGroup.source,
-    term: tokenGroup.term,
-    tokens: tokenGroup.tokens,
-    rows: compactRows(rows || []),
-  });
-
-  return annotateCustomerDefaults(rows || [], customerDefaultProductIds);
+function minimumMatchedTokenCount(reqTokens = []) {
+  const count = normalizeRequestTokens(reqTokens).length;
+  if (count <= 0) return 0;
+  return Math.ceil(count * 0.75);
 }
 
-async function findBestByTermGroups({
-  shop_id,
-  termGroups,
-  excludeTokens,
-  category = null,
-  subCategories = null,
-  debugLabel = "",
-  includeStockFilter = true,
-  customerDefaultProductIds = new Set(),
-}) {
-  for (const tokenGroup of termGroups) {
-    const rows = await queryRowsByTokens({
-      shop_id,
-      category,
-      subCategories,
-      tokenGroup,
-      includeStockFilter,
-      customerDefaultProductIds,
-    });
+function tokenCoverageThreshold(reqTokens = []) {
+  const count = normalizeRequestTokens(reqTokens).length;
+  if (count <= 0) return 0;
+  if (count <= 3) return 1;
+  return 0.74;
+}
 
-    const best = await pickBestWeighted({
-      shop_id,
-      rows,
-      reqTokens: tokenGroup.tokens,
-      excludeTokens,
-      debugLabel: `${debugLabel}:${tokenGroup.source}:${tokenGroup.term}`,
-      customerDefaultProductIds,
-    });
+function candidatePenaltyTokens(name) {
+  const full = normalizeSearchPhrase(name || "");
+  const beforeParentheses = full.split(/[\(\[]/, 1)[0].trim();
+  return tokenizeForMatching(beforeParentheses || full);
+}
 
-    if (best) {
-      matchLog("findBestByTermGroups.best", {
-        debugLabel,
-        matchedBy: {
-          source: tokenGroup.source,
-          term: tokenGroup.term,
-          tokens: tokenGroup.tokens,
-        },
-        matchedRow: {
-          id: Number(best.id),
-          name: best.name,
-          display_name_en: best.display_name_en,
-          category: best.category,
-          sub_category: best.sub_category,
-        },
+function detectSearchLanguage(term = "") {
+  const text = String(term || "");
+  const hebrewCount = (text.match(/[\u0590-\u05FF]/g) || []).length;
+  const latinCount = (text.match(/[A-Za-z]/g) || []).length;
+  if (hebrewCount > 0 && latinCount > 0) return "mixed";
+  if (hebrewCount > 0) return "he";
+  if (latinCount > 0) return "en";
+  return "mixed";
+}
+
+function candidateTokensForTerm(row, termGroup) {
+  const language = detectSearchLanguage(termGroup?.term);
+  const hebrewTokens = tokenizeForMatching(row?.name || "");
+  const englishTokens = tokenizeForMatching(row?.display_name_en || "");
+
+  if (language === "en") {
+    const combinedTokens = normalizeRequestTokens([...englishTokens, ...hebrewTokens]);
+    return {
+      candidateTokens: combinedTokens,
+      penaltyTokens: englishTokens.length
+        ? candidatePenaltyTokens(row?.display_name_en || "")
+        : candidatePenaltyTokens(row?.name || ""),
+      candidateValue: `${row?.display_name_en || ""} ${row?.name || ""}`.trim(),
+      matchedField: englishTokens.length ? "display_name_en+name" : "name",
+    };
+  }
+
+  if (language === "mixed") {
+    const combinedValue = `${row?.name || ""} ${row?.display_name_en || ""}`.trim();
+    return {
+      candidateTokens: normalizeRequestTokens([...hebrewTokens, ...englishTokens]),
+      penaltyTokens: candidatePenaltyTokens(combinedValue),
+      candidateValue: combinedValue,
+      matchedField: "mixed",
+    };
+  }
+
+  return {
+    candidateTokens: hebrewTokens.length ? hebrewTokens : englishTokens,
+    penaltyTokens: candidatePenaltyTokens(row?.name || row?.display_name_en || ""),
+    candidateValue: hebrewTokens.length ? row?.name || "" : row?.display_name_en || "",
+    matchedField: hebrewTokens.length ? "name" : "display_name_en",
+  };
+}
+
+function buildTokenMatchMeta(
+  reqTokens = [],
+  candTokens = [],
+  penaltyTokens = null,
+  options = {},
+) {
+  const requested = normalizeRequestTokens(reqTokens);
+  const candidate = normalizeRequestTokens(candTokens);
+  const pairs = [];
+
+  for (let reqIndex = 0; reqIndex < requested.length; reqIndex += 1) {
+    for (let candIndex = 0; candIndex < candidate.length; candIndex += 1) {
+      const similarity = tokenSimilarity(requested[reqIndex], candidate[candIndex]);
+      if (similarity < TOKEN_FUZZY_MATCH_THRESHOLD) continue;
+      pairs.push({
+        reqIndex,
+        candIndex,
+        similarity,
+        importance: tokenImportance(requested[reqIndex]),
       });
-      return best;
     }
   }
 
-  return null;
+  pairs.sort(
+    (left, right) =>
+      right.importance * right.similarity - left.importance * left.similarity ||
+      right.similarity - left.similarity,
+  );
+
+  const usedRequested = new Set();
+  const usedCandidate = new Set();
+  const chosenPairs = [];
+  for (const pair of pairs) {
+    if (usedRequested.has(pair.reqIndex) || usedCandidate.has(pair.candIndex)) continue;
+    usedRequested.add(pair.reqIndex);
+    usedCandidate.add(pair.candIndex);
+    chosenPairs.push(pair);
+  }
+
+  const matches = requested.map((requestedToken, reqIndex) => {
+    const pair = chosenPairs.find((item) => item.reqIndex === reqIndex);
+    return {
+      requested: requestedToken,
+      candidate: pair ? candidate[pair.candIndex] : null,
+      similarity: pair ? pair.similarity : 0,
+      matched: Boolean(pair),
+      importance: tokenImportance(requestedToken),
+    };
+  });
+
+  const totalWeight = matches.reduce((sum, match) => sum + match.importance, 0);
+  const matchedWeight = matches
+    .filter((match) => match.matched)
+    .reduce((sum, match) => sum + match.importance, 0);
+  const similarityWeight = matches
+    .filter((match) => match.matched)
+    .reduce((sum, match) => sum + match.importance * match.similarity, 0);
+
+  const coverage = totalWeight > 0 ? matchedWeight / totalWeight : 0;
+  const averageSimilarity = matchedWeight > 0 ? similarityWeight / matchedWeight : 0;
+  const missingTokens = matches.filter((match) => !match.matched).map((match) => match.requested);
+  const matchedCount = matches.filter((match) => match.matched).length;
+  const missingWeight = totalWeight - matchedWeight;
+
+  const penaltySource = normalizeRequestTokens(
+    Array.isArray(penaltyTokens) ? penaltyTokens : candidate,
+  );
+  const extraTokens = penaltySource.filter(
+    (candidateToken) =>
+      !requested.some(
+        (requestedToken) =>
+          tokenSimilarity(requestedToken, candidateToken) >= TOKEN_FUZZY_MATCH_THRESHOLD,
+      ),
+  );
+
+  const criticalMissingTokens = [];
+  const hardConstraintTokens = normalizeRequestTokens(options.hardConstraintTokens || []);
+  for (const constraint of hardConstraintTokens) {
+    if (!candidate.includes(constraint)) criticalMissingTokens.push(constraint);
+  }
+
+  const candidateValue = options.candidateValue || "";
+  for (const target of normalizeRequestTokens(options.requiredNegatedTargets || [])) {
+    if (!candidateHasTargetWithPolarity(candidateValue, target, true)) {
+      criticalMissingTokens.push(`negated:${target}`);
+    }
+  }
+  for (const target of normalizeRequestTokens(options.requiredPositiveTargets || [])) {
+    if (!candidateHasTargetWithPolarity(candidateValue, target, false)) {
+      criticalMissingTokens.push(`positive:${target}`);
+    }
+  }
+
+  return {
+    coverage,
+    averageSimilarity,
+    matchedWeight,
+    totalWeight,
+    missingWeight,
+    matchedCount,
+    matches,
+    missingTokens,
+    extraTokens,
+    criticalMissingTokens: normalizeRequestTokens(criticalMissingTokens),
+  };
+}
+
+function termSpecificity(termGroup) {
+  const tokens = normalizeRequestTokens(termGroup?.tokens || []);
+  return tokens.reduce((sum, token) => sum + tokenImportance(token), 0);
+}
+
+function orderedTermGroups(termGroups = []) {
+  const sourcePriority = new Map([
+    ["original_user_text", 0],
+    ["search_terms", 1],
+    ["name+searchTerm", 2],
+    ["name", 3],
+    ["searchTerm", 4],
+    ["outputName", 5],
+    ["outputSearchTerm", 6],
+  ]);
+
+  return (termGroups || [])
+    .slice()
+    .sort(
+      (left, right) =>
+        (sourcePriority.get(left.source) ?? 99) - (sourcePriority.get(right.source) ?? 99) ||
+        termSpecificity(right) - termSpecificity(left),
+    );
+}
+
+function sourcePriority(source) {
+  return {
+    original_user_text: 0,
+    search_terms: 1,
+    "name+searchTerm": 2,
+    name: 3,
+    searchTerm: 4,
+    outputName: 5,
+    outputSearchTerm: 6,
+  }[source] ?? 99;
+}
+
+function scopeRankForRow(row, primarySub, relatedSubs = []) {
+  const subCategory = String(row?.sub_category || "");
+  if (primarySub && subCategory === primarySub) return 0;
+  if (relatedSubs.includes(subCategory)) return 1;
+  return 2;
+}
+
+function preferenceAdjustedScore(row) {
+  const customerBonus = Number(row.customer_default || 0) === 1
+    ? CUSTOMER_PRODUCT_SCORE_BONUS
+    : 0;
+  const defaultBonus = Number(row.is_default || 0) === 1
+    ? DEFAULT_PRODUCT_SCORE_BONUS
+    : 0;
+  const promotionBonus = Number(row.has_active_promotion || 0) === 1
+    ? PROMOTION_PRODUCT_SCORE_BONUS
+    : 0;
+
+  return {
+    customerBonus,
+    defaultBonus,
+    promotionBonus,
+    defaultScore: -(customerBonus + defaultBonus),
+    promotionScore: -promotionBonus,
+    score: -(customerBonus + defaultBonus + promotionBonus),
+  };
+}
+
+function compareEvaluations(left, right) {
+  const semanticDifference =
+    right.tokenMatch.matchedWeight - left.tokenMatch.matchedWeight ||
+    right.tokenMatch.coverage - left.tokenMatch.coverage ||
+    right.tokenMatch.averageSimilarity - left.tokenMatch.averageSimilarity ||
+    left.tokenMatch.missingWeight - right.tokenMatch.missingWeight;
+  if (semanticDifference) return semanticDifference;
+
+  const leftTokenCount = normalizeRequestTokens(left.termGroup?.tokens || []).length;
+  const rightTokenCount = normalizeRequestTokens(right.termGroup?.tokens || []).length;
+  const bothGeneric = leftTokenCount === 1 && rightTokenCount === 1;
+
+  if (bothGeneric) {
+    return (
+      left.scopeRank - right.scopeRank ||
+      left.sourcePriority - right.sourcePriority ||
+      left.preference.defaultScore - right.preference.defaultScore ||
+      left.extraScore - right.extraScore ||
+      left.wordCount - right.wordCount ||
+      left.preference.promotionScore - right.preference.promotionScore ||
+      left.priceScore - right.priceScore ||
+      Number(left.row.id || 0) - Number(right.row.id || 0)
+    );
+  }
+
+  return (
+    left.extraScore - right.extraScore ||
+    left.scopeRank - right.scopeRank ||
+    left.sourcePriority - right.sourcePriority ||
+    left.preference.score - right.preference.score ||
+    left.priceScore - right.priceScore ||
+    left.wordCount - right.wordCount ||
+    Number(left.row.id || 0) - Number(right.row.id || 0)
+  );
 }
 
 async function pickBestWeighted({
-  shop_id,
   rows,
   reqTokens,
   excludeTokens,
+  minCoverage = tokenCoverageThreshold(reqTokens),
+  minMatchedCount = minimumMatchedTokenCount(reqTokens),
   debugLabel = "",
   customerDefaultProductIds = new Set(),
+  termGroup = null,
+  hardConstraintTokens = [],
+  requiredNegatedTargets = [],
+  requiredPositiveTargets = [],
+  primarySub = null,
+  relatedSubs = [],
 }) {
-  rows = annotateCustomerDefaults(rows, customerDefaultProductIds);
-
-  matchLog("pickBestWeighted.input", {
-    debugLabel,
-    reqTokens,
-    excludeTokens,
-    rows_before_filter: compactRows(rows || []),
-  });
-
-  rows = filterRowsByExcludeTokens(rows, excludeTokens);
-
-  matchLog("pickBestWeighted.afterExcludeFilter", {
-    debugLabel,
-    rows_after_filter: compactRows(rows || []),
-  });
-
-  if (!rows || !rows.length) {
-    matchLog("pickBestWeighted.noRowsAfterFilter", { debugLabel });
-    return null;
-  }
-
-  const reqSet = new Set(reqTokens);
-
-  const allExtra = [];
-  const meta = [];
-
-  for (const r of rows) {
-    const candTokens = tokenizeName(r.name || "");
-    const extra = Array.from(new Set(candTokens.filter((t) => !reqSet.has(t))));
-    meta.push({ r, candTokens, extra });
-    allExtra.push(...extra);
-  }
-
-  const invDfMap = await fetchInvDfMap(shop_id, allExtra);
-
-  matchLog("pickBestWeighted.invDfMap", {
-    debugLabel,
-    invDf: Object.fromEntries(invDfMap.entries()),
-  });
+  let candidates = annotateCustomerDefaults(rows || [], customerDefaultProductIds);
+  candidates = filterRowsByExcludeTokens(candidates, excludeTokens || []);
 
   const scored = [];
+  for (const row of candidates) {
+    const tokenFields = candidateTokensForTerm(row, termGroup || { term: "" });
+    const tokenMatch = buildTokenMatchMeta(
+      reqTokens,
+      tokenFields.candidateTokens,
+      tokenFields.penaltyTokens,
+      {
+        hardConstraintTokens,
+        requiredNegatedTargets,
+        requiredPositiveTargets,
+        candidateValue: tokenFields.candidateValue,
+      },
+    );
 
-  for (const m of meta) {
-    const wordCount = m.candTokens.length || 9999;
+    const minimumAverageSimilarity = normalizeRequestTokens(reqTokens).length === 1
+      ? 0.9
+      : TOKEN_FUZZY_MATCH_THRESHOLD;
 
-    const price = Number(m.r.price);
-    const priceScore = Number.isFinite(price) ? price : 999999;
+    if (tokenMatch.criticalMissingTokens.length) continue;
+    if (tokenMatch.matchedCount < minMatchedCount) continue;
+    if (tokenMatch.coverage + 1e-9 < minCoverage) continue;
+    if (tokenMatch.averageSimilarity + 1e-9 < minimumAverageSimilarity) continue;
 
-    let extraScore = 0;
-    const extraBreakdown = [];
-
-    for (const t of m.extra) {
-      const wRaw = invDfMap.has(t) ? invDfMap.get(t) : 1;
-      const inv = Number(wRaw) || 1;
-      const imp = tokenImportance(t);
-      const add = inv * imp;
-
-      extraScore += add;
-      extraBreakdown.push({
-        token: t,
-        inv_df: inv,
-        importance: imp,
-        contribution: add,
-      });
-    }
-
-    const isCustomerDefault = Number(m.r.customer_default || 0) === 1;
-    const customerBonus = isCustomerDefault ? CUSTOMER_PRODUCT_SCORE_BONUS : 0;
-    const isDefault = Number(m.r.is_default || 0) === 1;
-    const defaultBonus = isDefault ? DEFAULT_PRODUCT_SCORE_BONUS : 0;
-    const hasActivePromotion = Number(m.r.has_active_promotion || 0) === 1;
-    const promotionBonus = hasActivePromotion ? PROMOTION_PRODUCT_SCORE_BONUS : 0;
-    const matchScore = extraScore - customerBonus - defaultBonus - promotionBonus;
+    const extraScore = tokenMatch.extraTokens.reduce(
+      (sum, token) => sum + tokenImportance(token),
+      0,
+    );
+    const preference = preferenceAdjustedScore(row);
+    const price = Number(row.price);
 
     scored.push({
-      row: m.r,
-      candTokens: m.candTokens,
-      extraTokens: m.extra,
-      extraBreakdown,
+      row,
+      termGroup,
+      tokenMatch,
+      matchedField: tokenFields.matchedField,
       extraScore,
-      customerBonus,
-      defaultBonus,
-      promotionBonus,
-      matchScore,
-      isCustomerDefault,
-      isDefault,
-      hasActivePromotion,
-      priceScore,
-      wordCount,
-      extraCount: m.extra.length,
+      preference,
+      scopeRank: scopeRankForRow(row, primarySub, relatedSubs),
+      sourcePriority: sourcePriority(termGroup?.source),
+      priceScore: Number.isFinite(price) ? price : Number.MAX_SAFE_INTEGER,
+      wordCount: tokenFields.candidateTokens.length || Number.MAX_SAFE_INTEGER,
     });
   }
 
-  scored.sort(
-    (a, b) =>
-      a.matchScore - b.matchScore ||
-      a.extraScore - b.extraScore ||
-      a.priceScore - b.priceScore ||
-      a.wordCount - b.wordCount ||
-      b.row.id - a.row.id,
-  );
+  scored.sort(compareEvaluations);
 
   matchLog("pickBestWeighted.scored", {
     debugLabel,
-    scored: scored.map((s) => ({
-      id: Number(s.row.id),
-      name: s.row.name,
-      display_name_en: s.row.display_name_en,
-      candTokens: s.candTokens,
-      extraTokens: s.extraTokens,
-      extraBreakdown: s.extraBreakdown,
-      extraScore: s.extraScore,
-      customerBonus: s.customerBonus,
-      defaultBonus: s.defaultBonus,
-      promotionBonus: s.promotionBonus,
-      matchScore: s.matchScore,
-      isCustomerDefault: s.isCustomerDefault,
-      isDefault: s.isDefault,
-      hasActivePromotion: s.hasActivePromotion,
-      priceScore: s.priceScore,
-      wordCount: s.wordCount,
-      extraCount: s.extraCount,
+    scored: scored.slice(0, 20).map((entry) => ({
+      id: Number(entry.row.id),
+      name: entry.row.name,
+      term: entry.termGroup?.term || null,
+      source: entry.termGroup?.source || null,
+      matchedField: entry.matchedField,
+      scopeRank: entry.scopeRank,
+      coverage: entry.tokenMatch.coverage,
+      matchedWeight: entry.tokenMatch.matchedWeight,
+      matchedCount: entry.tokenMatch.matchedCount,
+      averageSimilarity: entry.tokenMatch.averageSimilarity,
+      missingTokens: entry.tokenMatch.missingTokens,
+      criticalMissingTokens: entry.tokenMatch.criticalMissingTokens,
+      extraTokens: entry.tokenMatch.extraTokens,
+      preferenceScore: entry.preference.score,
+      customerBonus: entry.preference.customerBonus,
+      defaultBonus: entry.preference.defaultBonus,
+      promotionBonus: entry.preference.promotionBonus,
     })),
   });
 
-  const best = scored[0];
+  return scored[0]?.row || null;
+}
 
-  matchLog("pickBestWeighted.best", {
+async function loadCategoryProducts({ shop_id, category, categoryRowsCache = null }) {
+  const cacheKey = `${Number(shop_id)}|${String(category || "").trim().toLowerCase()}`;
+  if (categoryRowsCache instanceof Map && categoryRowsCache.has(cacheKey)) {
+    return categoryRowsCache.get(cacheKey);
+  }
+
+  const [rows] = await db.query(
+    `
+      SELECT
+        p.id,
+        p.name,
+        p.display_name_en,
+        p.price,
+        p.stock_amount,
+        p.is_default,
+        p.is_consignment,
+        p.category,
+        p.sub_category,
+        p.updated_at,
+        CASE
+          WHEN EXISTS (
+            SELECT 1
+            FROM promotion pr
+            WHERE pr.shop_id = p.shop_id
+              AND pr.product_id = p.id
+              AND (pr.start_at IS NULL OR pr.start_at <= NOW())
+              AND (pr.end_at IS NULL OR pr.end_at >= NOW())
+          )
+          OR EXISTS (
+            SELECT 1
+            FROM product_group_promotion_item gpi
+            JOIN product_group_promotion pgp
+              ON pgp.id = gpi.group_promotion_id
+             AND pgp.shop_id = gpi.shop_id
+            WHERE gpi.shop_id = p.shop_id
+              AND gpi.product_id = p.id
+              AND pgp.is_active = 1
+              AND (pgp.start_at IS NULL OR pgp.start_at <= NOW())
+              AND (pgp.end_at IS NULL OR pgp.end_at >= NOW())
+          )
+          THEN 1 ELSE 0
+        END AS has_active_promotion
+      FROM product p
+      WHERE p.shop_id = ?
+        AND p.category = ?
+        AND (COALESCE(p.is_consignment,0) = 1 OR p.stock_amount IS NULL OR p.stock_amount > 0)
+      ORDER BY p.sub_category ASC, p.is_default DESC, p.updated_at DESC, p.id DESC
+    `,
+    [shop_id, category],
+  );
+
+  const result = rows || [];
+  if (categoryRowsCache instanceof Map) categoryRowsCache.set(cacheKey, result);
+  return result;
+}
+
+function extractHardConstraintTokens(tokens = []) {
+  const normalized = normalizeRequestTokens(tokens);
+  const hard = [];
+
+  for (let index = 0; index < normalized.length; index += 1) {
+    const token = normalized[index];
+    const previous = normalized[index - 1];
+    const next = normalized[index + 1];
+
+    if (isNumericToken(token) && (isUnitToken(previous) || isUnitToken(next))) {
+      hard.push(token);
+      if (isUnitToken(previous)) hard.push(previous);
+      if (isUnitToken(next)) hard.push(next);
+      continue;
+    }
+
+    if (isUnitToken(token) && (isNumericToken(previous) || isNumericToken(next))) {
+      hard.push(token);
+    }
+  }
+
+  return normalizeRequestTokens(hard);
+}
+
+function collectRequestConstraints(termGroups, rows) {
+  const original = termGroups.find((term) => term.source === "original_user_text");
+  const constraintTerms = original ? [original] : termGroups;
+  const hardConstraintTokens = extractHardConstraintTokens(original?.tokens || []);
+
+  const negatedTargets = [];
+  const strongNegatedTargets = [];
+  const positiveTargets = [];
+  for (const termGroup of constraintTerms) {
+    const polarity = extractPolarityTargets(termGroup.term);
+    negatedTargets.push(...polarity.negated);
+    strongNegatedTargets.push(...(polarity.strongNegated || []));
+    positiveTargets.push(...polarity.positive);
+  }
+
+  const candidateValues = rows.map((row) => `${row?.name || ""} ${row?.display_name_en || ""}`);
+  const explicitNegatedTargets = normalizeRequestTokens(negatedTargets).filter((target) =>
+    candidateValues.some((value) => candidateHasTargetWithPolarity(value, target, true)),
+  );
+  const requiredNegatedTargets = normalizeRequestTokens([
+    ...strongNegatedTargets,
+    ...explicitNegatedTargets,
+  ]);
+  const requiredPositiveTargets = normalizeRequestTokens(positiveTargets).filter((target) =>
+    candidateValues.some((value) => candidateHasTargetWithPolarity(value, target, false)),
+  );
+
+  return {
+    hardConstraintTokens,
+    requiredNegatedTargets,
+    requiredPositiveTargets,
+  };
+}
+
+async function findBestByTermGroups({
+  rows,
+  termGroups,
+  excludeTokens,
+  debugLabel = "",
+  customerDefaultProductIds = new Set(),
+  primarySub = null,
+  relatedSubs = [],
+}) {
+  const ordered = orderedTermGroups(termGroups);
+  const constraints = collectRequestConstraints(ordered, rows);
+  const evaluations = [];
+  // The AI already separates product intent from order quantity and conversational text.
+  // Compare fallback terms only against other structured product terms, not against the
+  // raw original_user_text, which may contain quantities or filler words such as
+  // "4 קורנפלקס" or "חלב אחד של יוטבתה".
+  const structuredTerms = ordered.filter(
+    (termGroup) => termGroup.source !== "original_user_text",
+  );
+  const specificityReferenceTerms = structuredTerms.length ? structuredTerms : ordered;
+  const maximumSpecificity = specificityReferenceTerms.reduce(
+    (maximum, termGroup) => Math.max(maximum, termSpecificity(termGroup)),
+    0,
+  );
+
+  for (const termGroup of ordered) {
+    const specificity = termSpecificity(termGroup);
+    if (
+      termGroup.source !== "original_user_text" &&
+      maximumSpecificity > 0 &&
+      specificity / maximumSpecificity + 1e-9 < MIN_SEARCH_TERM_SPECIFICITY_RATIO
+    ) {
+      matchLog("findBestByTermGroups.skipOverlyBroadTerm", {
+        debugLabel,
+        termGroup: compactSearchTerms([termGroup])[0],
+        specificity,
+        maximumSpecificity,
+        minimumRatio: MIN_SEARCH_TERM_SPECIFICITY_RATIO,
+      });
+      continue;
+    }
+    let candidates = annotateCustomerDefaults(rows || [], customerDefaultProductIds);
+    candidates = filterRowsByExcludeTokens(candidates, excludeTokens || []);
+
+    for (const row of candidates) {
+      const tokenFields = candidateTokensForTerm(row, termGroup);
+      const tokenMatch = buildTokenMatchMeta(
+        termGroup.tokens,
+        tokenFields.candidateTokens,
+        tokenFields.penaltyTokens,
+        {
+          ...constraints,
+          candidateValue: tokenFields.candidateValue,
+        },
+      );
+
+      const minimumAverageSimilarity = termGroup.tokens.length === 1
+        ? 0.9
+        : TOKEN_FUZZY_MATCH_THRESHOLD;
+      const minimumCoverage = tokenCoverageThreshold(termGroup.tokens);
+      const minimumMatches = minimumMatchedTokenCount(termGroup.tokens);
+
+      if (tokenMatch.criticalMissingTokens.length) continue;
+      if (tokenMatch.matchedCount < minimumMatches) continue;
+      if (tokenMatch.coverage + 1e-9 < minimumCoverage) continue;
+      if (tokenMatch.averageSimilarity + 1e-9 < minimumAverageSimilarity) continue;
+
+      const extraScore = tokenMatch.extraTokens.reduce(
+        (sum, token) => sum + tokenImportance(token),
+        0,
+      );
+      const preference = preferenceAdjustedScore(row);
+      const price = Number(row.price);
+
+      evaluations.push({
+        row,
+        termGroup,
+        tokenMatch,
+        matchedField: tokenFields.matchedField,
+        extraScore,
+        preference,
+        scopeRank: scopeRankForRow(row, primarySub, relatedSubs),
+        sourcePriority: sourcePriority(termGroup.source),
+        priceScore: Number.isFinite(price) ? price : Number.MAX_SAFE_INTEGER,
+        wordCount: tokenFields.candidateTokens.length || Number.MAX_SAFE_INTEGER,
+      });
+    }
+  }
+
+  evaluations.sort(compareEvaluations);
+
+  const originalEvaluations = evaluations
+    .filter((entry) => entry.termGroup?.source === "original_user_text")
+    .sort(compareEvaluations);
+  const selectedEvaluation = originalEvaluations[0] || evaluations[0] || null;
+
+  matchLog("findBestByTermGroups.scored", {
     debugLabel,
-    chosen: best
-      ? {
-          id: Number(best.row.id),
-          name: best.row.name,
-          display_name_en: best.row.display_name_en,
-          extraScore: best.extraScore,
-          customerBonus: best.customerBonus,
-          defaultBonus: best.defaultBonus,
-          promotionBonus: best.promotionBonus,
-          matchScore: best.matchScore,
-          isCustomerDefault: best.isCustomerDefault,
-          isDefault: best.isDefault,
-          hasActivePromotion: best.hasActivePromotion,
-          priceScore: best.priceScore,
-          wordCount: best.wordCount,
-        }
-      : null,
+    constraints,
+    selectedSource: selectedEvaluation?.termGroup?.source || null,
+    candidates: evaluations.slice(0, 25).map((entry) => ({
+      id: Number(entry.row.id),
+      name: entry.row.name,
+      sub_category: entry.row.sub_category,
+      source: entry.termGroup.source,
+      term: entry.termGroup.term,
+      scopeRank: entry.scopeRank,
+      matchedWeight: entry.tokenMatch.matchedWeight,
+      coverage: entry.tokenMatch.coverage,
+      averageSimilarity: entry.tokenMatch.averageSimilarity,
+      missingTokens: entry.tokenMatch.missingTokens,
+      extraTokens: entry.tokenMatch.extraTokens,
+      preferenceScore: entry.preference.score,
+      customerBonus: entry.preference.customerBonus,
+      defaultBonus: entry.preference.defaultBonus,
+      promotionBonus: entry.preference.promotionBonus,
+    })),
   });
 
-  return best ? best.row : null;
+  return selectedEvaluation?.row || null;
 }
 
 async function findBestProductForRequest(shop_id, req, opts = {}) {
   await ensureProductDefaultSchema();
 
+  const category = normalizeSearchPhrase(req?.category);
+  const primarySub = normalizeSearchPhrase(req?.["sub-category"] || req?.sub_category) || null;
+  const searchTerms = buildProductSearchTerms(req);
+  const excludeTokens = getExcludeTokensFromReq(req);
+
+  if (!category || !searchTerms.length) {
+    matchLog("findBestProductForRequest.reject.missingBoundaryOrTerms", {
+      shop_id,
+      category: category || null,
+      searchTerms: compactSearchTerms(searchTerms),
+      req,
+    });
+    return null;
+  }
+
   let customerDefaultProductIds = normalizeCustomerDefaultProductIds(
     opts.customerDefaultProductIds || [],
   );
-
   if (!customerDefaultProductIds.size && opts.customer_id) {
     customerDefaultProductIds = await fetchCustomerDefaultProductIds({
       shop_id,
@@ -541,252 +849,67 @@ async function findBestProductForRequest(shop_id, req, opts = {}) {
     });
   }
 
-  const category = (req?.category || "").trim();
-  const subCategoryRaw = (
-    req?.["sub-category"] ||
-    req?.sub_category ||
-    ""
-  ).trim();
-  const nameRaw = (req?.name || "").trim();
+  let relatedSubs = [];
+  if (primarySub) {
+    try {
+      const resolved = await getSubCategoryCandidates(category, primarySub);
+      relatedSubs = normalizeRequestTokens(resolved || []).filter((sub) => sub !== primarySub);
+    } catch (error) {
+      console.error("[MATCH] getSubCategoryCandidates failed", {
+        category,
+        primarySub,
+        error: error?.message || String(error),
+      });
+    }
+  }
 
-  const primarySub = subCategoryRaw || null;
-  const subCandidates = primarySub
-    ? await getSubCategoryCandidates(category, primarySub)
-    : [];
-  const otherSubs = primarySub
-    ? subCandidates.filter((s) => s !== primarySub)
-    : [];
-
-  const searchTerms = buildProductSearchTerms(req);
-  const reqTokens = searchTerms.length ? searchTerms[0].tokens : tokenizeName(nameRaw);
-  const excludeTokens = getExcludeTokensFromReq(req);
+  const categoryRows = annotateCustomerDefaults(
+    await loadCategoryProducts({
+      shop_id,
+      category,
+      categoryRowsCache: opts.categoryRowsCache,
+    }),
+    customerDefaultProductIds,
+  );
 
   matchLog("findBestProductForRequest.start", {
     shop_id,
-    req,
-    normalized: {
-      category,
-      subCategoryRaw,
-      nameRaw,
-      primarySub,
-      subCandidates,
-      otherSubs,
-      finalSearchTerms: compactSearchTerms(searchTerms),
-      reqTokens,
-      excludeTokens,
-    },
+    category,
+    primarySub,
+    relatedSubs,
+    searchTerms: compactSearchTerms(searchTerms),
+    excludeTokens,
+    categoryRowCount: categoryRows.length,
   });
 
-  if (!searchTerms.length) {
-    matchLog("findBestProductForRequest.noSearchTerms", {
-      shop_id,
-      req,
-      category,
-      primarySub,
-      otherSubs,
-    });
-
-    if (category && primarySub) {
-      const params = [shop_id, category, primarySub];
-      let sql = `
-        SELECT id, name, display_name_en, price, stock_amount, is_default, is_consignment, category, sub_category, updated_at
-        FROM product
-        WHERE shop_id = ?
-          AND category = ?
-          AND sub_category = ?
-      `;
-
-      for (const t of excludeTokens) {
-        sql += `
-          AND (
-            name COLLATE utf8mb4_general_ci NOT LIKE CONCAT('%', ?, '%')
-            AND display_name_en COLLATE utf8mb4_general_ci NOT LIKE CONCAT('%', ?, '%')
-          )
-        `;
-        params.push(t, t);
-      }
-
-      sql += `
-        ORDER BY is_default DESC, updated_at DESC, id DESC
-        LIMIT 1
-      `;
-
-      matchLog("findBestProductForRequest.query.noTerms.primary", {
-        sql,
-        params,
-      });
-
-      const [rawRows] = await db.query(sql, params);
-      const rows = sortByCustomerThenShopDefault(
-        annotateCustomerDefaults(rawRows || [], customerDefaultProductIds),
-      );
-
-      matchLog("findBestProductForRequest.rows.noTerms.primary", {
-        rows: compactRows(rows),
-      });
-
-      if (rows && rows.length) {
-        matchLog("findBestProductForRequest.return.noTerms.primary", rows[0]);
-        return rows[0];
-      }
-
-      if (otherSubs.length) {
-        const params2 = [shop_id, category, ...otherSubs];
-        let sql2 = `
-          SELECT id, name, display_name_en, price, stock_amount, is_default, is_consignment, category, sub_category
-          FROM product
-          WHERE shop_id = ?
-            AND category = ?
-            AND sub_category IN (${otherSubs.map(() => "?").join(",")})
-        `;
-
-        for (const t of excludeTokens) {
-          sql2 += `
-            AND (
-              name COLLATE utf8mb4_general_ci NOT LIKE CONCAT('%', ?, '%')
-              AND display_name_en COLLATE utf8mb4_general_ci NOT LIKE CONCAT('%', ?, '%')
-            )
-          `;
-          params2.push(t, t);
-        }
-
-        sql2 += `
-          ORDER BY is_default DESC, updated_at DESC, id DESC
-          LIMIT 1
-        `;
-
-        matchLog("findBestProductForRequest.query.noTerms.otherSubs", {
-          sql: sql2,
-          params: params2,
-        });
-
-        const [rawRows2] = await db.query(sql2, params2);
-        const rows2 = sortByCustomerThenShopDefault(
-          annotateCustomerDefaults(rawRows2 || [], customerDefaultProductIds),
-        );
-
-        matchLog("findBestProductForRequest.rows.noTerms.otherSubs", {
-          rows: compactRows(rows2),
-        });
-
-        if (rows2 && rows2.length) {
-          matchLog(
-            "findBestProductForRequest.return.noTerms.otherSubs",
-            rows2[0],
-          );
-          return rows2[0];
-        }
-      }
-    }
-
-    matchLog("findBestProductForRequest.return.noTerms.null", { req });
-    return null;
-  }
-
-  if (category && primarySub) {
-    const bestPrimary = await findBestByTermGroups({
-      shop_id,
-      termGroups: searchTerms,
-      excludeTokens,
-      category,
-      subCategories: primarySub,
-      debugLabel: "primarySub",
-      customerDefaultProductIds,
-    });
-    if (bestPrimary) {
-      matchLog("findBestProductForRequest.return.primarySub", bestPrimary);
-      return bestPrimary;
-    }
-
-    if (otherSubs.length) {
-      const bestOther = await findBestByTermGroups({
-        shop_id,
-        termGroups: searchTerms,
-        excludeTokens,
-        category,
-        subCategories: otherSubs,
-        debugLabel: "otherSubs",
-        customerDefaultProductIds,
-      });
-      if (bestOther) {
-        matchLog("findBestProductForRequest.return.otherSubs", bestOther);
-        return bestOther;
-      }
-    }
-  }
-
-  if (category) {
-    const bestCategoryWide = await findBestByTermGroups({
-      shop_id,
-      termGroups: searchTerms,
-      excludeTokens,
-      category,
-      subCategories: null,
-      debugLabel: "categoryWide",
-      customerDefaultProductIds,
-    });
-    if (bestCategoryWide) {
-      matchLog("findBestProductForRequest.return.categoryWide", bestCategoryWide);
-      return bestCategoryWide;
-    }
-  }
-
-  const bestShopWide = await findBestByTermGroups({
-    shop_id,
+  const best = await findBestByTermGroups({
+    rows: categoryRows,
     termGroups: searchTerms,
     excludeTokens,
-    category: null,
-    subCategories: null,
-    debugLabel: "shopWide",
+    debugLabel: "categoryBounded",
     customerDefaultProductIds,
+    primarySub,
+    relatedSubs,
   });
-  if (bestShopWide) {
-    matchLog("findBestProductForRequest.return.shopWide", bestShopWide);
-    return bestShopWide;
+
+  if (best) {
+    matchLog("findBestProductForRequest.return.best", {
+      id: Number(best.id),
+      name: best.name,
+      category: best.category,
+      sub_category: best.sub_category,
+    });
+    return best;
   }
 
   matchLog("findBestProductForRequest.return.null", {
     req,
     category,
     primarySub,
-    finalSearchTerms: compactSearchTerms(searchTerms),
+    searchTerms: compactSearchTerms(searchTerms),
     excludeTokens,
   });
-
   return null;
-}
-
-async function fetchInvDfMap(shop_id, tokens) {
-  const uniq = Array.from(new Set(tokens)).filter(Boolean);
-
-  if (!uniq.length) {
-    matchLog("fetchInvDfMap.empty", { shop_id });
-    return new Map();
-  }
-
-  const placeholders = uniq.map(() => "?").join(",");
-  const [rows] = await db.query(
-    `
-    SELECT token, inv_df
-    FROM product_token_weight
-    WHERE shop_id = ?
-      AND token IN (${placeholders})
-    `,
-    [shop_id, ...uniq],
-  );
-
-  const map = new Map();
-  for (const r of rows || []) {
-    map.set(String(r.token), Number(r.inv_df));
-  }
-
-  matchLog("fetchInvDfMap.result", {
-    shop_id,
-    requestedTokens: uniq,
-    foundRows: rows,
-  });
-
-  return map;
 }
 
 async function searchProducts(shop_id, products, opts = {}) {
@@ -795,35 +918,24 @@ async function searchProducts(shop_id, products, opts = {}) {
     customer_id: opts.customer_id,
   });
 
-  matchLog("searchProducts.start", {
-    shop_id,
-    customer_id: opts.customer_id || null,
-    customerDefaultProductIds: Array.from(customerDefaultProductIds),
-    products,
-  });
-
   const found = [];
   const notFound = [];
+  const categoryRowsCache = new Map();
 
-  for (let i = 0; i < products.length; i++) {
-    const req = products[i];
-
-    matchLog("searchProducts.item.start", {
-      index: i,
-      req,
-    });
-
+  for (let index = 0; index < products.length; index += 1) {
+    const req = products[index];
     const row = await findBestProductForRequest(shop_id, req, {
       customerDefaultProductIds,
+      categoryRowsCache,
     });
 
     if (row) {
-      const n = Number(req?.amount);
-      const u = Number(req?.units);
-      const weightFlag = req?.sold_by_weight === true;
+      const amount = Number(req?.amount);
+      const units = Number(req?.units);
+      const soldByWeight = req?.sold_by_weight === true;
 
-      const foundItem = {
-        originalIndex: i,
+      found.push({
+        originalIndex: index,
         product_id: row.id,
         matched_name: row.name,
         price: Number(row.price),
@@ -835,40 +947,31 @@ async function searchProducts(shop_id, products, opts = {}) {
         requested_original_user_text: req?.original_user_text || null,
         requested_search_terms: Array.isArray(req?.search_terms) ? req.search_terms : [],
         final_search_terms: compactSearchTerms(buildProductSearchTerms(req)),
-        requested_amount: Number.isFinite(n) ? n : 1,
-        requested_units: Number.isFinite(u) && u > 0 ? u : null,
-        sold_by_weight: weightFlag === true,
+        requested_amount: Number.isFinite(amount) ? amount : 1,
+        requested_units: Number.isFinite(units) && units > 0 ? units : null,
+        sold_by_weight: soldByWeight,
         matched_display_name_en: row.display_name_en,
         is_default: Number(row.is_default || 0) === 1,
         customer_default: Number(row.customer_default || 0) === 1,
-      };
-
-      matchLog("searchProducts.item.found", foundItem);
-      found.push(foundItem);
+      });
     } else {
-      const n = Number(req?.amount);
-      const excludeTokens = getExcludeTokensFromReq(req);
-
-      const notFoundItem = {
-        originalIndex: i,
+      const amount = Number(req?.amount);
+      notFound.push({
+        originalIndex: index,
         requested_name: req?.name || null,
         requested_output_name: req?.outputName || null,
         requested_original_user_text: req?.original_user_text || null,
         requested_search_terms: Array.isArray(req?.search_terms) ? req.search_terms : [],
         final_search_terms: compactSearchTerms(buildProductSearchTerms(req)),
-        requested_amount: Number.isFinite(n) ? n : 1,
+        requested_amount: Number.isFinite(amount) ? amount : 1,
         category: req?.category || null,
         sub_category: req?.["sub-category"] || req?.sub_category || null,
-        exclude_tokens: excludeTokens,
-      };
-
-      matchLog("searchProducts.item.notFound", notFoundItem);
-      notFound.push(notFoundItem);
+        exclude_tokens: getExcludeTokensFromReq(req),
+      });
     }
   }
 
   matchLog("searchProducts.end", { found, notFound });
-
   return { found, notFound };
 }
 
@@ -881,99 +984,57 @@ async function fetchAlternatives(
   requestedName = null,
   excludeTokens = [],
 ) {
-  if (!category && !subCategory) return [];
+  const normalizedCategory = normalizeSearchPhrase(category);
+  if (!normalizedCategory) return [];
 
   await ensureProductDefaultSchema();
 
-  const reqTokens = typeof requestedName === "object"
-    ? (buildProductSearchTerms(requestedName)[0]?.tokens || [])
-    : tokenizeName(requestedName || "");
+  const categoryRows = await loadCategoryProducts({
+    shop_id,
+    category: normalizedCategory,
+  });
+  const excludedIds = new Set(
+    (Array.isArray(excludeIds) ? excludeIds : [])
+      .map((id) => Number(id))
+      .filter(Number.isFinite),
+  );
 
-  async function fetchByCatSub(cat, sub, useGroup = true) {
-    const params = [shop_id];
-    let sql = `
-      SELECT p.id, p.name, p.display_name_en, p.price, p.stock_amount, p.is_default, p.is_consignment, p.category, p.sub_category
-      FROM product p
-      WHERE p.shop_id = ?
-        AND (COALESCE(p.is_consignment,0) = 1 OR p.stock_amount IS NULL OR p.stock_amount > 0)
-    `;
+  let rows = categoryRows.filter((row) => !excludedIds.has(Number(row.id)));
+  rows = filterRowsByExcludeTokens(rows, excludeTokens || []);
+  if (!rows.length) return [];
 
-    if (cat) {
-      sql += ` AND p.category = ?`;
-      params.push(cat);
+  const normalizedSub = normalizeSearchPhrase(subCategory) || null;
+  let relatedSubs = normalizedSub ? [normalizedSub] : [];
+  if (normalizedSub) {
+    try {
+      relatedSubs = normalizeRequestTokens([
+        normalizedSub,
+        ...((await getSubCategoryCandidates(normalizedCategory, normalizedSub)) || []),
+      ]);
+    } catch (error) {
+      console.error("[MATCH] fetchAlternatives subcategory lookup failed", {
+        category: normalizedCategory,
+        subCategory: normalizedSub,
+        error: error?.message || String(error),
+      });
     }
+  }
 
-    let subList = [];
-    if (sub) {
-      if (useGroup) {
-        subList = await getSubCategoryCandidates(cat, sub);
-      } else {
-        subList = [sub];
-      }
-    }
+  if (relatedSubs.length) {
+    const relatedSet = new Set(relatedSubs);
+    const relatedRows = rows.filter((row) => relatedSet.has(String(row.sub_category || "")));
+    if (relatedRows.length) rows = relatedRows;
+  }
 
-    if (subList.length) {
-      sql += ` AND sub_category IN (${subList.map(() => "?").join(",")})`;
-      params.push(...subList);
-    }
-
-    if (Array.isArray(excludeIds) && excludeIds.length) {
-      sql += ` AND id NOT IN (${excludeIds.map(() => "?").join(",")})`;
-      params.push(...excludeIds);
-    }
-
-    const [rows] = await db.query(sql, params);
-    if (!rows || !rows.length) return [];
-
-    const filteredRows = filterRowsByExcludeTokens(rows, excludeTokens);
-    if (!filteredRows.length) return [];
-
-    // all tokens
-    if (reqTokens.length) {
-      const scored = filteredRows.map((r) => {
-        const candTokens = tokenizeName(r.name || "");
-        let hitW = 0;
-        let totalW = 0;
-
-        for (const t of reqTokens) {
-          const w = tokenImportance(t);
-          totalW += w;
-          if (candTokens.includes(t)) hitW += w;
-        }
-
-        const score = totalW > 0 ? hitW / totalW : 0;
-
-        const isPrimary = sub && String(r.sub_category) === String(sub);
-        const isDefault = Number(r.is_default || 0) === 1;
-        return {
-          row: r,
-          score,
-          isPrimary,
-          isDefault,
-          wordCount: candTokens.length || 9999,
-        };
+  const termGroups = typeof requestedName === "object"
+    ? buildProductSearchTerms(requestedName)
+    : buildProductSearchTerms({
+        original_user_text: requestedName,
+        name: requestedName,
       });
 
-      const positive = scored
-        .filter((s) => s.score > 0)
-        .sort(
-          (a, b) =>
-            b.score - a.score ||
-            (b.isDefault ? 1 : 0) - (a.isDefault ? 1 : 0) ||
-            (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0) ||
-            a.wordCount - b.wordCount ||
-            a.row.id - b.row.id,
-        )
-
-        .map((s) => s.row);
-
-      if (positive.length >= limit) return positive.slice(0, limit);
-
-      const zero = scored.filter((s) => s.score === 0).map((s) => s.row);
-      return [...positive, ...zero].slice(0, limit);
-    }
-
-    return filteredRows
+  if (!termGroups.length) {
+    return rows
       .slice()
       .sort(
         (a, b) =>
@@ -981,24 +1042,70 @@ async function fetchAlternatives(
           String(a.name || "").localeCompare(String(b.name || ""), "he") ||
           Number(a.id || 0) - Number(b.id || 0),
       )
-      .slice(0, limit);
+      .slice(0, Math.max(0, Number(limit) || 0));
   }
 
-  let rows = [];
+  const ranked = [];
+  for (const row of rows) {
+    let best = null;
+    for (const termGroup of orderedTermGroups(termGroups)) {
+      const tokenFields = candidateTokensForTerm(row, termGroup);
+      const tokenMatch = buildTokenMatchMeta(
+        termGroup.tokens,
+        tokenFields.candidateTokens,
+        tokenFields.penaltyTokens,
+      );
+      if (tokenMatch.criticalMissingTokens.length) continue;
+      if (tokenMatch.matchedCount === 0) continue;
 
-  //category + subCategory
-  if (category && subCategory) {
-    rows = await fetchByCatSub(category, subCategory, true);
-    if (rows && rows.length) return rows;
+      const score = {
+        termSpecificity: termSpecificity(termGroup),
+        coverage: tokenMatch.coverage,
+        matchedCount: tokenMatch.matchedCount,
+        averageSimilarity: tokenMatch.averageSimilarity,
+        extraScore: tokenMatch.extraTokens.reduce(
+          (sum, token) => sum + tokenImportance(token),
+          0,
+        ),
+      };
+
+      if (
+        !best ||
+        score.termSpecificity > best.termSpecificity ||
+        (score.termSpecificity === best.termSpecificity && score.coverage > best.coverage) ||
+        (score.termSpecificity === best.termSpecificity &&
+          score.coverage === best.coverage &&
+          score.averageSimilarity > best.averageSimilarity)
+      ) {
+        best = score;
+      }
+    }
+
+    if (!best) continue;
+    ranked.push({
+      row,
+      ...best,
+      isPrimary: normalizedSub && String(row.sub_category || "") === normalizedSub,
+      isDefault: Number(row.is_default || 0) === 1,
+      price: Number.isFinite(Number(row.price)) ? Number(row.price) : Number.MAX_SAFE_INTEGER,
+    });
   }
 
-  //only category
-  if (category) {
-    rows = await fetchByCatSub(category, null, true);
-    if (rows && rows.length) return rows;
-  }
-
-  return [];
+  return ranked
+    .sort(
+      (a, b) =>
+        Number(b.isPrimary) - Number(a.isPrimary) ||
+        b.termSpecificity - a.termSpecificity ||
+        b.coverage - a.coverage ||
+        b.matchedCount - a.matchedCount ||
+        b.averageSimilarity - a.averageSimilarity ||
+        Number(b.isDefault) - Number(a.isDefault) ||
+        a.extraScore - b.extraScore ||
+        a.price - b.price ||
+        Number(a.row.id || 0) - Number(b.row.id || 0),
+    )
+    .slice(0, Math.max(0, Number(limit) || 0))
+    .map((entry) => entry.row);
 }
 
 const AVAIL_INTROS_HE = [
@@ -1184,67 +1291,93 @@ async function searchVariants(
 ) {
   await ensureProductDefaultSchema();
 
-  const searchTermGroups = buildProductSearchTerms({
+  const normalizedCategory = normalizeSearchPhrase(category);
+  if (!normalizedCategory) return [];
+
+  const termGroups = buildProductSearchTerms({
     original_user_text: searchTerm,
     name: searchTerm,
   });
-  const tokens = searchTermGroups[0]?.tokens || [];
 
-  let sql = `
-    SELECT p.id, p.name, p.display_name_en, p.price, p.stock_amount, p.is_default, p.is_consignment, p.category, p.sub_category
-    FROM product p
-    WHERE p.shop_id = ?
-      AND (COALESCE(p.is_consignment,0) = 1 OR p.stock_amount IS NULL OR p.stock_amount > 0)
-  `;
-  const params = [shop_id];
+  let rows = await loadCategoryProducts({
+    shop_id,
+    category: normalizedCategory,
+  });
+  rows = filterRowsByExcludeTokens(rows, excludeTokens || []);
 
-  if (category) {
-    sql += ` AND p.category = ?`;
-    params.push(category);
-  }
-
-  if (subCategory) {
-    const subs = await getSubCategoryCandidates(category, subCategory);
-    if (subs.length) {
-      sql += ` AND sub_category IN (${subs.map(() => "?").join(",")})`;
-      params.push(...subs);
+  const normalizedSub = normalizeSearchPhrase(subCategory) || null;
+  if (normalizedSub) {
+    let subCandidates = [normalizedSub];
+    try {
+      subCandidates = normalizeRequestTokens([
+        normalizedSub,
+        ...((await getSubCategoryCandidates(normalizedCategory, normalizedSub)) || []),
+      ]);
+    } catch (error) {
+      console.error("[MATCH] searchVariants subcategory lookup failed", {
+        category: normalizedCategory,
+        subCategory: normalizedSub,
+        error: error?.message || String(error),
+      });
     }
+    const allowed = new Set(subCandidates);
+    rows = rows.filter((row) => allowed.has(String(row.sub_category || "")));
   }
 
-  if (tokens.length) {
-    for (const t of tokens) {
-      sql += `
-        AND (
-          name COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
-          OR display_name_en COLLATE utf8mb4_general_ci LIKE CONCAT('%', ?, '%')
-        )
-      `;
-      params.push(t, t);
-    }
-  }
-
-  const normalizedExcludeTokens = Array.isArray(excludeTokens)
-    ? excludeTokens.map((t) => String(t || "").trim()).filter(Boolean)
-    : [];
-
-  for (const t of normalizedExcludeTokens) {
-    sql += `
-      AND (
-        name COLLATE utf8mb4_general_ci NOT LIKE CONCAT('%', ?, '%')
-        AND display_name_en COLLATE utf8mb4_general_ci NOT LIKE CONCAT('%', ?, '%')
+  if (!termGroups.length) {
+    return rows
+      .slice()
+      .sort(
+        (a, b) =>
+          Number(b.is_default || 0) - Number(a.is_default || 0) ||
+          String(a.name || "").localeCompare(String(b.name || ""), "he") ||
+          Number(a.id || 0) - Number(b.id || 0),
       )
-    `;
-    params.push(t, t);
+      .slice(0, Math.max(0, Number(limit) || 0));
   }
 
-  sql += `
-    ORDER BY is_default DESC, name ASC, id DESC
-    LIMIT ?
-  `;
-  params.push(limit);
+  const ranked = [];
+  for (const row of rows) {
+    for (const termGroup of orderedTermGroups(termGroups)) {
+      const tokenFields = candidateTokensForTerm(row, termGroup);
+      const tokenMatch = buildTokenMatchMeta(
+        termGroup.tokens,
+        tokenFields.candidateTokens,
+        tokenFields.penaltyTokens,
+      );
+      if (tokenMatch.criticalMissingTokens.length) continue;
+      if (tokenMatch.matchedCount < minimumMatchedTokenCount(termGroup.tokens)) continue;
+      if (tokenMatch.coverage + 1e-9 < tokenCoverageThreshold(termGroup.tokens)) continue;
 
-  const [rows] = await db.query(sql, params);
-  return rows || [];
+      ranked.push({
+        row,
+        termSpecificity: termSpecificity(termGroup),
+        coverage: tokenMatch.coverage,
+        matchedCount: tokenMatch.matchedCount,
+        averageSimilarity: tokenMatch.averageSimilarity,
+        extraScore: tokenMatch.extraTokens.reduce(
+          (sum, token) => sum + tokenImportance(token),
+          0,
+        ),
+      });
+      break;
+    }
+  }
+
+  return ranked
+    .sort(
+      (a, b) =>
+        b.termSpecificity - a.termSpecificity ||
+        b.coverage - a.coverage ||
+        b.matchedCount - a.matchedCount ||
+        b.averageSimilarity - a.averageSimilarity ||
+        Number(b.row.is_default || 0) - Number(a.row.is_default || 0) ||
+        a.extraScore - b.extraScore ||
+        String(a.row.name || "").localeCompare(String(b.row.name || ""), "he") ||
+        Number(a.row.id || 0) - Number(b.row.id || 0),
+    )
+    .slice(0, Math.max(0, Number(limit) || 0))
+    .map((entry) => entry.row);
 }
 
 module.exports = {
@@ -1260,4 +1393,15 @@ module.exports = {
 
   buildProductSearchTerms,
   fetchCustomerDefaultProductIds,
+
+  // Exported for deterministic regression tests.
+  normalizeRequestTokens,
+  extractHardConstraintTokens,
+  buildTokenMatchMeta,
+  tokenCoverageThreshold,
+  minimumMatchedTokenCount,
+  orderedTermGroups,
+  pickBestWeighted,
+  findBestByTermGroups,
+  collectRequestConstraints,
 };
