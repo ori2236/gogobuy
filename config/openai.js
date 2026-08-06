@@ -59,7 +59,6 @@ async function chat({
     messages,
     ...(response_format ? { response_format } : {}),
     ...(prompt_cache_key ? { prompt_cache_key } : {}),
-    top_p: 1,
   };
 
   if (use === "main") {
