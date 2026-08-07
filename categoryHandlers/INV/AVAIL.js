@@ -540,10 +540,19 @@ async function checkAvailability({
         searchTerm,
       );
 
-      const cat = (reqCategory || (f && f.category) || "").trim();
-      let subCategory = reqCategory
-        ? reqSubCategory
-        : (reqSubCategory || (f && f.sub_category) || "").trim();
+      const categoryRecovered = Boolean(f && f.category_recovered);
+      const cat = (
+        categoryRecovered
+          ? f.category
+          : reqCategory || (f && f.category) || ""
+      ).trim();
+      let subCategory = (
+        categoryRecovered
+          ? f.sub_category
+          : reqCategory
+            ? reqSubCategory
+            : reqSubCategory || (f && f.sub_category) || ""
+      ).trim();
 
       if (!cat && !subCategory && searchTerm && !heName) {
         const rows = await fetchProductsByNameKeyword(
@@ -627,6 +636,7 @@ async function checkAvailability({
         subCategory,
         broadProductListWording,
         distinctKeywordFilter,
+        categoryRecovered,
         effectiveSearchTerm,
       });
 

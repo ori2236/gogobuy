@@ -17,6 +17,7 @@ async function searchProductsAvailability(shop_id, products, opts = {}) {
   const found = [];
   const notFound = [];
   const categoryRowsCache = new Map();
+  const shopRowsCache = new Map();
 
   for (let i = 0; i < products.length; i++) {
     const req = products[i];
@@ -24,6 +25,7 @@ async function searchProductsAvailability(shop_id, products, opts = {}) {
     const row = await findBestProductForAvailability(shop_id, req, {
       customerDefaultProductIds,
       categoryRowsCache,
+      shopRowsCache,
     });
 
     if (row) {
@@ -49,6 +51,8 @@ async function searchProductsAvailability(shop_id, products, opts = {}) {
         requested_units: Number.isFinite(u) && u > 0 ? u : null,
         sold_by_weight: weightFlag === true,
         matched_display_name_en: row.display_name_en,
+        category_recovered: Boolean(row._category_recovery),
+        category_recovery: row._category_recovery || null,
       });
     } else {
       const n = Number(req?.amount);

@@ -5,6 +5,7 @@ const {
   tokenSimilarity,
   isNumericToken,
   isUnitToken,
+  isNegationToken,
   extractPolarityTargets,
   candidateHasTargetWithPolarity,
   getExcludeTokensFromReq,
@@ -26,6 +27,37 @@ const PROMOTION_PRODUCT_SCORE_BONUS = Number.isFinite(Number(process.env.PROMOTI
 const CUSTOMER_DEFAULT_RECENT_ORDERS_LIMIT = Number.isFinite(Number(process.env.CUSTOMER_DEFAULT_RECENT_ORDERS_LIMIT))
   ? Math.max(1, Math.trunc(Number(process.env.CUSTOMER_DEFAULT_RECENT_ORDERS_LIMIT)))
   : 10;
+
+const WHOLE_SHOP_RECOVERY_GENERIC_SINGLE_TOKENS = new Set(
+  [
+    "מוצר",
+    "מוצרים",
+    "משהו",
+    "סוג",
+    "מותג",
+    "טעם",
+    "רגיל",
+    "רגילה",
+    "גדול",
+    "גדולה",
+    "קטן",
+    "קטנה",
+    "אחד",
+    "אחת",
+    "product",
+    "products",
+    "item",
+    "items",
+    "something",
+    "type",
+    "brand",
+    "flavor",
+    "flavour",
+    "regular",
+    "large",
+    "small",
+  ].flatMap((value) => tokenizeForMatching(value)),
+);
 
 function boundedEnvNumber(name, fallback, min, max) {
   const value = Number(process.env[name]);
@@ -641,6 +673,191 @@ async function loadCategoryProducts({ shop_id, category, categoryRowsCache = nul
   return result;
 }
 
+
+async function loadShopRecoveryProducts({ shop_id, shopRowsCache = null }) {
+  const cacheKey = Number(shop_id);
+  if (shopRowsCache instanceof Map && shopRowsCache.has(cacheKey)) {
+    return shopRowsCache.get(cacheKey);
+  }
+
+  const [rows] = await db.query(
+    `
+      SELECT
+        p.id,
+        p.name,
+        p.display_name_en,
+        p.price,
+        p.stock_amount,
+        0 AS is_default,
+        p.is_consignment,
+        p.category,
+        p.sub_category,
+        0 AS customer_default,
+        0 AS has_active_promotion
+      FROM product p
+      WHERE p.shop_id = ?
+        AND p.category IS NOT NULL
+        AND TRIM(p.category) <> ''
+        AND (COALESCE(p.is_consignment,0) = 1 OR p.stock_amount IS NULL OR p.stock_amount > 0)
+      ORDER BY p.category ASC, p.sub_category ASC, p.id ASC
+    `,
+    [shop_id],
+  );
+
+  const result = rows || [];
+  if (shopRowsCache instanceof Map) shopRowsCache.set(cacheKey, result);
+  return result;
+}
+
+function isUsableSingleTokenForWholeShopRecovery(token) {
+  const normalized = String(token || "").trim().toLowerCase();
+  if (!normalized || normalized.length < 3) return false;
+  if (isNumericToken(normalized) || isUnitToken(normalized) || isNegationToken(normalized)) {
+    return false;
+  }
+  return !WHOLE_SHOP_RECOVERY_GENERIC_SINGLE_TOKENS.has(normalized);
+}
+
+function compactWholeShopRecoveryMatch(match) {
+  return {
+    category: match.category,
+    product_id: Number(match.meta?.row?.id || 0) || null,
+    product_name: match.meta?.row?.name || null,
+    sub_category: match.meta?.row?.sub_category || null,
+    selected_source: match.meta?.selectedEvaluation?.termGroup?.source || null,
+    selected_term: match.meta?.selectedEvaluation?.termGroup?.term || null,
+    selected_tokens: match.meta?.selectedEvaluation?.termGroup?.tokens || [],
+    specificity: match.specificity,
+    coverage: match.meta?.selectedEvaluation?.tokenMatch?.coverage || 0,
+    average_similarity: match.meta?.selectedEvaluation?.tokenMatch?.averageSimilarity || 0,
+  };
+}
+
+async function findWholeShopRecoveryDecision({
+  rows,
+  termGroups,
+  excludeTokens = [],
+  requestedCategory = null,
+}) {
+  const grouped = new Map();
+  for (const row of rows || []) {
+    const category = normalizeSearchPhrase(row?.category);
+    if (!category) continue;
+    if (!grouped.has(category)) grouped.set(category, []);
+    grouped.get(category).push(row);
+  }
+
+  const matches = [];
+  for (const [category, categoryRows] of grouped.entries()) {
+    if (requestedCategory && category === requestedCategory) continue;
+
+    const meta = await findBestByTermGroups({
+      rows: categoryRows,
+      termGroups,
+      excludeTokens,
+      debugLabel: `wholeShopRecovery:${category}`,
+      primarySub: null,
+      relatedSubs: [],
+      customerDefaultProductIds: new Set(),
+      recoveryMode: true,
+      returnMeta: true,
+      emitLog: false,
+    });
+
+    if (!meta?.row || !meta?.selectedEvaluation) continue;
+
+    const selectedSource = meta.selectedEvaluation.termGroup?.source;
+    if (!["original_user_text", "search_terms", "searchTerm", "outputSearchTerm"].includes(selectedSource)) {
+      continue;
+    }
+
+    matches.push({
+      category,
+      meta,
+      specificity: termSpecificity(meta.selectedEvaluation.termGroup),
+    });
+  }
+
+  if (!matches.length) {
+    return {
+      accepted: false,
+      reason: "no_strong_whole_shop_match",
+      matches: [],
+    };
+  }
+
+  const originalGroundedMatches = matches.filter(
+    (match) => match.meta.selectedEvaluation.termGroup?.source === "original_user_text",
+  );
+
+  let strongestMatches;
+  if (originalGroundedMatches.length) {
+    strongestMatches = originalGroundedMatches;
+  } else {
+    const maximumSpecificity = matches.reduce(
+      (maximum, match) => Math.max(maximum, match.specificity),
+      0,
+    );
+    strongestMatches = matches.filter(
+      (match) => Math.abs(match.specificity - maximumSpecificity) < 1e-9,
+    );
+  }
+
+  const categories = Array.from(new Set(strongestMatches.map((match) => match.category)));
+  if (categories.length !== 1) {
+    return {
+      accepted: false,
+      reason: "ambiguous_categories",
+      matches: strongestMatches.map(compactWholeShopRecoveryMatch),
+    };
+  }
+
+  const selectedMatch = strongestMatches.find((match) => match.category === categories[0]);
+  const selectedEvaluation = selectedMatch.meta.selectedEvaluation;
+  const selectedTokens = normalizeRequestTokens(selectedEvaluation.termGroup?.tokens || []);
+
+  if (selectedTokens.length === 1) {
+    if (!isUsableSingleTokenForWholeShopRecovery(selectedTokens[0])) {
+      return {
+        accepted: false,
+        reason: "unsafe_generic_single_token",
+        matches: strongestMatches.map(compactWholeShopRecoveryMatch),
+      };
+    }
+
+    const matchingSubCategories = Array.from(
+      new Set(
+        selectedMatch.meta.evaluations
+          .filter((entry) => entry.termGroup === selectedEvaluation.termGroup)
+          .map((entry) => normalizeSearchPhrase(entry.row?.sub_category))
+          .filter(Boolean),
+      ),
+    );
+
+    if (matchingSubCategories.length !== 1) {
+      return {
+        accepted: false,
+        reason: "ambiguous_single_token_subcategories",
+        matches: strongestMatches.map(compactWholeShopRecoveryMatch),
+        sub_categories: matchingSubCategories,
+      };
+    }
+  }
+
+  return {
+    accepted: true,
+    reason: "unique_strong_category",
+    category: selectedMatch.category,
+    sub_category: normalizeSearchPhrase(selectedMatch.meta.row?.sub_category) || null,
+    selected_term: selectedEvaluation.termGroup?.term || null,
+    selected_source: selectedEvaluation.termGroup?.source || null,
+    selected_tokens: selectedTokens,
+    product_id: Number(selectedMatch.meta.row?.id || 0) || null,
+    product_name: selectedMatch.meta.row?.name || null,
+    matches: strongestMatches.map(compactWholeShopRecoveryMatch),
+  };
+}
+
 function extractHardConstraintTokens(tokens = []) {
   const normalized = normalizeRequestTokens(tokens);
   const hard = [];
@@ -707,6 +924,9 @@ async function findBestByTermGroups({
   customerDefaultProductIds = new Set(),
   primarySub = null,
   relatedSubs = [],
+  recoveryMode = false,
+  returnMeta = false,
+  emitLog = true,
 }) {
   const ordered = orderedTermGroups(termGroups);
   const constraints = collectRequestConstraints(ordered, rows);
@@ -757,8 +977,15 @@ async function findBestByTermGroups({
 
       const minimumAverageSimilarity = termGroup.tokens.length === 1
         ? 0.9
-        : TOKEN_FUZZY_MATCH_THRESHOLD;
-      const minimumCoverage = tokenCoverageThreshold(termGroup.tokens);
+        : recoveryMode
+          ? Math.max(0.9, TOKEN_FUZZY_MATCH_THRESHOLD)
+          : TOKEN_FUZZY_MATCH_THRESHOLD;
+      const baseCoverage = tokenCoverageThreshold(termGroup.tokens);
+      const minimumCoverage = recoveryMode
+        ? termGroup.tokens.length <= 3
+          ? 1
+          : Math.max(0.8, baseCoverage)
+        : baseCoverage;
       const minimumMatches = minimumMatchedTokenCount(termGroup.tokens);
 
       if (tokenMatch.criticalMissingTokens.length) continue;
@@ -795,28 +1022,39 @@ async function findBestByTermGroups({
     .sort(compareEvaluations);
   const selectedEvaluation = originalEvaluations[0] || evaluations[0] || null;
 
-  matchLog("findBestByTermGroups.scored", {
-    debugLabel,
-    constraints,
-    selectedSource: selectedEvaluation?.termGroup?.source || null,
-    candidates: evaluations.slice(0, 25).map((entry) => ({
-      id: Number(entry.row.id),
-      name: entry.row.name,
-      sub_category: entry.row.sub_category,
-      source: entry.termGroup.source,
-      term: entry.termGroup.term,
-      scopeRank: entry.scopeRank,
-      matchedWeight: entry.tokenMatch.matchedWeight,
-      coverage: entry.tokenMatch.coverage,
-      averageSimilarity: entry.tokenMatch.averageSimilarity,
-      missingTokens: entry.tokenMatch.missingTokens,
-      extraTokens: entry.tokenMatch.extraTokens,
-      preferenceScore: entry.preference.score,
-      customerBonus: entry.preference.customerBonus,
-      defaultBonus: entry.preference.defaultBonus,
-      promotionBonus: entry.preference.promotionBonus,
-    })),
-  });
+  if (emitLog) {
+    matchLog("findBestByTermGroups.scored", {
+      debugLabel,
+      constraints,
+      selectedSource: selectedEvaluation?.termGroup?.source || null,
+      candidates: evaluations.slice(0, 25).map((entry) => ({
+        id: Number(entry.row.id),
+        name: entry.row.name,
+        sub_category: entry.row.sub_category,
+        source: entry.termGroup.source,
+        term: entry.termGroup.term,
+        scopeRank: entry.scopeRank,
+        matchedWeight: entry.tokenMatch.matchedWeight,
+        coverage: entry.tokenMatch.coverage,
+        averageSimilarity: entry.tokenMatch.averageSimilarity,
+        missingTokens: entry.tokenMatch.missingTokens,
+        extraTokens: entry.tokenMatch.extraTokens,
+        preferenceScore: entry.preference.score,
+        customerBonus: entry.preference.customerBonus,
+        defaultBonus: entry.preference.defaultBonus,
+        promotionBonus: entry.preference.promotionBonus,
+      })),
+    });
+  }
+
+  if (returnMeta) {
+    return {
+      row: selectedEvaluation?.row || null,
+      selectedEvaluation,
+      evaluations,
+      constraints,
+    };
+  }
 
   return selectedEvaluation?.row || null;
 }
@@ -902,12 +1140,120 @@ async function findBestProductForRequest(shop_id, req, opts = {}) {
     return best;
   }
 
+  let recoveryDecision = {
+    accepted: false,
+    reason: "recovery_not_run",
+    matches: [],
+  };
+
+  try {
+    const shopRecoveryRows = await loadShopRecoveryProducts({
+      shop_id,
+      shopRowsCache: opts.shopRowsCache,
+    });
+
+    recoveryDecision = await findWholeShopRecoveryDecision({
+      rows: shopRecoveryRows,
+      termGroups: searchTerms,
+      excludeTokens,
+      requestedCategory: category,
+    });
+
+    matchLog("findBestProductForRequest.wholeShopRecoveryDecision", {
+      requested_category: category,
+      requested_sub_category: primarySub,
+      ...recoveryDecision,
+    });
+
+    if (recoveryDecision.accepted && recoveryDecision.category) {
+      const recoveredCategory = recoveryDecision.category;
+      const recoveredPrimarySub = recoveryDecision.sub_category || null;
+      let recoveredRelatedSubs = [];
+
+      if (recoveredPrimarySub) {
+        try {
+          const resolved = await getSubCategoryCandidates(
+            recoveredCategory,
+            recoveredPrimarySub,
+          );
+          recoveredRelatedSubs = normalizeRequestTokens(resolved || []).filter(
+            (sub) => sub !== recoveredPrimarySub,
+          );
+        } catch (error) {
+          console.error("[MATCH] recovered getSubCategoryCandidates failed", {
+            recoveredCategory,
+            recoveredPrimarySub,
+            error: error?.message || String(error),
+          });
+        }
+      }
+
+      const recoveredRows = annotateCustomerDefaults(
+        await loadCategoryProducts({
+          shop_id,
+          category: recoveredCategory,
+          categoryRowsCache: opts.categoryRowsCache,
+        }),
+        customerDefaultProductIds,
+      );
+
+      const recoveredBest = await findBestByTermGroups({
+        rows: recoveredRows,
+        termGroups: searchTerms,
+        excludeTokens,
+        debugLabel: "wholeShopRecoveredCategory",
+        customerDefaultProductIds,
+        primarySub: recoveredPrimarySub,
+        relatedSubs: recoveredRelatedSubs,
+      });
+
+      if (recoveredBest) {
+        const result = {
+          ...recoveredBest,
+          _category_recovery: {
+            from_category: category,
+            from_sub_category: primarySub,
+            to_category: recoveredCategory,
+            to_sub_category: recoveredPrimarySub,
+            selected_term: recoveryDecision.selected_term,
+            selected_source: recoveryDecision.selected_source,
+            reason: recoveryDecision.reason,
+          },
+        };
+
+        matchLog("findBestProductForRequest.return.wholeShopRecovered", {
+          id: Number(result.id),
+          name: result.name,
+          category: result.category,
+          sub_category: result.sub_category,
+          recovery: result._category_recovery,
+        });
+        return result;
+      }
+    }
+
+  } catch (error) {
+    recoveryDecision = {
+      accepted: false,
+      reason: "recovery_error",
+      matches: [],
+      error: error?.message || String(error),
+    };
+    console.error("[MATCH] whole-shop recovery failed", {
+      shop_id,
+      category,
+      primarySub,
+      error: recoveryDecision.error,
+    });
+  }
+
   matchLog("findBestProductForRequest.return.null", {
     req,
     category,
     primarySub,
     searchTerms: compactSearchTerms(searchTerms),
     excludeTokens,
+    recoveryDecision,
   });
   return null;
 }
@@ -921,12 +1267,14 @@ async function searchProducts(shop_id, products, opts = {}) {
   const found = [];
   const notFound = [];
   const categoryRowsCache = new Map();
+  const shopRowsCache = new Map();
 
   for (let index = 0; index < products.length; index += 1) {
     const req = products[index];
     const row = await findBestProductForRequest(shop_id, req, {
       customerDefaultProductIds,
       categoryRowsCache,
+      shopRowsCache,
     });
 
     if (row) {
@@ -953,6 +1301,8 @@ async function searchProducts(shop_id, products, opts = {}) {
         matched_display_name_en: row.display_name_en,
         is_default: Number(row.is_default || 0) === 1,
         customer_default: Number(row.customer_default || 0) === 1,
+        category_recovered: Boolean(row._category_recovery),
+        category_recovery: row._category_recovery || null,
       });
     } else {
       const amount = Number(req?.amount);
@@ -1404,4 +1754,5 @@ module.exports = {
   pickBestWeighted,
   findBestByTermGroups,
   collectRequestConstraints,
+  findWholeShopRecoveryDecision,
 };

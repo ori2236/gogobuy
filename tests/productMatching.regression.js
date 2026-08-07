@@ -33,6 +33,7 @@ const {
   extractHardConstraintTokens,
   buildTokenMatchMeta,
   findBestByTermGroups,
+  findWholeShopRecoveryDecision,
   minimumMatchedTokenCount,
   tokenCoverageThreshold,
 } = require("../services/products");
@@ -90,7 +91,10 @@ async function main() {
     "the matcher must trust the AI-separated product name and amount",
   );
 
-  assert(!productsSource.includes("shopWide"), "whole-shop matching must not exist");
+  assert(
+    productsSource.includes("findWholeShopRecoveryDecision"),
+    "a controlled whole-shop recovery decision must exist",
+  );
   assert(
     !/[\u05d1][\u05d9][\u05e6][\u05d4\u05d9\u05d9\u05dd]/.test(productsSource),
     "the matcher must not contain product-specific egg logic",
@@ -552,6 +556,122 @@ async function main() {
     1,
     "explicit numeric package constraints must not be overridden by defaults",
   );
+
+
+  const ravioliRecovery = await findWholeShopRecoveryDecision({
+    rows: [
+      row({ id: 1, name: "רביולי 150 גרם", category: "Pantry", sub_category: "Pasta" }),
+      row({ id: 2, name: "רביולי גבינות 300 גרם", category: "Pantry", sub_category: "Pasta" }),
+      row({ id: 3, name: "פיצה קפואה", category: "Frozen", sub_category: "Ready Meals" }),
+    ],
+    termGroups: buildProductSearchTerms({
+      original_user_text: "רביולי",
+      name: "רביולי",
+      search_terms: ["רביולי"],
+    }),
+    excludeTokens: [],
+    requestedCategory: "Frozen",
+  });
+  assert.strictEqual(ravioliRecovery.accepted, true);
+  assert.strictEqual(ravioliRecovery.category, "Pantry");
+  assert.strictEqual(ravioliRecovery.sub_category, "Pasta");
+
+  const cookieRecovery = await findWholeShopRecoveryDecision({
+    rows: [
+      row({
+        id: 10,
+        name: "עוגיות שוקולד ציפס במילוי קרם נוגט",
+        category: "Snacks",
+        sub_category: "Cookies & Biscuits",
+      }),
+      row({
+        id: 11,
+        name: "עוגיות אוראו סנדוויץ בטעם שוקולד",
+        category: "Snacks",
+        sub_category: "Cookies & Biscuits",
+      }),
+      row({
+        id: 12,
+        name: "עוגת שוקולד",
+        category: "Bakery",
+        sub_category: "Cakes & Pastries",
+      }),
+    ],
+    termGroups: buildProductSearchTerms({
+      original_user_text: "עוגיות שוקולד",
+      name: "עוגיות שוקולד",
+      search_terms: ["עוגיות שוקולד"],
+    }),
+    excludeTokens: [],
+    requestedCategory: "Bakery",
+  });
+  assert.strictEqual(cookieRecovery.accepted, true);
+  assert.strictEqual(cookieRecovery.category, "Snacks");
+
+  const cucumberRecovery = await findWholeShopRecoveryDecision({
+    rows: [
+      row({ id: 20, name: "מלפפון", category: "Produce", sub_category: "Vegetables" }),
+      row({ id: 21, name: "מלפפון במלח", category: "Pantry", sub_category: "Pickles & Olives" }),
+      row({ id: 22, name: "דאודורנט מלפפונים", category: "Personal Care", sub_category: "Deodorants" }),
+    ],
+    termGroups: buildProductSearchTerms({
+      original_user_text: "מלפפונים",
+      name: "מלפפון",
+      search_terms: ["מלפפונים", "מלפפון"],
+    }),
+    excludeTokens: [],
+    requestedCategory: "Personal Care",
+  });
+  assert.strictEqual(cucumberRecovery.accepted, false);
+  assert.strictEqual(cucumberRecovery.reason, "ambiguous_categories");
+
+  const cornflakesRecovery = await findWholeShopRecoveryDecision({
+    rows: [
+      row({ id: 30, name: "קורנפלקס אלופים", category: "Pantry", sub_category: "Breakfast Cereal" }),
+      row({ id: 31, name: "קליק קורנפלקס", category: "Snacks", sub_category: "Candy & Chocolate" }),
+      row({ id: 32, name: "מילקי טופ קורנפלקס", category: "Dairy & Eggs", sub_category: "Desserts & Puddings" }),
+    ],
+    termGroups: buildProductSearchTerms({
+      original_user_text: "קורנפלקס",
+      name: "קורנפלקס",
+      search_terms: ["קורנפלקס"],
+    }),
+    excludeTokens: [],
+    requestedCategory: "Frozen",
+  });
+  assert.strictEqual(cornflakesRecovery.accepted, false);
+  assert.strictEqual(cornflakesRecovery.reason, "ambiguous_categories");
+
+  const ambiguousBrandRecovery = await findWholeShopRecoveryDecision({
+    rows: [
+      row({ id: 40, name: "משקה חלב יוטבתה", category: "Dairy & Eggs", sub_category: "Milk" }),
+      row({ id: 41, name: "אייס קפה יוטבתה", category: "Beverages", sub_category: "Coffee" }),
+    ],
+    termGroups: buildProductSearchTerms({
+      original_user_text: "יוטבתה",
+      name: "יוטבתה",
+      search_terms: ["יוטבתה"],
+    }),
+    excludeTokens: [],
+    requestedCategory: "Pantry",
+  });
+  assert.strictEqual(ambiguousBrandRecovery.accepted, false);
+  assert.strictEqual(ambiguousBrandRecovery.reason, "ambiguous_categories");
+
+  const genericSingleTokenRecovery = await findWholeShopRecoveryDecision({
+    rows: [
+      row({ id: 50, name: "מלפפון גדול", category: "Produce", sub_category: "Vegetables" }),
+    ],
+    termGroups: buildProductSearchTerms({
+      original_user_text: "גדול",
+      name: "גדול",
+      search_terms: ["גדול"],
+    }),
+    excludeTokens: [],
+    requestedCategory: "Pantry",
+  });
+  assert.strictEqual(genericSingleTokenRecovery.accepted, false);
+  assert.strictEqual(genericSingleTokenRecovery.reason, "unsafe_generic_single_token");
 
   console.log("product matching regression checks passed");
 }
