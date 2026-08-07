@@ -25,6 +25,7 @@ const { normalizeIncomingQuestions } = require("../../utilities/normalize");
 const { buildModifyOrderSchema } = require("./schemas/modify.schema");
 const { getExcludeTokensFromReq } = require("../../utilities/tokens");
 const { parseModelAnswer } = require("../../utilities/jsonParse");
+const { ensureProductDefaultSchema } = require("../../utilities/productDefaultSchema");
 const { buildQuestionsBlock } = require("../../utilities/messageBuilders");
 const { buildQuantityLimitWarningBlock } = require("../../utilities/productQuantityLimit");
 const { recalculateOrderTotalWithFulfillment } = require("../../services/fulfillment");
@@ -160,6 +161,12 @@ async function applyOrderPatch({
   maxPerProduct,
   baseQuestionsCount = 0,
 }) {
+  // Important: warm/verify the product schema before opening the order transaction.
+  // findBestProductForRequest() also calls this helper, but doing the first call
+  // inside a transaction that already references `product` can block MySQL DDL
+  // on a metadata lock and make the request wait indefinitely.
+  await ensureProductDefaultSchema();
+
   const conn = await db.getConnection();
   const stockQuestions = [];
   const stockNotices = [];
