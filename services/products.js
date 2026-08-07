@@ -318,6 +318,110 @@ function candidateTokensForTerm(row, termGroup) {
   };
 }
 
+function isJoinableWordToken(token) {
+  const value = String(token || "");
+  return (
+    value.length >= 2 &&
+    !isNumericToken(value) &&
+    !isUnitToken(value) &&
+    !isNegationToken(value) &&
+    /^[a-z\u0590-\u05FF]+$/i.test(value)
+  );
+}
+
+function findJoinedCandidateTokensMatch(
+  requestedToken,
+  candidateTokens,
+  usedCandidate = new Set(),
+) {
+  if (!isJoinableWordToken(requestedToken) || String(requestedToken).length < 6) return null;
+
+  let best = null;
+  for (let start = 0; start < candidateTokens.length; start += 1) {
+    for (let length = 2; length <= 3 && start + length <= candidateTokens.length; length += 1) {
+      const indices = Array.from({ length }, (_, offset) => start + offset);
+      if (indices.some((index) => usedCandidate.has(index))) continue;
+
+      const parts = indices.map((index) => candidateTokens[index]);
+      if (!parts.every(isJoinableWordToken)) continue;
+
+      const joined = parts.join("");
+      const similarity = tokenSimilarity(requestedToken, joined);
+      if (similarity < TOKEN_FUZZY_MATCH_THRESHOLD) continue;
+
+      if (!best || similarity > best.similarity || (similarity === best.similarity && length < best.indices.length)) {
+        best = { indices, joined, similarity };
+      }
+    }
+  }
+
+  return best;
+}
+
+function findJoinedRequestedTokensMatch(
+  candidateToken,
+  requestedTokens,
+  usedRequested = new Set(),
+) {
+  if (!isJoinableWordToken(candidateToken) || String(candidateToken).length < 6) return null;
+
+  let best = null;
+  for (let start = 0; start < requestedTokens.length; start += 1) {
+    for (let length = 2; length <= 3 && start + length <= requestedTokens.length; length += 1) {
+      const indices = Array.from({ length }, (_, offset) => start + offset);
+      if (indices.some((index) => usedRequested.has(index))) continue;
+
+      const parts = indices.map((index) => requestedTokens[index]);
+      if (!parts.every(isJoinableWordToken)) continue;
+
+      const joined = parts.join("");
+      const similarity = tokenSimilarity(joined, candidateToken);
+      if (similarity < TOKEN_FUZZY_MATCH_THRESHOLD) continue;
+
+      if (!best || similarity > best.similarity || (similarity === best.similarity && length < best.indices.length)) {
+        best = { indices, joined, similarity };
+      }
+    }
+  }
+
+  return best;
+}
+
+function isPenaltyTokenCoveredByRequest(penaltyTokens, penaltyIndex, requestedTokens) {
+  const candidateToken = penaltyTokens[penaltyIndex];
+  if (
+    requestedTokens.some(
+      (requestedToken) =>
+        tokenSimilarity(requestedToken, candidateToken) >= TOKEN_FUZZY_MATCH_THRESHOLD,
+    )
+  ) {
+    return true;
+  }
+
+  for (let start = Math.max(0, penaltyIndex - 2); start <= penaltyIndex; start += 1) {
+    for (let length = 2; length <= 3 && start + length <= penaltyTokens.length; length += 1) {
+      if (penaltyIndex < start || penaltyIndex >= start + length) continue;
+      const parts = penaltyTokens.slice(start, start + length);
+      if (!parts.every(isJoinableWordToken)) continue;
+      const joined = parts.join("");
+      if (
+        requestedTokens.some(
+          (requestedToken) =>
+            tokenSimilarity(requestedToken, joined) >= TOKEN_FUZZY_MATCH_THRESHOLD,
+        )
+      ) {
+        return true;
+      }
+    }
+  }
+
+  const joinedRequestedMatch = findJoinedRequestedTokensMatch(
+    candidateToken,
+    requestedTokens,
+  );
+  return Boolean(joinedRequestedMatch);
+}
+
 function buildTokenMatchMeta(
   reqTokens = [],
   candTokens = [],
@@ -350,6 +454,8 @@ function buildTokenMatchMeta(
   const usedRequested = new Set();
   const usedCandidate = new Set();
   const chosenPairs = [];
+  const compoundMatches = new Map();
+
   for (const pair of pairs) {
     if (usedRequested.has(pair.reqIndex) || usedCandidate.has(pair.candIndex)) continue;
     usedRequested.add(pair.reqIndex);
@@ -357,13 +463,50 @@ function buildTokenMatchMeta(
     chosenPairs.push(pair);
   }
 
+  for (let reqIndex = 0; reqIndex < requested.length; reqIndex += 1) {
+    if (usedRequested.has(reqIndex)) continue;
+    const compound = findJoinedCandidateTokensMatch(
+      requested[reqIndex],
+      candidate,
+      usedCandidate,
+    );
+    if (!compound) continue;
+
+    usedRequested.add(reqIndex);
+    compound.indices.forEach((index) => usedCandidate.add(index));
+    compoundMatches.set(reqIndex, {
+      candidate: compound.indices.map((index) => candidate[index]).join(" "),
+      similarity: compound.similarity,
+    });
+  }
+
+  for (let candIndex = 0; candIndex < candidate.length; candIndex += 1) {
+    if (usedCandidate.has(candIndex)) continue;
+    const compound = findJoinedRequestedTokensMatch(
+      candidate[candIndex],
+      requested,
+      usedRequested,
+    );
+    if (!compound) continue;
+
+    usedCandidate.add(candIndex);
+    compound.indices.forEach((reqIndex) => {
+      usedRequested.add(reqIndex);
+      compoundMatches.set(reqIndex, {
+        candidate: candidate[candIndex],
+        similarity: compound.similarity,
+      });
+    });
+  }
+
   const matches = requested.map((requestedToken, reqIndex) => {
     const pair = chosenPairs.find((item) => item.reqIndex === reqIndex);
+    const compound = compoundMatches.get(reqIndex);
     return {
       requested: requestedToken,
-      candidate: pair ? candidate[pair.candIndex] : null,
-      similarity: pair ? pair.similarity : 0,
-      matched: Boolean(pair),
+      candidate: pair ? candidate[pair.candIndex] : compound?.candidate || null,
+      similarity: pair ? pair.similarity : compound?.similarity || 0,
+      matched: Boolean(pair || compound),
       importance: tokenImportance(requestedToken),
     };
   });
@@ -386,11 +529,8 @@ function buildTokenMatchMeta(
     Array.isArray(penaltyTokens) ? penaltyTokens : candidate,
   );
   const extraTokens = penaltySource.filter(
-    (candidateToken) =>
-      !requested.some(
-        (requestedToken) =>
-          tokenSimilarity(requestedToken, candidateToken) >= TOKEN_FUZZY_MATCH_THRESHOLD,
-      ),
+    (_candidateToken, penaltyIndex) =>
+      !isPenaltyTokenCoveredByRequest(penaltySource, penaltyIndex, requested),
   );
 
   const criticalMissingTokens = [];

@@ -145,6 +145,52 @@ async function main() {
     "short unrelated one-letter substitutions must not fuzzy-match",
   );
 
+  const joinedRequestTokenMeta = buildTokenMatchMeta(
+    tokenizeForMatching("עוגיות שוקולדציפס"),
+    tokenizeForMatching("עוגיות שוקולד ציפס במילוי קרם נוגט"),
+  );
+  assert.strictEqual(
+    joinedRequestTokenMeta.coverage,
+    1,
+    "a joined request word must match the same adjacent catalog words when separated",
+  );
+  assert.deepStrictEqual(
+    joinedRequestTokenMeta.missingTokens,
+    [],
+    "joined-vs-separated spelling must not leave request tokens unmatched",
+  );
+
+  const separatedRequestTokenMeta = buildTokenMatchMeta(
+    tokenizeForMatching("עוגיות שוקולד ציפס"),
+    tokenizeForMatching("עוגיות שוקולדציפס 220 גרם"),
+  );
+  assert.strictEqual(
+    separatedRequestTokenMeta.coverage,
+    1,
+    "separated request words must also match the same joined catalog word",
+  );
+
+  const chocolateChipCookies = await choose({
+    rows: [
+      row({ id: 101, name: "עוגיות מרבה בראוניס שוקולד" }),
+      row({ id: 102, name: "עוגיות שוקולד ציפס במילוי קרם נוגט" }),
+      row({ id: 103, name: "עוגיות סנדביץ וניל" }),
+    ],
+    req: {
+      original_user_text: "עוגיות שוקולדציפס",
+      name: "עוגיות שוקולדציפס",
+      search_terms: ["עוגיות שוקולדציפס"],
+      category: "Snacks",
+      "sub-category": "Primary",
+      exclude_tokens: [],
+    },
+  });
+  assert.strictEqual(
+    Number(chocolateChipCookies.id),
+    102,
+    "joined chocolate-chip wording must prefer the product whose adjacent words form the requested compound",
+  );
+
   assert.strictEqual(
     containsPositiveExcludedToken("מגבונים ללא בישום", "בישום"),
     false,
